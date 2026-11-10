@@ -216,6 +216,39 @@ curl https://YOUR-API.onrender.com/api/projects
 The first request after idle can take 30–60 seconds on Render's free plan.
 The client waits 60 seconds and retries a failed GET once.
 
+### Automatic API deployment (GitHub Actions)
+
+Render's GitHub App is not installed on this repository, so `render.yaml`
+keeps `autoDeploy: false`. Instead, the workflow in
+[`.github/workflows/docker-ci.yml`](.github/workflows/docker-ci.yml) deploys
+the API through Render's REST API after every green push to `main`:
+
+1. Add the Render API key as a repository secret:
+   **Settings → Secrets and variables → Actions → New repository secret**
+   named `RENDER_API_KEY`.
+2. Optional repository variables (defaults already point at the live site):
+
+   | Variable | Default |
+   |---|---|
+   | `RENDER_SERVICE_ID` | `srv-dbpcjf6gekts73aoovng` |
+   | `PRODUCTION_API_URL` | `https://mk-portfolio-api.onrender.com` |
+   | `PRODUCTION_SITE_URL` | `https://mk-portfolio-phi-silk.vercel.app` |
+
+The pipeline runs, in order:
+
+- repository hygiene (no tracked `.env`, `node_modules`, `dist`, or logs)
+- server syntax check and unit tests on Node.js 22
+- client ESLint and production build
+- Dockerfile lint
+- full Docker Compose stack with a real MySQL instance, including a check
+  that `schema.sql` / `seed.sql` work under an arbitrary `DB_NAME`
+- admin login, protected routes, API validation, frontend headers, and proxy
+- Render deploy, waiting until the deploy reports `live`
+- production smoke tests against Render and Vercel
+
+The Vercel frontend deploys automatically from the same push through its
+native Git integration; the smoke-test job waits for that build to appear.
+
 ## 5. Deploy the frontend to Vercel
 
 1. Import the repository in Vercel.

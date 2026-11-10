@@ -22,8 +22,10 @@ services:
     # Render restarts the service if this endpoint stops returning 200.
     healthCheckPath: /api/health
 
-    # Push-to-deploy needs Render's GitHub App on the repository. Until it is
-    # connected, deploy the API manually (Render Dashboard or `render deploys create`).
+    # Deployments are triggered by .github/workflows/docker-ci.yml through
+    # Render's REST API after CI passes on main. Render's native GitHub App is
+    # not installed on this repository, so autoDeploy stays off to avoid
+    # deploying commits that failed CI.
     autoDeploy: false
 
     envVars:

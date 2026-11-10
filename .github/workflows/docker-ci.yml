@@ -1,4 +1,23 @@
-name: CI/CD Docker Pipeline
+name: CI/CD Pipeline
+
+# ─────────────────────────────────────────────────────────────
+# Continuous integration + automatic deployment.
+#
+#   pull_request  → hygiene, lint, unit tests, client build, full Docker stack
+#   push to main  → all of the above, then deploy the API to Render and run
+#                   production smoke tests against Render + Vercel.
+#   manual        → workflow_dispatch (same as a main push)
+#
+# The frontend deploys itself through Vercel's native Git integration.
+# The API deploy uses the Render REST API because Render's GitHub App is
+# not installed on this repository.
+#
+# Required repository configuration:
+#   secret   RENDER_API_KEY      Render API key (Account Settings → API Keys)
+#   variable RENDER_SERVICE_ID   optional, defaults to the live service below
+#   variable PRODUCTION_API_URL  optional, defaults to the live API below
+#   variable PRODUCTION_SITE_URL optional, defaults to the live site below
+# ─────────────────────────────────────────────────────────────
 
 on:
   push:
@@ -9,46 +28,68 @@ on:
     branches:
       - main
 
+  workflow_dispatch:
+
 permissions:
   contents: read
 
 concurrency:
-  group: docker-ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Let main deploys finish in order; only supersede stale pull-request runs.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "22"
+  PRODUCTION_API_URL: ${{ vars.PRODUCTION_API_URL || 'https://mk-portfolio-api.onrender.com' }}
+  PRODUCTION_SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://mk-portfolio-phi-silk.vercel.app' }}
+  RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID || 'srv-dbpcjf6gekts73aoovng' }}
 
 jobs:
-  dockerfile-lint:
-    name: Lint Dockerfiles
+  repo-hygiene:
+    name: Repository Hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Ensure No Secrets or Build Output Are Tracked
+        run: |
+          set -euo pipefail
+
+          BAD=$(git ls-files | grep -E \
+            '(^|/)\.env$|(^|/)node_modules/|(^|/)(dist|build|coverage)/|\.(log|pem|key)$|(^|/)\.vercel/' \
+            || true)
+
+          if [ -n "$BAD" ]; then
+            echo "::error::These generated or secret files must not be tracked:"
+            echo "$BAD"
+            exit 1
+          fi
+
+          for TEMPLATE in .env.example client/.env.example server/.env.example; do
+            if [ ! -f "$TEMPLATE" ]; then
+              echo "::error::Missing environment template: $TEMPLATE"
+              exit 1
+            fi
+          done
+
+          echo "Repository is clean and all environment templates are present."
+
+  server-checks:
+    name: Server Syntax & Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Lint Server Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v7
         with:
-          dockerfile: server/Dockerfile
-
-      - name: Lint Client Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: client/Dockerfile
-
-  auth-unit-tests:
-    name: Test Admin Auth & Email Logic
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: server/package-lock.json
 
@@ -56,33 +97,103 @@ jobs:
         working-directory: server
         run: npm ci
 
-      - name: Run Auth and Email Tests
+      - name: Check Server Syntax
+        working-directory: server
+        run: npm run check
+
+      - name: Run Server Tests
         working-directory: server
         run: npm test
 
-  build-and-test:
-    name: Build & Test Full Stack
+  client-checks:
+    name: Client Lint & Build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [dockerfile-lint, auth-unit-tests]
+    timeout-minutes: 10
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install Client Dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Lint Client
+        working-directory: client
+        run: npm run lint
+
+      - name: Build Client
+        working-directory: client
+        env:
+          VITE_API_BASE_URL: ${{ env.PRODUCTION_API_URL }}
+        run: npm run build
+
+      - name: Verify Build Output
+        working-directory: client
+        run: |
+          set -euo pipefail
+
+          test -f dist/index.html
+          test -d dist/assets
+
+          if ! grep -q '<div id="root"></div>' dist/index.html; then
+            echo "::error::dist/index.html does not contain the React root element."
+            exit 1
+          fi
+
+          echo "Client build output is valid."
+
+  dockerfile-lint:
+    name: Lint Dockerfiles
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Lint Server Dockerfile
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: server/Dockerfile
+
+      - name: Lint Client Dockerfile
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: client/Dockerfile
+
+  docker-stack:
+    name: Build & Test Full Stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [repo-hygiene, server-checks, client-checks, dockerfile-lint]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # docker-compose.yml requires server/.env (via env_file) and a root
       # .env (for ${DB_PASSWORD} / ${DB_NAME} substitution). Both are
-      # correctly gitignored and don't exist on the CI runner, which is
-      # why "Validate Docker Compose Configuration" was failing. This step
-      # generates CI-only, non-production values so the stack can boot for
-      # a smoke test. These values are never used outside this workflow run.
-      - name: Create env files for CI
+      # gitignored, so this step generates CI-only values. They are never
+      # used outside this workflow run.
+      - name: Create CI Environment Files
         run: |
-          cat <<'EOF' > server/.env
+          set -euo pipefail
+          umask 077
+
+          cat > server/.env <<'EOF'
           PORT=5000
+          HOST=0.0.0.0
           CLIENT_URL=http://localhost
 
           DB_HOST=db
@@ -91,25 +202,22 @@ jobs:
           DB_PASSWORD=ci_test_password
           DB_NAME=portfolio_ci
 
-          # CI's database is a local Docker MySQL container with a
-          # self-signed cert, not TiDB Cloud's real CA-signed cert.
-          # Strict SSL validation would fail here, so it's explicitly
-          # disabled for this workflow only.
+          # The CI database is a local container with a self-signed cert,
+          # not TiDB Cloud's CA-signed endpoint.
           DB_SSL=false
 
           # 48 characters — production validation requires at least 32.
           JWT_SECRET=ci_test_jwt_secret_0123456789abcdef0123456789
 
           # CI-only admin identity. Never used in a real deployment.
-          # This intentionally exercises the plain-text env auth path.
           ADMIN_EMAIL=ci-admin@portfolio.test
           ADMIN_PASSWORD=ci_test_password_2026!
           EOF
 
           # Cloudinary, Gmail and Gemini are intentionally unset so CI also
-          # verifies that the API boots and serves content without them.
+          # proves the API boots and serves content without those integrations.
 
-          cat <<'EOF' > .env
+          cat > .env <<'EOF'
           DB_PASSWORD=ci_test_password
           DB_NAME=portfolio_ci
           EOF
@@ -122,7 +230,6 @@ jobs:
 
       - name: Verify Images Exclude Secrets
         run: |
-          # .dockerignore must keep server/.env out of the production image.
           docker compose run --rm --no-deps --entrypoint sh server -c \
             "if [ -f /app/.env ]; then echo 'server/.env was baked into the image'; exit 1; fi; echo 'No .env file in server image.'"
 
@@ -131,46 +238,95 @@ jobs:
 
       - name: Wait for Services
         run: |
-          echo "Waiting for containers..."
+          set -euo pipefail
+          echo "Waiting for the API and database..."
 
-          READY=0
-
-          for i in {1..18}
-          do
+          for i in $(seq 1 24); do
             # /api/health/ready only returns 200 once MySQL answers, so it
             # proves the full server -> database path, not just the process.
-            if curl -fs http://localhost:5000/api/health/ready > /dev/null; then
+            if curl -fsS --max-time 5 http://localhost:5000/api/health/ready > /dev/null; then
               echo "Backend and database are ready."
-              READY=1
-              break
+              exit 0
             fi
 
-            echo "Waiting..."
+            echo "Waiting... ($i/24)"
             sleep 5
           done
 
-          if [ "$READY" -ne 1 ]; then
-            echo "Backend did not become ready in time."
-            docker compose logs server
+          echo "::error::Backend did not become ready in time."
+          docker compose ps
+          docker compose logs server db
+          exit 1
+
+      # Proves schema.sql/seed.sql work with an arbitrary database name and
+      # contain no hardcoded `USE portfolio`. This is the exact bug that made
+      # every earlier CI run fail with "Table 'portfolio_ci.projects' doesn't exist".
+      - name: Test SQL Against an Arbitrary Database Name
+        run: |
+          set -euo pipefail
+
+          docker compose exec -T -e MYSQL_PWD=ci_test_password db \
+            mysql -uroot -e \
+            "CREATE DATABASE portfolio_alt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+          docker compose exec -T db sh -c \
+            'MYSQL_PWD=ci_test_password mysql -uroot portfolio_alt < /docker-entrypoint-initdb.d/schema.sql'
+
+          docker compose exec -T db sh -c \
+            'MYSQL_PWD=ci_test_password mysql -uroot portfolio_alt < /docker-entrypoint-initdb.d/seed.sql'
+
+          for TABLE in projects skills certificates messages; do
+            COUNT=$(docker compose exec -T -e MYSQL_PWD=ci_test_password db \
+              mysql -uroot -N -B -e "SELECT COUNT(*) FROM portfolio_alt.${TABLE};" | tr -d '\r')
+
+            echo "portfolio_alt.${TABLE}: ${COUNT} row(s)"
+          done
+
+          PROJECTS=$(docker compose exec -T -e MYSQL_PWD=ci_test_password db \
+            mysql -uroot -N -B -e "SELECT COUNT(*) FROM portfolio_alt.projects;" | tr -d '\r')
+
+          if [ "$PROJECTS" -lt 4 ]; then
+            echo "::error::Expected at least 4 seeded projects, found ${PROJECTS}."
             exit 1
           fi
 
+          echo "SQL files are database-name independent."
+
+      - name: Verify Database Schema
+        run: docker compose exec -T server npm run db:check
+
       - name: Test Backend API
         run: |
-          for ENDPOINT in /api/health /api/health/ready /api/projects /api/system; do
+          set -euo pipefail
+
+          for ENDPOINT in /api/health /api/health/ready /api/projects /api/skills /api/certificates /api/system; do
             STATUS=$(curl \
               --write-out "%{http_code}" \
               --silent \
               --output /dev/null \
               "http://localhost:5000${ENDPOINT}")
 
-            if [ "$STATUS" = "200" ]; then
-              echo "${ENDPOINT} OK (200)"
-            else
-              echo "${ENDPOINT} failed (${STATUS})"
+            if [ "$STATUS" != "200" ]; then
+              echo "::error::${ENDPOINT} failed (${STATUS})"
               docker compose logs server
               exit 1
             fi
+
+            echo "${ENDPOINT} OK (200)"
+          done
+
+          # Seed data must be visible through the API, not just present in SQL.
+          for PAIR in projects:4 skills:16 certificates:16; do
+            RESOURCE=${PAIR%%:*}
+            MINIMUM=${PAIR##*:}
+            COUNT=$(curl -fsS "http://localhost:5000/api/${RESOURCE}" | jq -r '.count')
+
+            if [ "$COUNT" -lt "$MINIMUM" ]; then
+              echo "::error::/api/${RESOURCE} returned ${COUNT} rows, expected at least ${MINIMUM}."
+              exit 1
+            fi
+
+            echo "/api/${RESOURCE} returned ${COUNT} rows."
           done
 
           # Malformed JSON must return 400 (not 500) from the error middleware.
@@ -184,7 +340,7 @@ jobs:
             http://localhost:5000/api/messages)
 
           if [ "$MALFORMED_STATUS" != "400" ]; then
-            echo "Malformed JSON returned ${MALFORMED_STATUS}, expected 400"
+            echo "::error::Malformed JSON returned ${MALFORMED_STATUS}, expected 400"
             exit 1
           fi
 
@@ -200,7 +356,7 @@ jobs:
             http://localhost:5000/api/messages)
 
           if [ "$FIELD_TYPE_STATUS" != "400" ]; then
-            echo "Wrong field type returned ${FIELD_TYPE_STATUS}, expected 400"
+            echo "::error::Wrong field type returned ${FIELD_TYPE_STATUS}, expected 400"
             exit 1
           fi
 
@@ -208,6 +364,8 @@ jobs:
 
       - name: Test Admin Authentication
         run: |
+          set -euo pipefail
+
           LOGIN_STATUS=$(curl \
             --silent \
             --output /tmp/login.json \
@@ -218,30 +376,32 @@ jobs:
             http://localhost:5000/api/auth/login)
 
           if [ "$LOGIN_STATUS" != "200" ]; then
-            echo "Admin login failed (${LOGIN_STATUS})"
+            echo "::error::Admin login failed (${LOGIN_STATUS})"
             cat /tmp/login.json
             docker compose logs server
             exit 1
           fi
 
-          TOKEN=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/login.json','utf8')).token)")
+          TOKEN=$(jq -r '.token' /tmp/login.json)
 
-          if [ -z "$TOKEN" ]; then
-            echo "Login response did not include a token."
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "::error::Login response did not include a token."
             exit 1
           fi
 
-          PROTECTED_STATUS=$(curl \
-            --silent \
-            --output /dev/null \
-            --write-out "%{http_code}" \
-            --header "Authorization: Bearer ${TOKEN}" \
-            http://localhost:5000/api/messages)
+          for ROUTE in messages projects skills certificates; do
+            PROTECTED_STATUS=$(curl \
+              --silent \
+              --output /dev/null \
+              --write-out "%{http_code}" \
+              --header "Authorization: Bearer ${TOKEN}" \
+              "http://localhost:5000/api/${ROUTE}")
 
-          if [ "$PROTECTED_STATUS" != "200" ]; then
-            echo "Protected admin route rejected the token (${PROTECTED_STATUS})"
-            exit 1
-          fi
+            if [ "$PROTECTED_STATUS" != "200" ]; then
+              echo "::error::Protected route /api/${ROUTE} rejected the token (${PROTECTED_STATUS})."
+              exit 1
+            fi
+          done
 
           WRONG_STATUS=$(curl \
             --silent \
@@ -253,7 +413,7 @@ jobs:
             http://localhost:5000/api/auth/login)
 
           if [ "$WRONG_STATUS" != "401" ]; then
-            echo "Wrong password was not rejected with 401 (${WRONG_STATUS})"
+            echo "::error::Wrong password was not rejected with 401 (${WRONG_STATUS})"
             exit 1
           fi
 
@@ -267,7 +427,7 @@ jobs:
             http://localhost:5000/api/auth/login)
 
           if [ "$WRONG_EMAIL_STATUS" != "401" ]; then
-            echo "Wrong email was not rejected with 401 (${WRONG_EMAIL_STATUS})"
+            echo "::error::Wrong email was not rejected with 401 (${WRONG_EMAIL_STATUS})"
             exit 1
           fi
 
@@ -275,6 +435,8 @@ jobs:
 
       - name: Test Frontend
         run: |
+          set -euo pipefail
+
           for URL in http://localhost/ http://localhost/projects http://localhost/admin; do
             STATUS=$(curl \
               --write-out "%{http_code}" \
@@ -282,16 +444,16 @@ jobs:
               --output /dev/null \
               "$URL")
 
-            if [ "$STATUS" = "200" ]; then
-              echo "${URL} OK (200)"
-            else
-              echo "${URL} failed (${STATUS})"
+            if [ "$STATUS" != "200" ]; then
+              echo "::error::${URL} failed (${STATUS})"
               docker compose logs client
               exit 1
             fi
+
+            echo "${URL} OK (200)"
           done
 
-          # Nginx must proxy /api to the Express service, not serve index.html.
+          # Nginx must proxy /api to Express, not serve index.html.
           PROXY_STATUS=$(curl \
             --write-out "%{http_code}" \
             --silent \
@@ -299,7 +461,7 @@ jobs:
             http://localhost/api/health)
 
           if [ "$PROXY_STATUS" != "200" ]; then
-            echo "Nginx /api proxy failed (${PROXY_STATUS})"
+            echo "::error::Nginx /api proxy failed (${PROXY_STATUS})"
             docker compose logs client server
             exit 1
           fi
@@ -316,31 +478,317 @@ jobs:
             "Permissions-Policy"
           do
             if ! echo "$HEADERS" | grep -qi "^${HEADER}:"; then
-              echo "Missing security header: ${HEADER}"
+              echo "::error::Missing security header: ${HEADER}"
               exit 1
             fi
           done
 
           if echo "$HEADERS" | grep -qi "^Server:.*nginx/[0-9]"; then
-            echo "Nginx version is exposed in the Server header."
+            echo "::error::Nginx version is exposed in the Server header."
             exit 1
           fi
 
           echo "Frontend security headers OK."
 
-      - name: Upload Logs on Failure
+      - name: Collect Docker Logs
         if: failure()
         run: |
-          mkdir logs
-          docker compose logs > logs/docker.log
+          mkdir -p logs
+          docker compose ps > logs/compose-ps.log || true
+          docker compose logs --no-color > logs/docker.log || true
 
-      - name: Upload Workflow Logs
+      - name: Upload Logs on Failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: docker-logs
+          name: docker-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: logs
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Stop Containers
         if: always()
         run: docker compose down -v
+
+  deploy-api:
+    name: Deploy API to Render
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [repo-hygiene, server-checks, client-checks, dockerfile-lint, docker-stack]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          # Full history lets us prove the deployed commit belongs to this branch.
+          fetch-depth: 0
+
+      - name: Validate Render Credentials
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          if [ -z "${RENDER_API_KEY}" ]; then
+            echo "::error::RENDER_API_KEY is not configured. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+          if [ -z "${RENDER_SERVICE_ID}" ]; then
+            echo "::error::RENDER_SERVICE_ID is empty."
+            exit 1
+          fi
+
+      - name: Trigger Render Deploy
+        id: trigger
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          RESPONSE=$(curl -fsS \
+            --request POST \
+            --header "Authorization: Bearer ${RENDER_API_KEY}" \
+            --header "Content-Type: application/json" \
+            --data "{\"clearCache\":\"do_not_clear\",\"commitId\":\"${GITHUB_SHA}\"}" \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys")
+
+          DEPLOY_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+
+          if [ -z "$DEPLOY_ID" ]; then
+            echo "::error::Render did not return a deploy id."
+            echo "$RESPONSE"
+            exit 1
+          fi
+
+          echo "deploy_id=${DEPLOY_ID}" >> "$GITHUB_OUTPUT"
+          echo "Triggered Render deploy ${DEPLOY_ID} for ${GITHUB_SHA}."
+
+      - name: Wait for Render Deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          DEPLOY_ID: ${{ steps.trigger.outputs.deploy_id }}
+        run: |
+          set -euo pipefail
+
+          for i in $(seq 1 80); do
+            RESPONSE=$(curl -fsS \
+              --header "Authorization: Bearer ${RENDER_API_KEY}" \
+              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${DEPLOY_ID}")
+
+            STATUS=$(echo "$RESPONSE" | jq -r '.status')
+            echo "Render deploy status: ${STATUS} (${i}/80)"
+
+            case "$STATUS" in
+              live)
+                DEPLOYED_SHA=$(echo "$RESPONSE" | jq -r '.commit.id // empty')
+
+                if [ -n "$DEPLOYED_SHA" ]; then
+                  if git merge-base --is-ancestor "$GITHUB_SHA" "$DEPLOYED_SHA" 2>/dev/null || \
+                     git merge-base --is-ancestor "$DEPLOYED_SHA" "$GITHUB_SHA" 2>/dev/null; then
+                    echo "Deployed commit ${DEPLOYED_SHA:0:7} is on this branch."
+                  else
+                    echo "::error::Deployed commit ${DEPLOYED_SHA:0:7} is unrelated to ${GITHUB_SHA:0:7}."
+                    exit 1
+                  fi
+
+                  echo "### API deployed" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- Commit: \`${DEPLOYED_SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- Deploy: \`${DEPLOY_ID}\`" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- URL: ${PRODUCTION_API_URL}" >> "$GITHUB_STEP_SUMMARY"
+                fi
+
+                exit 0
+                ;;
+
+              build_failed|pre_deploy_failed|update_failed|canceled|deactivated)
+                echo "::error::Render deploy ended with status ${STATUS}."
+                echo "$RESPONSE" | jq .
+                exit 1
+                ;;
+            esac
+
+            sleep 15
+          done
+
+          echo "::error::Timed out waiting for Render deploy ${DEPLOY_ID}."
+          exit 1
+
+  production-smoke:
+    name: Production Smoke Tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [deploy-api]
+
+    steps:
+      - name: Wait for Production API
+        run: |
+          set -euo pipefail
+
+          # Render's free tier spins down when idle; the first request can
+          # take up to a minute while the instance resumes.
+          for i in $(seq 1 36); do
+            if curl -fsS --max-time 60 "${PRODUCTION_API_URL}/api/health" > /dev/null; then
+              echo "API is healthy."
+              exit 0
+            fi
+
+            echo "Waiting for API... (${i}/36)"
+            sleep 10
+          done
+
+          echo "::error::Production API did not become healthy."
+          exit 1
+
+      - name: Verify API Readiness and Content
+        run: |
+          set -euo pipefail
+
+          READY=$(curl -fsS --max-time 60 "${PRODUCTION_API_URL}/api/health/ready")
+          echo "$READY" | jq -e '.success == true and .database == "connected"'
+
+          for PAIR in projects:4 skills:16 certificates:16; do
+            RESOURCE=${PAIR%%:*}
+            MINIMUM=${PAIR##*:}
+            BODY=$(curl -fsS --max-time 60 "${PRODUCTION_API_URL}/api/${RESOURCE}")
+            COUNT=$(echo "$BODY" | jq -r '.count')
+            MISSING=$(echo "$BODY" | jq -r '[.data[] | select((.title // .name // "") == "")] | length')
+
+            if [ "$COUNT" -lt "$MINIMUM" ]; then
+              echo "::error::/api/${RESOURCE} returned ${COUNT} rows, expected at least ${MINIMUM}."
+              exit 1
+            fi
+
+            if [ "$MISSING" -gt 0 ]; then
+              echo "::error::/api/${RESOURCE} returned ${MISSING} rows without a title/name."
+              exit 1
+            fi
+
+            echo "/api/${RESOURCE}: ${COUNT} rows, all named."
+          done
+
+          SYSTEM=$(curl -fsS --max-time 60 "${PRODUCTION_API_URL}/api/system")
+          NODE_VERSION=$(echo "$SYSTEM" | jq -r '.data.host.nodeVersion')
+
+          case "$NODE_VERSION" in
+            v22.*) echo "Production Node.js: ${NODE_VERSION}" ;;
+            *) echo "::error::Production is running Node ${NODE_VERSION}, expected v22.x."; exit 1 ;;
+          esac
+
+      - name: Verify Production Auth and CORS
+        run: |
+          set -euo pipefail
+
+          WRONG_PASSWORD_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --max-time 60 \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"email":"not-the-admin@example.com","password":"definitely-wrong"}' \
+            "${PRODUCTION_API_URL}/api/auth/login")
+
+          if [ "$WRONG_PASSWORD_STATUS" != "401" ]; then
+            echo "::error::Wrong production credentials returned ${WRONG_PASSWORD_STATUS}, expected 401."
+            exit 1
+          fi
+
+          echo "Production admin auth rejects invalid credentials."
+
+          CORS_HEADERS=$(curl \
+            --silent \
+            --show-error \
+            --dump-header - \
+            --output /dev/null \
+            --max-time 60 \
+            --request OPTIONS \
+            --header "Origin: ${PRODUCTION_SITE_URL}" \
+            --header "Access-Control-Request-Method: GET" \
+            "${PRODUCTION_API_URL}/api/projects")
+
+          if ! echo "$CORS_HEADERS" | grep -qi "^access-control-allow-origin: ${PRODUCTION_SITE_URL}"; then
+            echo "::error::CORS preflight did not allow ${PRODUCTION_SITE_URL}."
+            echo "$CORS_HEADERS"
+            exit 1
+          fi
+
+          echo "Production CORS allows the Vercel origin."
+
+      - name: Verify Production Frontend
+        run: |
+          set -euo pipefail
+
+          # Vercel deploys from the same push; allow its build a few minutes.
+          HOME_STATUS=""
+          for i in $(seq 1 30); do
+            HOME_STATUS=$(curl \
+              --silent \
+              --output /tmp/home.html \
+              --write-out "%{http_code}" \
+              --max-time 60 \
+              "${PRODUCTION_SITE_URL}/" || true)
+
+            if [ "$HOME_STATUS" = "200" ] && grep -q '<div id="root"></div>' /tmp/home.html; then
+              echo "Frontend is live."
+              break
+            fi
+
+            echo "Waiting for Vercel deployment... (${i}/30)"
+            sleep 10
+            HOME_STATUS=""
+          done
+
+          if [ -z "$HOME_STATUS" ]; then
+            echo "::error::Production frontend did not become available."
+            exit 1
+          fi
+
+          for ROUTE in / /projects /skills /certificates /system /contact /admin /this-route-does-not-exist; do
+            STATUS=$(curl \
+              --silent \
+              --output /dev/null \
+              --write-out "%{http_code}" \
+              --max-time 60 \
+              "${PRODUCTION_SITE_URL}${ROUTE}")
+
+            if [ "$STATUS" != "200" ]; then
+              echo "::error::${ROUTE} returned ${STATUS}, expected 200 (SPA fallback)."
+              exit 1
+            fi
+
+            echo "${ROUTE} OK (200)"
+          done
+
+          HEADERS=$(curl --silent --show-error --head --max-time 60 "${PRODUCTION_SITE_URL}/")
+
+          for HEADER in \
+            "content-security-policy" \
+            "x-frame-options" \
+            "x-content-type-options" \
+            "referrer-policy" \
+            "permissions-policy" \
+            "strict-transport-security"
+          do
+            if ! echo "$HEADERS" | grep -qi "^${HEADER}:"; then
+              echo "::error::Missing production security header: ${HEADER}"
+              exit 1
+            fi
+          done
+
+          echo "Production security headers OK."
+
+      - name: Verify SEO Files
+        run: |
+          set -euo pipefail
+
+          ROBOTS=$(curl -fsS --max-time 60 "${PRODUCTION_SITE_URL}/robots.txt")
+          SITEMAP=$(curl -fsS --max-time 60 "${PRODUCTION_SITE_URL}/sitemap.xml")
+
+          echo "$ROBOTS" | grep -q "Sitemap: ${PRODUCTION_SITE_URL}/sitemap.xml" \
+            || { echo "::error::robots.txt is missing the production sitemap URL."; exit 1; }
+
+          echo "$SITEMAP" | grep -q "${PRODUCTION_SITE_URL}" \
+            || { echo "::error::sitemap.xml does not contain the production URL."; exit 1; }
+
+          echo "robots.txt and sitemap.xml point at production."

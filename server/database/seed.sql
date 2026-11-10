@@ -9,7 +9,9 @@
 -- (matched by primary key) without deleting content added later in the
 -- admin dashboard.
 -- ─────────────────────────────────────────────────────────────
-USE portfolio;
+-- The target database comes from DB_NAME (via `npm run db:seed`) or from
+-- MYSQL_DATABASE (via the Docker entrypoint). Never hardcode `USE portfolio`
+-- here: it breaks CI and any deployment using a different database name.
 SET NAMES utf8mb4;
 
 INSERT INTO projects

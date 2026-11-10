@@ -15,9 +15,10 @@
 --  * `messages.subject` stores the subject shown in the contact form.
 --  * CHECK constraints live in the API layer for TiDB compatibility.
 -- ─────────────────────────────────────────────────────────────
-CREATE DATABASE IF NOT EXISTS portfolio;
-
-USE portfolio;
+-- The database itself is created by `npm run db:setup` from DB_NAME, and
+-- Docker's MySQL entrypoint creates it from MYSQL_DATABASE before running
+-- this file. Do not hardcode a database name or `USE` statement here, or
+-- CI (DB_NAME=portfolio_ci) and renamed deployments break.
 SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS projects (
