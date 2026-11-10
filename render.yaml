@@ -22,7 +22,9 @@ services:
     # Render restarts the service if this endpoint stops returning 200.
     healthCheckPath: /api/health
 
-    autoDeploy: true
+    # Push-to-deploy needs Render's GitHub App on the repository. Until it is
+    # connected, deploy the API manually (Render Dashboard or `render deploys create`).
+    autoDeploy: false
 
     envVars:
       - key: NODE_ENV
