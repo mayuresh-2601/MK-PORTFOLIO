@@ -61,11 +61,11 @@ export default function Skills() {
         <div className="section-head">
           <div className="reveal">
             <p className="meta text-ink">Stack / 02</p>
-            <h2 className="display section-title">
+            <h1 className="display section-title">
               Technical
               <br />
               Skills
-            </h2>
+            </h1>
           </div>
           <p className="meta text-ink reveal" style={{ "--delay": "100ms" }}>
             Click a skill name → AI explains it

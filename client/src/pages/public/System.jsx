@@ -169,11 +169,11 @@ export default function System() {
         <div className="section-head">
           <div className="reveal">
             <p className="meta text-pink">Live telemetry / 06</p>
-            <h2 className="display section-title">
+            <h1 className="display section-title">
               Live
               <br />
               System
-            </h2>
+            </h1>
           </div>
           <p className="meta reveal" style={{ color: "#d1d5db", "--delay": "100ms" }}>
             Real metrics / refreshed every 5s

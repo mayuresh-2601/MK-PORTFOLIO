@@ -62,11 +62,11 @@ export default function Certificates() {
         <div className="section-head">
           <div className="reveal">
             <p className="meta text-ink">Credentials / 04</p>
-            <h2 className="display section-title">
+            <h1 className="display section-title">
               My
               <br />
               Certificates
-            </h2>
+            </h1>
           </div>
           <p className="meta text-ink reveal" style={{ "--delay": "100ms" }}>
             Licenses / certifications / proof

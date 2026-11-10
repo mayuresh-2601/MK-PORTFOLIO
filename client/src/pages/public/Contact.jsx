@@ -114,11 +114,11 @@ export default function Contact() {
         <div className="contact-grid">
           <div className="reveal">
             <p className="meta text-ink">Contact / 05</p>
-            <h2 className="display contact-title">
+            <h1 className="display contact-title">
               Get in
               <br />
               touch
-            </h2>
+            </h1>
 
             <p className="lede contact-lede">
               Have a project idea, freelance opportunity, or collaboration?

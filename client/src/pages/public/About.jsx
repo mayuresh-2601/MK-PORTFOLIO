@@ -15,11 +15,11 @@ export default function About() {
         <div className="section-head">
           <div className="reveal">
             <p className="meta text-ink">About / 01</p>
-            <h2 className="display section-title">
+            <h1 className="display section-title">
               Who am
               <br />
               I?
-            </h2>
+            </h1>
           </div>
           <p className="meta text-ink reveal" style={{ "--delay": "100ms" }}>
             Full Stack Developer / India
