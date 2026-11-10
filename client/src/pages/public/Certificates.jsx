@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import AIExplainModal from "../../components/common/AIExplainModal";
+import SEO from "../../components/common/SEO";
 
 export default function Certificates() {
   const [certificates, setCertificates] = useState([]);
@@ -51,6 +52,12 @@ export default function Certificates() {
 
   return (
     <section className="page page-section certificates-section grid-pink">
+      <SEO
+        title="Certificates | Mayuresh Kasar"
+        description="Verified certificates of Mayuresh Kasar across React, JavaScript, Node.js, SQL, Python, Java, Angular, REST APIs, problem solving and software engineering."
+        path="/certificates"
+      />
+
       <div className="section__inner">
         <div className="section-head">
           <div className="reveal">

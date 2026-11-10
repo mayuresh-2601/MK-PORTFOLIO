@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldCheck, LoaderCircle, ArrowLeft } from "lucide-react";
 import api from "../../api/axios";
+import SEO from "../../components/common/SEO";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -57,6 +58,13 @@ export default function AdminLogin() {
 
   return (
     <section className="login-page grid-acid">
+      <SEO
+        title="Admin Portal | Mayuresh Kasar"
+        description="Restricted admin portal for managing portfolio projects, skills, certificates and contact messages."
+        path="/admin"
+        noIndex
+      />
+
       <div style={{ width: "100%", maxWidth: "480px" }}>
         <Link
           to="/"

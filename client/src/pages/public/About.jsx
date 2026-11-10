@@ -1,9 +1,16 @@
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Download } from "lucide-react";
+import SEO from "../../components/common/SEO";
 
 export default function About() {
   return (
     <section className="page page-section about-section grid-pink">
+      <SEO
+        title="About Mayuresh Kasar | Full Stack Developer"
+        description="About Mayuresh Kasar: a Full Stack Developer from Maharashtra, India, working with React.js, Node.js, Express.js, MySQL/TiDB, Linux and Docker."
+        path="/about"
+      />
+
       <div className="section__inner">
         <div className="section-head">
           <div className="reveal">
@@ -22,12 +29,17 @@ export default function About() {
         <div className="about-grid">
           <div className="about-portrait reveal">
             <div className="about-portrait__frame">
-              <img
-                src="/Profile.png"
-                alt="Portrait of Mayuresh Kasar"
-                loading="lazy"
-                decoding="async"
-              />
+              <picture>
+                <source srcSet="/Profile.webp" type="image/webp" />
+                <img
+                  src="/Profile.png"
+                  alt="Portrait of Mayuresh Kasar"
+                  width="1086"
+                  height="1448"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
             </div>
             <span className="badge-rotate about-portrait__badge">
               Based in India

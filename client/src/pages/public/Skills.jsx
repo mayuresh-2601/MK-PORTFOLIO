@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import AIExplainModal from "../../components/common/AIExplainModal";
+import SEO from "../../components/common/SEO";
 
 export default function Skills() {
   const [skills, setSkills] = useState([]);
@@ -50,6 +51,12 @@ export default function Skills() {
 
   return (
     <section className="page page-section skills-section grid-acid">
+      <SEO
+        title="Technical Skills | Mayuresh Kasar"
+        description="The technical stack of Mayuresh Kasar: React, JavaScript, Node.js, SQL, Python, Java, Angular, Docker, Linux and DevOps tooling, with an AI explainer for every skill."
+        path="/skills"
+      />
+
       <div className="section__inner">
         <div className="section-head">
           <div className="reveal">

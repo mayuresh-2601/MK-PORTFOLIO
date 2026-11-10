@@ -3,6 +3,7 @@ import express from "express";
 import {
   fetchCertificates,
   createCertificate,
+  updateCertificateById,
   removeCertificate,
 } from "../controllers/certificateController.js";
 
@@ -50,18 +51,15 @@ router.delete(
 );
 
 /**
- * Future Route
- *
- * Uncomment when updateCertificate controller is implemented.
- *
- * import { updateCertificate } from "../controllers/certificateController.js";
- *
- * router.put(
- *   "/:id",
- *   protect,
- *   uploadSingle("image"),
- *   updateCertificate
- * );
+ * @route   PUT /api/certificates/:id
+ * @desc    Update a certificate
+ * @access  Private (Admin)
  */
+router.put(
+  "/:id",
+  protect,
+  uploadSingle("image"),
+  updateCertificateById
+);
 
 export default router;

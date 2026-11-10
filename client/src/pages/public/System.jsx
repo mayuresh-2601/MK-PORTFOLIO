@@ -11,6 +11,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import api from "../../api/axios";
+import SEO from "../../components/common/SEO";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -158,6 +159,12 @@ export default function System() {
 
   return (
     <section className="page page-section system-page grid-dark">
+      <SEO
+        title="Live System Metrics | Mayuresh Kasar"
+        description="Live telemetry from the portfolio API: CPU load, memory usage, uptime, Node.js version and the deployed Git commit, refreshed every few seconds."
+        path="/system"
+      />
+
       <div className="section__inner">
         <div className="section-head">
           <div className="reveal">

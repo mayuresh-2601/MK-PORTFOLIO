@@ -1,6 +1,8 @@
 import {
   getCertificates,
+  getCertificateById,
   addCertificate,
+  updateCertificate,
   deleteCertificate,
 } from "../models/certificateModel.js";
 
@@ -106,6 +108,97 @@ export const createCertificate = async (req, res, next) => {
       success: true,
       message: "Certificate created successfully.",
       id: result.id,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/*
+   Update Certificate
+ */
+
+export const updateCertificateById = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid certificate ID.",
+      });
+    }
+
+    const existingCertificate = await getCertificateById(id);
+
+    if (!existingCertificate) {
+      return res.status(404).json({
+        success: false,
+        message: "Certificate not found.",
+      });
+    }
+
+    const body = req.body || {};
+
+    const title =
+      body.title === undefined
+        ? existingCertificate.title
+        : normalizeRequiredText(body.title, MAX_TITLE_LENGTH);
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: "Certificate title is required.",
+      });
+    }
+
+    const issuerText =
+      body.issuer === undefined
+        ? existingCertificate.issuer
+        : normalizeRequiredText(body.issuer, MAX_ISSUER_LENGTH);
+
+    if (issuerText === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Issuer must be 255 characters or fewer.",
+      });
+    }
+
+    const issuer = issuerText || "Unknown";
+
+    const link =
+      body.link === undefined
+        ? existingCertificate.link
+        : normalizeOptionalText(body.link, MAX_URL_LENGTH);
+
+    if (link === undefined || (link && !isSafeHttpUrl(link))) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Certificate link must be a valid http:// or https:// link (max 512 characters).",
+      });
+    }
+
+    const certificate = {
+      title,
+      issuer,
+      // A new upload replaces the artwork; no upload keeps the current image.
+      image: req.file ? req.file.path : existingCertificate.image,
+      link,
+    };
+
+    const result = await updateCertificate(id, certificate);
+
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: "Certificate not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Certificate updated successfully.",
     });
   } catch (error) {
     next(error);

@@ -106,7 +106,7 @@ export default function Navbar() {
         <Link
           to="/"
           className="site-nav__logo"
-          aria-label="Mayuresh Kasar — home"
+          aria-label="Mayuresh.dev — home"
         >
           Mayuresh<span>.dev</span>
         </Link>

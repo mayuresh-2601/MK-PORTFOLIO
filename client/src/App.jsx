@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import Navbar from "./components/common/Navbar";
 import Footer from "./components/common/Footer";
+import SEO from "./components/common/SEO";
 import useScrollReveal from "./hooks/useScrollReveal";
 
 import Home from "./pages/public/Home";
@@ -22,6 +23,13 @@ import ProtectedRoute from "./components/protected/ProtectedRoute";
 function NotFound() {
   return (
     <section className="page page-section notfound grid-acid">
+      <SEO
+        title="Page Not Found (404) | Mayuresh Kasar"
+        description="The page you are looking for does not exist. Head back to the portfolio home page."
+        path="/404"
+        noIndex
+      />
+
       <div className="section__inner">
         <div className="reveal">
           <p className="meta text-ink">Error / Route not found</p>

@@ -3,6 +3,7 @@ import { Mail, Send, ArrowUpRight } from "lucide-react";
 import api from "../../api/axios";
 import GithubIcon from "../../assets/GithubIcon";
 import LinkedinIcon from "../../assets/LinkedinIcon";
+import SEO from "../../components/common/SEO";
 
 const contactRows = [
   {
@@ -103,6 +104,12 @@ export default function Contact() {
 
   return (
     <section className="page page-section contact-section grid-acid">
+      <SEO
+        title="Contact Mayuresh Kasar | Hire a Full Stack Developer"
+        description="Get in touch with Mayuresh Kasar for freelance work, collaborations or full stack development projects. Messages are delivered straight to the inbox."
+        path="/contact"
+      />
+
       <div className="section__inner">
         <div className="contact-grid">
           <div className="reveal">

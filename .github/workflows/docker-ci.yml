@@ -437,6 +437,139 @@ jobs:
 
           echo "Admin authentication OK."
 
+      - name: Test Admin Update Endpoints
+        run: |
+          set -euo pipefail
+
+          TOKEN=$(jq -r '.token' /tmp/login.json)
+
+          # --- skills ---
+          SKILL_ID=$(curl -fsS \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"name":"CI Update Skill","level":50}' \
+            http://localhost:5000/api/skills | jq -r '.id')
+
+          if [ -z "$SKILL_ID" ]; then
+            echo "::error::Could not create the skill used for the update test."
+            exit 1
+          fi
+
+          NOAUTH_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request PUT \
+            --header "Content-Type: application/json" \
+            --data '{"name":"Hijacked","level":1}' \
+            "http://localhost:5000/api/skills/${SKILL_ID}")
+
+          if [ "$NOAUTH_STATUS" != "401" ]; then
+            echo "::error::Unauthenticated skill update returned ${NOAUTH_STATUS}, expected 401."
+            exit 1
+          fi
+
+          UPDATE_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request PUT \
+            --header "Content-Type: application/json" \
+            --header "Authorization: Bearer ${TOKEN}" \
+            --data '{"name":"CI Updated Skill","level":55}' \
+            "http://localhost:5000/api/skills/${SKILL_ID}")
+
+          if [ "$UPDATE_STATUS" != "200" ]; then
+            echo "::error::Skill update returned ${UPDATE_STATUS}, expected 200."
+            exit 1
+          fi
+
+          UPDATED_NAME=$(curl -fsS http://localhost:5000/api/skills \
+            | jq -r ".data[] | select(.id == ${SKILL_ID}) | .name")
+
+          if [ "$UPDATED_NAME" != "CI Updated Skill" ]; then
+            echo "::error::Skill update did not persist (found: ${UPDATED_NAME})."
+            exit 1
+          fi
+
+          curl -fsS \
+            --request DELETE \
+            --header "Authorization: Bearer ${TOKEN}" \
+            "http://localhost:5000/api/skills/${SKILL_ID}" > /dev/null
+
+          echo "Skill update OK."
+
+          # --- certificates ---
+          CERT_ID=$(curl -fsS \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"title":"CI Update Certificate","issuer":"Audit","link":"https://example.com/ci"}' \
+            http://localhost:5000/api/certificates | jq -r '.id')
+
+          if [ -z "$CERT_ID" ]; then
+            echo "::error::Could not create the certificate used for the update test."
+            exit 1
+          fi
+
+          CERT_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request PUT \
+            --header "Content-Type: application/json" \
+            --header "Authorization: Bearer ${TOKEN}" \
+            --data '{"title":"CI Renamed Certificate","issuer":"Audit","link":"https://example.com/ci"}' \
+            "http://localhost:5000/api/certificates/${CERT_ID}")
+
+          if [ "$CERT_STATUS" != "200" ]; then
+            echo "::error::Certificate update returned ${CERT_STATUS}, expected 200."
+            exit 1
+          fi
+
+          CERT_TITLE=$(curl -fsS http://localhost:5000/api/certificates \
+            | jq -r ".data[] | select(.id == ${CERT_ID}) | .title")
+
+          if [ "$CERT_TITLE" != "CI Renamed Certificate" ]; then
+            echo "::error::Certificate update did not persist (found: ${CERT_TITLE})."
+            exit 1
+          fi
+
+          curl -fsS \
+            --request DELETE \
+            --header "Authorization: Bearer ${TOKEN}" \
+            "http://localhost:5000/api/certificates/${CERT_ID}" > /dev/null
+
+          echo "Certificate update OK."
+
+          # --- projects (update an existing seeded project, then restore it) ---
+          PROJECT_ID=$(curl -fsS http://localhost:5000/api/projects | jq -r '.data[0].id')
+          PROJECT_TITLE=$(curl -fsS http://localhost:5000/api/projects | jq -r '.data[0].title')
+
+          curl -fsS \
+            --request PUT \
+            --header "Content-Type: application/json" \
+            --header "Authorization: Bearer ${TOKEN}" \
+            --data '{"title":"CI Renamed Project"}' \
+            "http://localhost:5000/api/projects/${PROJECT_ID}" > /dev/null
+
+          RENAMED=$(curl -fsS http://localhost:5000/api/projects \
+            | jq -r ".data[] | select(.id == ${PROJECT_ID}) | .title")
+
+          if [ "$RENAMED" != "CI Renamed Project" ]; then
+            echo "::error::Project update did not persist (found: ${RENAMED})."
+            exit 1
+          fi
+
+          # Restore the original title so the seeded content stays untouched.
+          curl -fsS \
+            --request PUT \
+            --header "Content-Type: application/json" \
+            --header "Authorization: Bearer ${TOKEN}" \
+            --data "$(jq -nc --arg title "${PROJECT_TITLE}" '{title: $title}')" \
+            "http://localhost:5000/api/projects/${PROJECT_ID}" > /dev/null
+
+          echo "Project update OK."
+
       - name: Test Frontend
         run: |
           set -euo pipefail

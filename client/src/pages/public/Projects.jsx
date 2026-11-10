@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import GithubIcon from "../../assets/GithubIcon";
+import SEO from "../../components/common/SEO";
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -50,6 +51,12 @@ export default function Projects() {
 
   return (
     <section className="page page-section work-section grid-acid">
+      <SEO
+        title="Projects | Mayuresh Kasar"
+        description="Selected full stack projects by Mayuresh Kasar: data analysis with SQL, responsive frontend clones, and React applications with live demos and source code."
+        path="/projects"
+      />
+
       <div className="section__inner">
         <div className="section-head">
           <div className="reveal">

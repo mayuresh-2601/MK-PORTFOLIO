@@ -3,6 +3,7 @@ import express from "express";
 import {
   fetchSkills,
   createSkill,
+  updateSkillById,
   removeSkill,
 } from "../controllers/skillController.js";
 
@@ -32,12 +33,10 @@ router.post("/", protect, createSkill);
 router.delete("/:id", protect, removeSkill);
 
 /**
- * Future Route
+ * Update Route
  *
- * Uncomment when updateSkill controller is implemented.
- *
- * import { updateSkill } from "../controllers/skillController.js";
- * router.put("/:id", protect, updateSkill);
+ * Update an existing skill (name and/or proficiency level).
  */
+router.put("/:id", protect, updateSkillById);
 
 export default router;

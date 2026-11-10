@@ -1,6 +1,8 @@
 import {
   getSkills,
+  getSkillById,
   addSkill,
+  updateSkill,
   deleteSkill,
 } from "../models/skillModel.js";
 
@@ -77,6 +79,70 @@ export const createSkill = async (req, res, next) => {
       success: true,
       message: "Skill created successfully.",
       id: result.id,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/*
+   Update Skill
+ */
+
+export const updateSkillById = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid skill ID.",
+      });
+    }
+
+    const existingSkill = await getSkillById(id);
+
+    if (!existingSkill) {
+      return res.status(404).json({
+        success: false,
+        message: "Skill not found.",
+      });
+    }
+
+    const body = req.body || {};
+
+    const name =
+      body.name === undefined
+        ? existingSkill.name
+        : normalizeRequiredText(body.name, MAX_NAME_LENGTH);
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: "Skill name is required.",
+      });
+    }
+
+    let level = existingSkill.level;
+
+    if (body.level !== undefined) {
+      const parsedLevel = Number(body.level);
+
+      if (!Number.isFinite(parsedLevel)) {
+        return res.status(400).json({
+          success: false,
+          message: "Skill level must be a number between 0 and 100.",
+        });
+      }
+
+      level = Math.min(100, Math.max(0, Math.round(parsedLevel)));
+    }
+
+    await updateSkill(id, name, level);
+
+    return res.status(200).json({
+      success: true,
+      message: "Skill updated successfully.",
     });
   } catch (error) {
     next(error);

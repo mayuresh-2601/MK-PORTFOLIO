@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Marquee from "../../components/common/Marquee";
 import StatsBand from "../../components/common/StatsBand";
+import SEO from "../../components/common/SEO";
 
 const capabilities = [
   {
@@ -30,6 +31,12 @@ const capabilities = [
 export default function Home() {
   return (
     <>
+      <SEO
+        title="Mayuresh Kasar | Full Stack Developer"
+        description="Portfolio of Mayuresh Kasar, a Full Stack Developer building secure web applications with React.js, Node.js, Express.js, MySQL/TiDB, Docker and CI/CD pipelines."
+        path="/"
+      />
+
       <section className="hero grid-acid">
         <div className="hero__decor-circle" aria-hidden="true" />
         <div className="hero__inner">

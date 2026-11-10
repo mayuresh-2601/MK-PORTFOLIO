@@ -11,8 +11,11 @@ import {
   ExternalLink,
   Inbox,
   RefreshCw,
+  Pencil,
+  X,
 } from "lucide-react";
 import api from "../../api/axios";
+import SEO from "../../components/common/SEO";
 
 const emptyProject = {
   title: "",
@@ -31,6 +34,24 @@ const emptyCertificate = {
   imageFile: null,
 };
 
+const emptyEditForm = {
+  title: "",
+  description: "",
+  github: "",
+  demo: "",
+  name: "",
+  level: 80,
+  issuer: "",
+  link: "",
+  imageFile: null,
+};
+
+const EDIT_LABELS = {
+  project: "project",
+  skill: "skill",
+  certificate: "certificate",
+};
+
 export default function AdminDashboard() {
   const [projects, setProjects] = useState([]);
   const [skills, setSkills] = useState([]);
@@ -43,6 +64,10 @@ export default function AdminDashboard() {
 
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: "", text: "" });
+
+  // Editing state: { type, id } plus the values of the edited record.
+  const [editing, setEditing] = useState(null);
+  const [editForm, setEditForm] = useState(emptyEditForm);
 
   useEffect(() => {
     loadData();
@@ -114,6 +139,125 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     window.location.href = "/";
+  };
+
+  /* 
+     Edit
+   */
+
+  const startEdit = (type, item) => {
+    if (type === "skill") {
+      setEditing({ type, id: item.id });
+      setEditForm({
+        ...emptyEditForm,
+        name: item.name,
+        level: item.level ?? 80,
+      });
+      return;
+    }
+
+    if (type === "certificate") {
+      setEditing({ type, id: item.id });
+      setEditForm({
+        ...emptyEditForm,
+        title: item.title ?? "",
+        issuer: item.issuer ?? "",
+        link: item.link ?? "",
+      });
+      return;
+    }
+
+    setEditing({ type: "project", id: item.id });
+    setEditForm({
+      ...emptyEditForm,
+      title: item.title ?? "",
+      description: item.description ?? "",
+      github: item.github ?? "",
+      demo: item.demo ?? "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setEditForm(emptyEditForm);
+  };
+
+  const saveEdit = async (event) => {
+    event.preventDefault();
+
+    if (!editing) return;
+
+    try {
+      setLoading(true);
+      setFeedback({ type: "", text: "" });
+
+      if (editing.type === "skill") {
+        if (!editForm.name.trim()) {
+          setFeedback({ type: "error", text: "Skill name is required." });
+          return;
+        }
+
+        await api.put(`/skills/${editing.id}`, {
+          name: editForm.name.trim(),
+          level: Number(editForm.level) || 0,
+        });
+      } else if (editing.type === "certificate") {
+        if (!editForm.title.trim()) {
+          setFeedback({ type: "error", text: "Certificate title is required." });
+          return;
+        }
+
+        const data = new FormData();
+        data.append("title", editForm.title.trim());
+        data.append("issuer", editForm.issuer.trim());
+        data.append("link", editForm.link.trim());
+
+        if (editForm.imageFile) {
+          data.append("image", editForm.imageFile);
+        }
+
+        await api.put(`/certificates/${editing.id}`, data);
+      } else {
+        if (!editForm.title.trim() || !editForm.description.trim()) {
+          setFeedback({
+            type: "error",
+            text: "Title and description are required.",
+          });
+          return;
+        }
+
+        const data = new FormData();
+        data.append("title", editForm.title.trim());
+        data.append("description", editForm.description.trim());
+        data.append("github", editForm.github.trim());
+        data.append("demo", editForm.demo.trim());
+
+        if (editForm.imageFile) {
+          data.append("image", editForm.imageFile);
+        }
+
+        await api.put(`/projects/${editing.id}`, data);
+      }
+
+      setFeedback({
+        type: "success",
+        text: `${EDIT_LABELS[editing.type].replace(/^./, (c) => c.toUpperCase())} updated successfully.`,
+      });
+
+      cancelEdit();
+
+      await loadData();
+    } catch (error) {
+      console.error("Failed to update item:", error);
+      setFeedback({
+        type: "error",
+        text:
+          error?.response?.data?.message ||
+          "Failed to update the item. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addProject = async (event) => {
@@ -255,6 +399,13 @@ export default function AdminDashboard() {
 
   return (
     <div className="admin-page grid-acid">
+      <SEO
+        title="Admin Dashboard | Mayuresh Kasar"
+        description="Restricted admin dashboard for managing portfolio projects, skills, certificates and contact messages."
+        path="/admin/dashboard"
+        noIndex
+      />
+
       <div className="admin-shell">
         <header className="admin-header">
           <div>
@@ -297,6 +448,152 @@ export default function AdminDashboard() {
           >
             {feedback.text}
           </div>
+        )}
+
+        {editing && (
+          <section className="admin-card admin-card--edit">
+            <h2>
+              <Pencil size={18} aria-hidden="true" />
+              Edit {EDIT_LABELS[editing.type]}
+            </h2>
+
+            <form onSubmit={saveEdit}>
+              {editing.type === "skill" ? (
+                <>
+                  <input
+                    placeholder="Skill name"
+                    aria-label="Skill name"
+                    value={editForm.name}
+                    onChange={(event) =>
+                      setEditForm({ ...editForm, name: event.target.value })
+                    }
+                    className="admin-input"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="Proficiency %"
+                    aria-label="Skill proficiency percentage"
+                    value={editForm.level}
+                    onChange={(event) =>
+                      setEditForm({ ...editForm, level: event.target.value })
+                    }
+                    className="admin-input"
+                  />
+                </>
+              ) : (
+                <>
+                  <input
+                    placeholder="Title"
+                    aria-label="Title"
+                    value={editForm.title}
+                    onChange={(event) =>
+                      setEditForm({ ...editForm, title: event.target.value })
+                    }
+                    className="admin-input"
+                  />
+
+                  {editing.type === "certificate" ? (
+                    <>
+                      <input
+                        placeholder="Issuer"
+                        aria-label="Issuer"
+                        value={editForm.issuer}
+                        onChange={(event) =>
+                          setEditForm({ ...editForm, issuer: event.target.value })
+                        }
+                        className="admin-input"
+                      />
+                      <input
+                        placeholder="Certificate link"
+                        aria-label="Certificate link"
+                        value={editForm.link}
+                        onChange={(event) =>
+                          setEditForm({ ...editForm, link: event.target.value })
+                        }
+                        className="admin-input"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <textarea
+                        placeholder="Description"
+                        aria-label="Description"
+                        rows={3}
+                        value={editForm.description}
+                        onChange={(event) =>
+                          setEditForm({
+                            ...editForm,
+                            description: event.target.value,
+                          })
+                        }
+                        className="admin-input"
+                        style={{ resize: "vertical" }}
+                      />
+                      <input
+                        placeholder="GitHub link"
+                        aria-label="GitHub link"
+                        value={editForm.github}
+                        onChange={(event) =>
+                          setEditForm({ ...editForm, github: event.target.value })
+                        }
+                        className="admin-input"
+                      />
+                      <input
+                        placeholder="Live demo link"
+                        aria-label="Live demo link"
+                        value={editForm.demo}
+                        onChange={(event) =>
+                          setEditForm({ ...editForm, demo: event.target.value })
+                        }
+                        className="admin-input"
+                      />
+                    </>
+                  )}
+
+                  <label className="admin-file">
+                    <Upload size={16} aria-hidden="true" />
+                    <span>
+                      {editForm.imageFile
+                        ? editForm.imageFile.name
+                        : "Replace image (optional)"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) =>
+                        setEditForm({
+                          ...editForm,
+                          imageFile: event.target.files[0],
+                        })
+                      }
+                    />
+                  </label>
+                </>
+              )}
+
+              <div className="admin-edit__actions">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn btn--black btn--pill"
+                >
+                  <Pencil size={16} aria-hidden="true" />
+                  Save changes
+                </button>
+
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="btn btn--pill"
+                >
+                  <X size={16} aria-hidden="true" />
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </section>
         )}
 
         <div className="admin-grid">
@@ -394,14 +691,24 @@ export default function AdminDashboard() {
               {projects.map((project) => (
                 <div key={project.id} className="admin-list-item">
                   <span>{project.title}</span>
-                  <button
-                    type="button"
-                    onClick={() => deleteItem("projects", project.id)}
-                    className="admin-delete"
-                    aria-label={`Delete ${project.title}`}
-                  >
-                    <Trash2 size={15} aria-hidden="true" />
-                  </button>
+                  <span className="admin-list-item__actions">
+                    <button
+                      type="button"
+                      onClick={() => startEdit("project", project)}
+                      className="admin-edit"
+                      aria-label={`Edit ${project.title}`}
+                    >
+                      <Pencil size={15} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteItem("projects", project.id)}
+                      className="admin-delete"
+                      aria-label={`Delete ${project.title}`}
+                    >
+                      <Trash2 size={15} aria-hidden="true" />
+                    </button>
+                  </span>
                 </div>
               ))}
             </div>
@@ -456,14 +763,24 @@ export default function AdminDashboard() {
                   <span>
                     {skill.name} ({skill.level}%)
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => deleteItem("skills", skill.id)}
-                    className="admin-delete"
-                    aria-label={`Delete ${skill.name}`}
-                  >
-                    <Trash2 size={15} aria-hidden="true" />
-                  </button>
+                  <span className="admin-list-item__actions">
+                    <button
+                      type="button"
+                      onClick={() => startEdit("skill", skill)}
+                      className="admin-edit"
+                      aria-label={`Edit ${skill.name}`}
+                    >
+                      <Pencil size={15} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteItem("skills", skill.id)}
+                      className="admin-delete"
+                      aria-label={`Delete ${skill.name}`}
+                    >
+                      <Trash2 size={15} aria-hidden="true" />
+                    </button>
+                  </span>
                 </div>
               ))}
             </div>
@@ -540,16 +857,26 @@ export default function AdminDashboard() {
               {certificates.map((certificate) => (
                 <div key={certificate.id} className="admin-list-item">
                   <span>{certificate.title}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      deleteItem("certificates", certificate.id)
-                    }
-                    className="admin-delete"
-                    aria-label={`Delete ${certificate.title}`}
-                  >
-                    <Trash2 size={15} aria-hidden="true" />
-                  </button>
+                  <span className="admin-list-item__actions">
+                    <button
+                      type="button"
+                      onClick={() => startEdit("certificate", certificate)}
+                      className="admin-edit"
+                      aria-label={`Edit ${certificate.title}`}
+                    >
+                      <Pencil size={15} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        deleteItem("certificates", certificate.id)
+                      }
+                      className="admin-delete"
+                      aria-label={`Delete ${certificate.title}`}
+                    >
+                      <Trash2 size={15} aria-hidden="true" />
+                    </button>
+                  </span>
                 </div>
               ))}
             </div>
