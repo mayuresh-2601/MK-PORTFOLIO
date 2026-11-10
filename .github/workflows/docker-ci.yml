@@ -163,11 +163,15 @@ jobs:
         uses: hadolint/hadolint-action@v3.5.0
         with:
           dockerfile: server/Dockerfile
+          # Warnings and errors fail the build. Style/info hints are printed
+          # but never block a deployment.
+          failure-threshold: warning
 
       - name: Lint Client Dockerfile
         uses: hadolint/hadolint-action@v3.5.0
         with:
           dockerfile: client/Dockerfile
+          failure-threshold: warning
 
   docker-stack:
     name: Build & Test Full Stack

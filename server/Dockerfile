@@ -28,19 +28,20 @@ COPY . .
 # Production environment
 ENV NODE_ENV=production
 
-# Create non-root user
-RUN addgroup -S nodegroup && \
-    adduser -S nodeuser -G nodegroup && \
+# Create non-root user with explicit ids so the numeric USER below always
+# resolves, no matter how the host maps uids.
+RUN addgroup -S -g 1001 nodegroup && \
+    adduser -S -u 1001 -G nodegroup nodeuser && \
     chown -R nodeuser:nodegroup /app
 
-USER nodeuser
+USER 1001:1001
 
 # Expose backend port
 EXPOSE 5000
 
-# Health check
+# Health check in exec form so the container runtime receives wget's exit code
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/api/health || exit 1
+    CMD ["wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5000/api/health"]
 
 # Start server
 CMD ["node", "server.js"]
