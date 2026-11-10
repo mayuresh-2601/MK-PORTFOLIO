@@ -413,6 +413,17 @@ Fields: `name`, `level`
 **`POST /api/certificates`** *(protected — multipart/form-data)*
 Fields: `title`, `issuer`, `link`, optional `image`
 
+**`PUT /api/projects/:id`** *(protected — multipart/form-data)*
+Fields: `title`, `description`, `github`, `demo`, optional `image` (keeps the current image when omitted)
+
+**`PUT /api/skills/:id`** *(protected — JSON)*
+Fields: `name`, `level`
+
+**`PUT /api/certificates/:id`** *(protected — multipart/form-data)*
+Fields: `title`, `issuer`, `link`, optional `image` (keeps the current image when omitted)
+
+**`DELETE /api/projects/:id`** · **`DELETE /api/skills/:id`** · **`DELETE /api/certificates/:id`** — protected. Removes one record.
+
 ### Contact
 
 **`POST /api/messages`** — public. Fields: `name`, `email`, `subject`, `message`, optional `file`
