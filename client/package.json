@@ -5,7 +5,7 @@
   "description": "Modern Full Stack Portfolio Application built with React, Vite, Node.js, Express.js, and MySQL/TiDB.",
   "author": "Mayuresh Kasar",
   "license": "MIT",
-  "homepage": "https://portfolio-app-tau-lac.vercel.app/",
+  "homepage": "https://mk-portfolio-phi-silk.vercel.app/",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"

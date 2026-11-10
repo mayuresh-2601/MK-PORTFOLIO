@@ -11,7 +11,7 @@
 
 services:
   - type: web
-    name: portfolio-api
+    name: mk-portfolio-api
     runtime: node
     plan: free
     rootDir: server

@@ -4,12 +4,12 @@
 
 **A production-grade full-stack portfolio with AI-powered explanations and a live DevOps monitoring panel.**
 
-[![Live Site](https://img.shields.io/badge/Live-Vercel-black?style=flat-square&logo=vercel)](https://portfolio-app-tau-lac.vercel.app/)
-[![Backend](https://img.shields.io/badge/API-Render-46E3B7?style=flat-square&logo=render)](https://portfolio-app-mmlr.onrender.com)
+[![Live Site](https://img.shields.io/badge/Live-Vercel-black?style=flat-square&logo=vercel)](https://mk-portfolio-phi-silk.vercel.app/)
+[![Backend](https://img.shields.io/badge/API-Render-46E3B7?style=flat-square&logo=render)](https://mk-portfolio-api.onrender.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](#license)
 [![Node](https://img.shields.io/badge/Node-%3E%3D22-339933?style=flat-square&logo=node.js)](https://nodejs.org)
 
-[Live Demo](https://portfolio-app-tau-lac.vercel.app/) · [Report a Bug](https://github.com/mayuresh-2601/PORTFOLIO-APP/issues) · [Request a Feature](https://github.com/mayuresh-2601/PORTFOLIO-APP/issues)
+[Live Demo](https://mk-portfolio-phi-silk.vercel.app/) · [Report a Bug](https://github.com/mayuresh-2601/MK-PORTFOLIO/issues) · [Request a Feature](https://github.com/mayuresh-2601/MK-PORTFOLIO/issues)
 
 </div>
 
@@ -182,8 +182,8 @@ no direct database access needed.
 ### 1. Clone
 
 ```bash
-git clone https://github.com/mayuresh-2601/PORTFOLIO-APP.git
-cd PORTFOLIO-APP
+git clone https://github.com/mayuresh-2601/MK-PORTFOLIO.git
+cd MK-PORTFOLIO
 ```
 
 ### 2. Backend
@@ -571,6 +571,6 @@ Check the server terminal (`npm run dev` in `server/`) for full stack traces on 
 ## Author & License
 
 **Mayuresh Kasar** — Full-Stack Developer
-[LinkedIn](https://linkedin.com/in/mayuresh2601) · [GitHub](https://github.com/mayuresh-2601) · [Live Site](https://portfolio-app-tau-lac.vercel.app/)
+[LinkedIn](https://linkedin.com/in/mayuresh2601) · [GitHub](https://github.com/mayuresh-2601) · [Live Site](https://mk-portfolio-phi-silk.vercel.app/)
 
 Licensed under the [MIT License](LICENSE).

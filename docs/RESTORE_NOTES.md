@@ -102,7 +102,7 @@ Open http://localhost.
 Render environment variables (backend):
 ```
 PORT=5000
-CLIENT_URL=https://portfolio-app-tau-lac.vercel.app
+CLIENT_URL=https://mk-portfolio-phi-silk.vercel.app
 DB_HOST=...
 DB_PORT=4000
 DB_USER=...
@@ -128,10 +128,10 @@ GEMINI_API_KEY=...
 
 Vercel environment variable (frontend):
 ```
-VITE_API_BASE_URL=https://your-render-service.onrender.com
+VITE_API_BASE_URL=https://mk-portfolio-api.onrender.com
 ```
 
-**Important:** if your Vercel URL is not `portfolio-app-tau-lac.vercel.app`,
+**Important:** if your Vercel URL is not `mk-portfolio-phi-silk.vercel.app`,
 update it in:
 - `client/index.html` (canonical + Open Graph)
 - `client/public/robots.txt` (sitemap URL)

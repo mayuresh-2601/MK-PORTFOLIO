@@ -5,4 +5,4 @@ Allow: /
 Disallow: /admin
 Disallow: /admin/
 
-Sitemap: https://portfolio-app-tau-lac.vercel.app/sitemap.xml
+Sitemap: https://mk-portfolio-phi-silk.vercel.app/sitemap.xml

@@ -7,13 +7,13 @@
   "main": "server.js",
   "author": "Mayuresh Kasar",
   "license": "MIT",
-  "homepage": "https://portfolio-app-mmlr.onrender.com",
+  "homepage": "https://mk-portfolio-api.onrender.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mayuresh-2601/PORTFOLIO-APP.git"
+    "url": "https://github.com/mayuresh-2601/MK-PORTFOLIO.git"
   },
   "bugs": {
-    "url": "https://github.com/mayuresh-2601/PORTFOLIO-APP/issues"
+    "url": "https://github.com/mayuresh-2601/MK-PORTFOLIO/issues"
   },
   "keywords": [
     "portfolio",
