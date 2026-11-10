@@ -1,0 +1,346 @@
+name: CI/CD Docker Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dockerfile-lint:
+    name: Lint Dockerfiles
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Lint Server Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: server/Dockerfile
+
+      - name: Lint Client Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: client/Dockerfile
+
+  auth-unit-tests:
+    name: Test Admin Auth & Email Logic
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install Server Dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run Auth and Email Tests
+        working-directory: server
+        run: npm test
+
+  build-and-test:
+    name: Build & Test Full Stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [dockerfile-lint, auth-unit-tests]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # docker-compose.yml requires server/.env (via env_file) and a root
+      # .env (for ${DB_PASSWORD} / ${DB_NAME} substitution). Both are
+      # correctly gitignored and don't exist on the CI runner, which is
+      # why "Validate Docker Compose Configuration" was failing. This step
+      # generates CI-only, non-production values so the stack can boot for
+      # a smoke test. These values are never used outside this workflow run.
+      - name: Create env files for CI
+        run: |
+          cat <<'EOF' > server/.env
+          PORT=5000
+          CLIENT_URL=http://localhost
+
+          DB_HOST=db
+          DB_PORT=3306
+          DB_USER=root
+          DB_PASSWORD=ci_test_password
+          DB_NAME=portfolio_ci
+
+          # CI's database is a local Docker MySQL container with a
+          # self-signed cert, not TiDB Cloud's real CA-signed cert.
+          # Strict SSL validation would fail here, so it's explicitly
+          # disabled for this workflow only.
+          DB_SSL=false
+
+          # 48 characters — production validation requires at least 32.
+          JWT_SECRET=ci_test_jwt_secret_0123456789abcdef0123456789
+
+          # CI-only admin identity. Never used in a real deployment.
+          # This intentionally exercises the plain-text env auth path.
+          ADMIN_EMAIL=ci-admin@portfolio.test
+          ADMIN_PASSWORD=ci_test_password_2026!
+          EOF
+
+          # Cloudinary, Gmail and Gemini are intentionally unset so CI also
+          # verifies that the API boots and serves content without them.
+
+          cat <<'EOF' > .env
+          DB_PASSWORD=ci_test_password
+          DB_NAME=portfolio_ci
+          EOF
+
+      - name: Validate Docker Compose Configuration
+        run: docker compose config
+
+      - name: Build Docker Images
+        run: docker compose build
+
+      - name: Verify Images Exclude Secrets
+        run: |
+          # .dockerignore must keep server/.env out of the production image.
+          docker compose run --rm --no-deps --entrypoint sh server -c \
+            "if [ -f /app/.env ]; then echo 'server/.env was baked into the image'; exit 1; fi; echo 'No .env file in server image.'"
+
+      - name: Start Containers
+        run: docker compose up -d
+
+      - name: Wait for Services
+        run: |
+          echo "Waiting for containers..."
+
+          READY=0
+
+          for i in {1..18}
+          do
+            # /api/health/ready only returns 200 once MySQL answers, so it
+            # proves the full server -> database path, not just the process.
+            if curl -fs http://localhost:5000/api/health/ready > /dev/null; then
+              echo "Backend and database are ready."
+              READY=1
+              break
+            fi
+
+            echo "Waiting..."
+            sleep 5
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Backend did not become ready in time."
+            docker compose logs server
+            exit 1
+          fi
+
+      - name: Test Backend API
+        run: |
+          for ENDPOINT in /api/health /api/health/ready /api/projects /api/system; do
+            STATUS=$(curl \
+              --write-out "%{http_code}" \
+              --silent \
+              --output /dev/null \
+              "http://localhost:5000${ENDPOINT}")
+
+            if [ "$STATUS" = "200" ]; then
+              echo "${ENDPOINT} OK (200)"
+            else
+              echo "${ENDPOINT} failed (${STATUS})"
+              docker compose logs server
+              exit 1
+            fi
+          done
+
+          # Malformed JSON must return 400 (not 500) from the error middleware.
+          MALFORMED_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{bad json' \
+            http://localhost:5000/api/messages)
+
+          if [ "$MALFORMED_STATUS" != "400" ]; then
+            echo "Malformed JSON returned ${MALFORMED_STATUS}, expected 400"
+            exit 1
+          fi
+
+          echo "Malformed JSON handled with 400."
+
+          FIELD_TYPE_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"name":123,"email":"a@b.com","message":"hi"}' \
+            http://localhost:5000/api/messages)
+
+          if [ "$FIELD_TYPE_STATUS" != "400" ]; then
+            echo "Wrong field type returned ${FIELD_TYPE_STATUS}, expected 400"
+            exit 1
+          fi
+
+          echo "Wrong field type handled with 400."
+
+      - name: Test Admin Authentication
+        run: |
+          LOGIN_STATUS=$(curl \
+            --silent \
+            --output /tmp/login.json \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"email":"ci-admin@portfolio.test","password":"ci_test_password_2026!"}' \
+            http://localhost:5000/api/auth/login)
+
+          if [ "$LOGIN_STATUS" != "200" ]; then
+            echo "Admin login failed (${LOGIN_STATUS})"
+            cat /tmp/login.json
+            docker compose logs server
+            exit 1
+          fi
+
+          TOKEN=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/login.json','utf8')).token)")
+
+          if [ -z "$TOKEN" ]; then
+            echo "Login response did not include a token."
+            exit 1
+          fi
+
+          PROTECTED_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --header "Authorization: Bearer ${TOKEN}" \
+            http://localhost:5000/api/messages)
+
+          if [ "$PROTECTED_STATUS" != "200" ]; then
+            echo "Protected admin route rejected the token (${PROTECTED_STATUS})"
+            exit 1
+          fi
+
+          WRONG_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"email":"ci-admin@portfolio.test","password":"wrong-password"}' \
+            http://localhost:5000/api/auth/login)
+
+          if [ "$WRONG_STATUS" != "401" ]; then
+            echo "Wrong password was not rejected with 401 (${WRONG_STATUS})"
+            exit 1
+          fi
+
+          WRONG_EMAIL_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"email":"someone@else.com","password":"ci_test_password_2026!"}' \
+            http://localhost:5000/api/auth/login)
+
+          if [ "$WRONG_EMAIL_STATUS" != "401" ]; then
+            echo "Wrong email was not rejected with 401 (${WRONG_EMAIL_STATUS})"
+            exit 1
+          fi
+
+          echo "Admin authentication OK."
+
+      - name: Test Frontend
+        run: |
+          for URL in http://localhost/ http://localhost/projects http://localhost/admin; do
+            STATUS=$(curl \
+              --write-out "%{http_code}" \
+              --silent \
+              --output /dev/null \
+              "$URL")
+
+            if [ "$STATUS" = "200" ]; then
+              echo "${URL} OK (200)"
+            else
+              echo "${URL} failed (${STATUS})"
+              docker compose logs client
+              exit 1
+            fi
+          done
+
+          # Nginx must proxy /api to the Express service, not serve index.html.
+          PROXY_STATUS=$(curl \
+            --write-out "%{http_code}" \
+            --silent \
+            --output /dev/null \
+            http://localhost/api/health)
+
+          if [ "$PROXY_STATUS" != "200" ]; then
+            echo "Nginx /api proxy failed (${PROXY_STATUS})"
+            docker compose logs client server
+            exit 1
+          fi
+
+          echo "Nginx /api proxy OK (200)."
+
+          HEADERS=$(curl --silent --show-error --head http://localhost/)
+
+          for HEADER in \
+            "Content-Security-Policy" \
+            "X-Frame-Options" \
+            "X-Content-Type-Options" \
+            "Referrer-Policy" \
+            "Permissions-Policy"
+          do
+            if ! echo "$HEADERS" | grep -qi "^${HEADER}:"; then
+              echo "Missing security header: ${HEADER}"
+              exit 1
+            fi
+          done
+
+          if echo "$HEADERS" | grep -qi "^Server:.*nginx/[0-9]"; then
+            echo "Nginx version is exposed in the Server header."
+            exit 1
+          fi
+
+          echo "Frontend security headers OK."
+
+      - name: Upload Logs on Failure
+        if: failure()
+        run: |
+          mkdir logs
+          docker compose logs > logs/docker.log
+
+      - name: Upload Workflow Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-logs
+          path: logs
+
+      - name: Stop Containers
+        if: always()
+        run: docker compose down -v

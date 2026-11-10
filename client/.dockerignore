@@ -1,0 +1,22 @@
+# Keep secrets, dependencies and previous builds out of the image context.
+.env
+.env.*
+!.env.example
+
+node_modules
+dist
+build
+coverage
+
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.git
+.gitignore
+.dockerignore
+Dockerfile
+
+*.log
+.DS_Store
+Thumbs.db

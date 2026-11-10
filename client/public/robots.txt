@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Private admin area — keep it out of search results.
+Disallow: /admin
+Disallow: /admin/
+
+Sitemap: https://portfolio-app-tau-lac.vercel.app/sitemap.xml

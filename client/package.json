@@ -1,0 +1,40 @@
+{
+  "name": "portfolio-app-client",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Modern Full Stack Portfolio Application built with React, Vite, Node.js, Express.js, and MySQL/TiDB.",
+  "author": "Mayuresh Kasar",
+  "license": "MIT",
+  "homepage": "https://portfolio-app-tau-lac.vercel.app/",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "check": "npm run lint && npm run build"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/space-mono": "^5.3.0",
+    "axios": "^1.15.2",
+    "lucide-react": "^1.11.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.5",
+    "tailwindcss": "^4.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.15.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "vite": "^6.0.0"
+  }
+}

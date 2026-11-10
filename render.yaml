@@ -1,0 +1,92 @@
+# ─────────────────────────────────────────────────────────────
+# Render Blueprint — Portfolio API
+#
+# Deploy from the repository root:
+#   Render Dashboard → New → Blueprint → connect this repo
+#
+# Render reads `rootDir: server`, so build/start commands run there.
+# Variables marked `sync: false` are secrets/values you must enter once
+# in the Render dashboard. They are never stored in this file.
+# ─────────────────────────────────────────────────────────────
+
+services:
+  - type: web
+    name: portfolio-api
+    runtime: node
+    plan: free
+    rootDir: server
+
+    buildCommand: npm ci
+    startCommand: npm start
+
+    # Render restarts the service if this endpoint stops returning 200.
+    healthCheckPath: /api/health
+
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Database — TiDB Cloud
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: DB_CONNECTION_LIMIT
+        value: "10"
+
+      # Auth — set ADMIN_PASSWORD to the plain-text admin password
+      # (12+ characters). The API also supports ADMIN_PASSWORD_HASH (bcrypt)
+      # if you add it manually in the Render dashboard; the hash wins when
+      # both are present.
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 12h
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # Frontend origin (Vercel production URL, no trailing slash)
+      - key: CLIENT_URL
+        sync: false
+      - key: ALLOW_VERCEL_PREVIEWS
+        value: "false"
+
+      # Optional integrations — leave blank to run without them
+      - key: CLOUD_NAME
+        sync: false
+      - key: CLOUD_API_KEY
+        sync: false
+      - key: CLOUD_API_SECRET
+        sync: false
+
+      # Gmail API over HTTPS — required for email on Render's FREE tier,
+      # which blocks outbound SMTP ports 25/465/587. Run `npm run gmail:auth`
+      # locally once, then paste the refresh token here.
+      - key: EMAIL_USER
+        sync: false
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: EMAIL_TRANSPORT
+        value: auto
+
+      # Gmail SMTP App Password — not used on the free tier. Add EMAIL_PASS
+      # manually in the Render dashboard if you upgrade to a paid instance.
+
+      - key: GEMINI_API_KEY
+        sync: false

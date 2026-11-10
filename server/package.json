@@ -1,0 +1,61 @@
+{
+  "name": "portfolio-backend",
+  "version": "1.0.0",
+  "description": "Secure Full Stack Portfolio Backend API built with Node.js, Express.js, MySQL/TiDB, JWT Authentication, Cloudinary, and Nodemailer.",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "author": "Mayuresh Kasar",
+  "license": "MIT",
+  "homepage": "https://portfolio-app-mmlr.onrender.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mayuresh-2601/PORTFOLIO-APP.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mayuresh-2601/PORTFOLIO-APP/issues"
+  },
+  "keywords": [
+    "portfolio",
+    "nodejs",
+    "express",
+    "mysql",
+    "tidb",
+    "jwt",
+    "cloudinary",
+    "nodemailer",
+    "rest-api",
+    "backend"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "check": "node scripts/checkSyntax.js",
+    "test": "node --test \"tests/*.test.js\"",
+    "db:setup": "node scripts/database.js setup",
+    "db:migrate": "node scripts/database.js migrate",
+    "db:seed": "node scripts/database.js seed",
+    "db:check": "node scripts/database.js check",
+    "hash-password": "node scripts/generateAdminHash.js",
+    "gmail:auth": "node scripts/gmailAuth.js",
+    "email:check": "node scripts/testEmail.js",
+    "email:test": "node scripts/testEmail.js --send"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.3",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "mysql2": "^3.22.3",
+    "nodemailer": "^10.4.0"
+  }
+}

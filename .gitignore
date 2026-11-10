@@ -1,0 +1,106 @@
+
+# Portfolio App - .gitignore
+
+
+
+# Environment Variables & Secrets
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+
+# Dependencies
+
+node_modules/
+client/node_modules/
+server/node_modules/
+
+
+# Build Output
+
+dist/
+build/
+coverage/
+client/dist/
+client/build/
+server/dist/
+
+
+# Logs
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+# Cache
+
+.cache/
+.vite/
+.parcel-cache/
+.eslintcache
+.npm/
+.pnpm-store/
+.yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+
+# Testing
+
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+
+# Docker
+
+docker-compose.override.yml
+
+
+# Vercel
+
+.vercel/
+
+
+# IDE / Editor
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+.idea/
+
+
+# Operating System Files
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+
+# Temporary Files
+
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+
+
+# Miscellaneous
+
+*.local

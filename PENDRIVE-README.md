@@ -1,0 +1,207 @@
+# Running this project from a pendrive
+
+This folder is a complete copy of the portfolio project. It is designed to
+run on any Windows, macOS, or Linux machine with Node.js installed — no
+database server is required for the public pages if you point it at TiDB.
+
+> **Secrets are not included.** `.env` files are deliberately excluded from
+> the archive so a lost pendrive cannot leak your database, Cloudinary,
+> Gmail, or admin credentials. Recreate them from the `.env.example` files.
+
+---
+
+## 1. What you need
+
+- **Node.js 22 or newer (LTS)** — <https://nodejs.org>
+- A code editor (optional) — VS Code recommended
+- Internet access for `npm install`
+- For local database work: MySQL 8+ or a TiDB Cloud database
+
+Check Node:
+
+```bash
+node --version
+npm --version
+```
+
+## 2. First run on a new machine
+
+Open a terminal in `PORTFOLIO-APP/`.
+
+### Backend
+
+```bash
+cd server
+npm install
+```
+
+Create `server/.env` from `server/.env.example` and fill in:
+
+- TiDB or MySQL connection values
+- `JWT_SECRET` (32+ random characters)
+- `ADMIN_EMAIL`
+- **One** of `ADMIN_PASSWORD` (plain text, 12+ characters) or
+  `ADMIN_PASSWORD_HASH` (bcrypt)
+- Optional: Cloudinary, Gmail, Gemini
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+
+# Optional bcrypt alternative:
+npm run hash-password -- "your-strong-password"
+```
+
+Only the exact email/password pair in `server/.env` can access `/admin`.
+
+> **If you use Docker Compose:** quote values containing `$`, `#`, or spaces
+> in `server/.env`, e.g. `ADMIN_PASSWORD_HASH='$2b$12$...'` or
+> `ADMIN_PASSWORD='my long password'`. Compose interpolates unquoted `$`
+> values; dotenv strips the quotes for `npm run dev`. Render's dashboard
+> expects the raw value **without** quotes.
+
+### Gmail
+
+- **Local / paid hosting:** create a Google App Password and set
+  `EMAIL_USER` + `EMAIL_PASS` + `EMAIL_TRANSPORT=smtp`.
+- **Render free tier:** SMTP is blocked. Enable the Gmail API, put
+  `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` in `.env`, then run
+  `npm run gmail:auth`. Verify with `npm run email:check` and
+  `npm run email:test`.
+
+Full steps are in [`DEPLOYMENT.md`](DEPLOYMENT.md#3-configure-gmail-delivery).
+
+If you are using a **fresh** database:
+
+```bash
+npm run db:setup
+npm run db:seed
+npm run db:check
+```
+
+If the database already contains this project's tables:
+
+```bash
+npm run db:migrate
+npm run db:seed
+npm run db:check
+```
+
+Start the API:
+
+```bash
+npm run dev
+```
+
+It listens on <http://localhost:5000>. Leave this terminal open.
+
+### Frontend
+
+Open a **second** terminal:
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+Open <http://localhost:5173>.
+
+For a production preview:
+
+```bash
+npm run build
+npm run preview
+```
+
+## 3. Quick sanity checks
+
+```bash
+# API is alive
+curl http://localhost:5000/api/health
+
+# Database is reachable
+curl http://localhost:5000/api/health/ready
+
+# Content is seeded
+curl http://localhost:5000/api/projects
+```
+
+Expected: 4 projects, 16 skills, 16 certificates.
+
+## 4. Deploy from the pendrive
+
+The full step-by-step guide is in [`DEPLOYMENT.md`](DEPLOYMENT.md). Short
+version:
+
+1. Push the folder to GitHub (do **not** commit `.env` files).
+2. Create a TiDB Cloud database and run `db:setup`, `db:seed`.
+3. Create a Render Web Service from `server/` with the env vars.
+4. Create a Vercel project from `client/` with
+   `VITE_API_BASE_URL=https://YOUR-API.onrender.com`.
+5. Set `CLIENT_URL=https://YOUR-PROJECT.vercel.app` on Render and redeploy.
+
+## 5. Folder map
+
+```
+PORTFOLIO-APP/
+├── client/                  React + Vite frontend
+│   ├── src/                 pages, components, API client
+│   ├── public/              static assets (Profile.png, resume, images)
+│   ├── vercel.json          SPA rewrite + security/cache headers
+│   └── .env.example         frontend env template
+├── server/                  Express API
+│   ├── config/              database, Cloudinary
+│   ├── controllers/         request handlers
+│   ├── database/
+│   │   ├── schema.sql       fresh-install schema
+│   │   ├── seed.sql         live production content
+│   │   └── migrations/      existing-database upgrade SQL
+│   ├── middleware/          auth, uploads, rate limits, errors
+│   ├── models/              SQL queries
+│   ├── routes/              API routes
+│   ├── scripts/             db lifecycle, password hash, Gmail auth, email test, syntax check
+│   ├── services/            Gemini integration
+│   ├── utils/               email + validation
+│   └── .env.example         backend env template
+├── docs/                    README assets and screenshots
+├── render.yaml              Render Blueprint
+├── docker-compose.yml       optional local stack
+├── DEPLOYMENT.md            production deployment guide
+└── PENDRIVE-README.md       this file
+```
+
+## 6. Stopping and cleaning up
+
+- Press `Ctrl+C` in each terminal to stop the dev servers.
+- `node_modules/` can be deleted to save space; run `npm install` again
+  when needed.
+- `client/dist/` is generated by `npm run build`.
+- Do not delete `server/database/seed.sql` — it restores the portfolio
+  content on a new database.
+
+## 7. Backup strategy
+
+Keep at least two copies:
+
+1. This pendrive.
+2. A private Git repository (recommended) or encrypted cloud backup.
+
+Never copy real `.env` files into a public repository, screenshot, or
+shared ZIP. If the pendrive is lost, rotate the TiDB password, JWT secret,
+Cloudinary keys, Gmail App Password / OAuth refresh token, and Gemini key immediately.
+
+## 8. Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `'vite' is not recognized` | Run `npm install` inside `client/` |
+| `'node' is not recognized` | Install Node.js 22+ (LTS) and reopen the terminal |
+| API exits with "Missing environment variables" | Create `server/.env` from `.env.example`, including `DB_PASSWORD=` if empty |
+| Database connection failed | Check host/port/user/password, `DB_SSL` (true for TiDB, false for local MySQL), and TiDB IP allowlist |
+| `db:setup` says no CREATE DATABASE permission | Create the database in the TiDB console, then run `npm run db:migrate` |
+| Port 5000 already in use | Set `PORT=5001` in `server/.env` and `VITE_PROXY_TARGET=http://localhost:5001` in `client/.env.local` |
+| Login fails | Set `ADMIN_PASSWORD` to the exact 12+ character password (or update `ADMIN_PASSWORD_HASH`), restart the API, and use the matching `ADMIN_EMAIL` |
+| Email not sending on Render free | SMTP is blocked there; run `npm run gmail:auth` and use the `GMAIL_*` variables (`EMAIL_TRANSPORT=gmail-api`) |
+| Email not sending locally | Run `npm run email:check`; use a 16-character Google App Password, not your normal Gmail password |
+| CORS error | `CLIENT_URL` must match the frontend origin exactly, with no trailing slash |
+| Images return 503 | Cloudinary is not configured; add `CLOUD_*` variables and restart |
