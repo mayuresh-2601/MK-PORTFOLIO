@@ -8,7 +8,7 @@
   "homepage": "https://mk-portfolio-phi-silk.vercel.app/",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "vite",

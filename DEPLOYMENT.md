@@ -97,6 +97,10 @@ never deletes content added later through the admin dashboard.
 The contact form saves every message to TiDB first. Email notification is
 best-effort, so a mail failure never loses a submission.
 
+> **Step-by-step walkthrough:** [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md)
+> covers the Google Cloud screens, the one-time token script, Render variables,
+> production verification, and troubleshooting.
+
 ### Which transport?
 
 | Hosting | Transport | Why |

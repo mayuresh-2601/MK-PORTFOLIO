@@ -14,13 +14,15 @@ WORKDIR /app
 # Copy package files first for better Docker cache
 COPY package*.json ./
 
-# Install production dependencies
+# Install production dependencies. The npm cache is cleared in the same layer so
+# it does not bloat the image; stderr is silenced only to hide npm's harmless
+# "using --force" warning.
 RUN if [ -f package-lock.json ]; then \
       npm ci --omit=dev; \
     else \
       npm install --omit=dev; \
     fi && \
-    npm cache clean --force
+    npm cache clean --force 2>/dev/null
 
 # Copy application source
 COPY . .

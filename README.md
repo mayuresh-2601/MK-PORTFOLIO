@@ -511,6 +511,10 @@ Full instructions, environment tables, smoke tests, and rollback steps are in
 [`DEPLOYMENT.md`](DEPLOYMENT.md). This repository ships a
 [`render.yaml`](render.yaml) Blueprint for the API.
 
+For contact-form notifications, follow the step-by-step
+[Gmail setup guide](docs/EMAIL_SETUP.md). Render's free tier blocks SMTP, so the
+guide uses the Gmail API over HTTPS.
+
 ### Frontend → Vercel
 1. Import the repo, set the project root to `client/`
 2. Build command: `npm run build` · Output directory: `dist`
