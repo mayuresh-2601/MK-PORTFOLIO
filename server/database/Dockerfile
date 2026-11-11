@@ -10,6 +10,7 @@ FROM mysql:8.0
 LABEL maintainer="Mayuresh Kasar"
 LABEL description="Portfolio MySQL database with schema and seed data"
 
-# The MySQL entrypoint runs these files in alphabetical order on first start.
-COPY schema.sql /docker-entrypoint-initdb.d/01-schema.sql
-COPY seed.sql /docker-entrypoint-initdb.d/02-seed.sql
+# The MySQL entrypoint runs files in alphabetical order on first start, so
+# schema.sql is applied before seed.sql.
+COPY schema.sql /docker-entrypoint-initdb.d/schema.sql
+COPY seed.sql /docker-entrypoint-initdb.d/seed.sql
