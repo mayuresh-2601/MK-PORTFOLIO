@@ -494,14 +494,19 @@ stay blank; those features degrade gracefully.
 docker compose up --build
 ```
 
+The schema and seed are baked into the `portfolio-app-db:local` image instead
+of being bind-mounted at runtime. That keeps the stack working when the
+repository is on a Windows removable drive such as `D:`, where Docker Desktop
+otherwise turns file mounts into empty directories.
+
 `docker-compose.yml` overrides the server's `DB_HOST`, `DB_PORT`, `DB_USER`,
 `DB_PASSWORD`, and `DB_SSL` so the API talks to the `db` container
 automatically — even if `server/.env` points at TiDB Cloud for normal local
 development.
 
-Open **http://localhost** when all three containers are healthy. A fresh
-database is initialized with `schema.sql` and seeded with the baseline
-portfolio content.
+Open **http://localhost** when all three containers are healthy. On first
+start, the database image applies `schema.sql` and `seed.sql`, so the baseline
+portfolio content is ready immediately.
 
 ---
 

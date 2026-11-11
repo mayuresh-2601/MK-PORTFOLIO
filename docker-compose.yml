@@ -3,7 +3,13 @@ services:
   # MySQL Database
   
   db:
-    image: mysql:8.0
+    # Schema and seed are baked into this image. Bind-mounting individual
+    # files fails on Windows Docker Desktop when the project is on a
+    # removable drive, because the mount points appear as directories.
+    build:
+      context: ./server/database
+      dockerfile: Dockerfile
+    image: portfolio-app-db:local
 
     restart: unless-stopped
 
@@ -19,10 +25,6 @@ services:
 
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./server/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
-      # MySQL runs these files alphabetically: schema.sql, then seed.sql.
-      # A fresh `docker compose up` therefore has the real portfolio content.
-      - ./server/database/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
 
     # Force TCP so the check does not pass against MySQL's temporary
     # socket-only server while the init scripts are still running. The

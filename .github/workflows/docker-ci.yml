@@ -189,6 +189,12 @@ jobs:
           dockerfile: client/Dockerfile
           failure-threshold: warning
 
+      - name: Lint Database Dockerfile
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: server/database/Dockerfile
+          failure-threshold: warning
+
   docker-stack:
     name: Build & Test Full Stack
     runs-on: ubuntu-latest
