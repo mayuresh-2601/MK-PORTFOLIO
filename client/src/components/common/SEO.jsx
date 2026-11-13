@@ -10,7 +10,9 @@ import { useEffect } from "react";
  */
 
 const SITE_URL = "https://mk-portfolio-phi-silk.vercel.app";
-const DEFAULT_IMAGE = `${SITE_URL}/Profile.webp`;
+// Use the 1200x630 social card for every route; the portrait image is not a
+// valid summary_large_image aspect ratio.
+const DEFAULT_IMAGE = `${SITE_URL}/og-cover.jpg`;
 
 const upsertMeta = (attribute, value, attributes) => {
   let element = document.head.querySelector(

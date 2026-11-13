@@ -11,6 +11,7 @@ import { getEmailConfig } from "./config/email.js";
 import { validateEnvironment } from "./config/validateEnv.js";
 
 import { getAdminAuthConfig } from "./utils/adminAuth.js";
+import { getClientIp } from "./utils/clientIp.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
@@ -126,12 +127,29 @@ app.use(
     crossOriginResourcePolicy: {
       policy: "cross-origin",
     },
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        // Keep the CSP frame protection aligned with frameguard below.
+        "frame-ancestors": ["'none'"],
+      },
+    },
     // This API only returns JSON; no page should ever frame it.
     frameguard: {
       action: "deny",
     },
   })
 );
+
+// This host only serves the JSON API, so none of it belongs in a search
+// index. The public site is deployed separately.
+app.use((req, res, next) => {
+  res.set("X-Robots-Tag", "noindex, nofollow");
+  next();
+});
+
+// Log the actual visitor address instead of Render's private proxy hop.
+morgan.token("remote-addr", (req) => getClientIp(req));
 
 app.use(
   morgan(isProduction ? "combined" : "dev", {
@@ -150,7 +168,7 @@ app.use(
 
 app.use(
   express.urlencoded({
-    extended: true,
+    extended: false,
     limit: "1mb",
   })
 );
@@ -349,8 +367,29 @@ const shutdown = async (signal) => {
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
+// Only Errors, strings, and primitive descriptions are logged. Arbitrary
+// objects can hold request headers, JWTs, or database credentials and must
+// never be serialized into the log stream.
+const describeFatalValue = (value) => {
+  if (value instanceof Error) {
+    return String(value.stack || `${value.name}: ${value.message}`).slice(
+      0,
+      4000
+    );
+  }
+
+  if (typeof value === "string") {
+    return value.slice(0, 4000);
+  }
+
+  return `Non-Error value (${typeof value}).`;
+};
+
 process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled promise rejection:", reason);
+  console.error(
+    "Unhandled promise rejection:",
+    describeFatalValue(reason)
+  );
 
   if (isProduction) {
     shutdown("unhandledRejection");
@@ -358,6 +397,6 @@ process.on("unhandledRejection", (reason) => {
 });
 
 process.on("uncaughtException", (error) => {
-  console.error("Uncaught exception:", error);
+  console.error("Uncaught exception:", describeFatalValue(error));
   shutdown("uncaughtException");
 });

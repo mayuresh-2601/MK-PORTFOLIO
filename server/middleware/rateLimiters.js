@@ -1,12 +1,19 @@
-import { rateLimit } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
+
+import { getClientIp } from "../utils/clientIp.js";
 
 /**
  * Shared rate limiters.
  *
- * Render sits behind a proxy, and `app.set("trust proxy", 1)` makes
- * express-rate-limit use the real client IP. Limits are intentionally
- * generous for normal browsing and strict for login/contact abuse.
+ * Express cannot see the visitor's address directly: Render terminates the
+ * request on a private proxy address. `getClientIp` resolves the real address
+ * from Cloudflare's edge headers, and `ipKeyGenerator` keeps IPv6 clients in
+ * the same subnet bucket so they cannot rotate addresses to bypass a limit.
+ * Limits are intentionally generous for normal browsing and strict for
+ * login/contact abuse.
  */
+
+const clientIpKey = (req) => ipKeyGenerator(getClientIp(req));
 
 const jsonHandler = (message) => (req, res) => {
   res.status(429).json({
@@ -18,6 +25,7 @@ const jsonHandler = (message) => (req, res) => {
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 300,
+  keyGenerator: clientIpKey,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   skip: (req) =>
@@ -36,6 +44,7 @@ export const apiLimiter = rateLimit({
 export const systemLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 120,
+  keyGenerator: clientIpKey,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   handler: jsonHandler(
@@ -46,6 +55,7 @@ export const systemLimiter = rateLimit({
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  keyGenerator: clientIpKey,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -57,6 +67,7 @@ export const authLimiter = rateLimit({
 export const messageLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
+  keyGenerator: clientIpKey,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   handler: jsonHandler(
@@ -67,6 +78,7 @@ export const messageLimiter = rateLimit({
 export const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 10,
+  keyGenerator: clientIpKey,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   handler: jsonHandler(

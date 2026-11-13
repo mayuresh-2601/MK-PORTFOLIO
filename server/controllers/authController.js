@@ -4,6 +4,7 @@ import {
   getAdminAuthConfig,
   verifyAdminCredentials,
 } from "../utils/adminAuth.js";
+import { getClientIp } from "../utils/clientIp.js";
 
 /*
    Admin Login
@@ -87,7 +88,7 @@ export const login = async (req, res, next) => {
 
     if (!credentialsMatch) {
       console.warn(
-        `[auth] Failed admin login attempt from ${req.ip || "unknown"}.`
+        `[auth] Failed admin login attempt from ${getClientIp(req)}.`
       );
 
       return res.status(401).json({
@@ -114,7 +115,7 @@ export const login = async (req, res, next) => {
     );
 
     console.log(
-      `[auth] Admin login succeeded from ${req.ip || "unknown"}.`
+      `[auth] Admin login succeeded from ${getClientIp(req)}.`
     );
 
     return res.status(200).json({

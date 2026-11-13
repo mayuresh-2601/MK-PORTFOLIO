@@ -10,6 +10,7 @@ import {
 import api from "../../api/axios";
 import AIExplainModal from "../../components/common/AIExplainModal";
 import SEO from "../../components/common/SEO";
+import { safeExternalUrl } from "../../utils/safeUrl";
 
 export default function Certificates() {
   const [certificates, setCertificates] = useState([]);
@@ -132,55 +133,61 @@ export default function Certificates() {
 
         {!loading && !error && certificates.length > 0 && (
           <div className="cert-grid">
-            {certificates.map((cert, index) => (
-              <article
-                key={cert.id}
-                className="cert-card reveal"
-                style={{ "--delay": `${Math.min(index, 8) * 80}ms` }}
-              >
-                {cert.image && (
-                  <div className="cert-card__media">
-                    <img
-                      src={cert.image}
-                      alt={cert.title}
-                      loading="lazy"
-                      onError={(event) => {
-                        event.currentTarget.src = "/placeholder-project.png";
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div className="cert-card__body">
-                  <p className="cert-card__issuer">
-                    <Award size={14} aria-hidden="true" />
-                    {cert.issuer}
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveCert(cert)}
-                    className="cert-card__title"
-                    title="Ask AI to explain this certificate"
-                  >
-                    {cert.title}
-                    <Sparkles size={14} aria-hidden="true" />
-                  </button>
-
-                  {cert.link && (
-                    <a
-                      href={cert.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="cert-card__link"
-                    >
-                      View credential
-                      <ExternalLink size={14} aria-hidden="true" />
-                    </a>
+            {certificates.map((cert, index) => {
+              // Credential links come from the database; only render absolute
+              // HTTP(S) URLs so a bad row cannot become a script link.
+              const certificateUrl = safeExternalUrl(cert.link);
+              return (
+                <article
+                  key={cert.id}
+                  className="cert-card reveal"
+                  style={{ "--delay": `${Math.min(index, 8) * 80}ms` }}
+                >
+                  {cert.image && (
+                    <div className="cert-card__media">
+                      <img
+                        src={cert.image}
+                        alt={cert.title}
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.src =
+                            "/placeholder-project.png";
+                        }}
+                      />
+                    </div>
                   )}
-                </div>
-              </article>
-            ))}
+
+                  <div className="cert-card__body">
+                    <p className="cert-card__issuer">
+                      <Award size={14} aria-hidden="true" />
+                      {cert.issuer}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveCert(cert)}
+                      className="cert-card__title"
+                      title="Ask AI to explain this certificate"
+                    >
+                      {cert.title}
+                      <Sparkles size={14} aria-hidden="true" />
+                    </button>
+
+                    {certificateUrl && (
+                      <a
+                        href={certificateUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="cert-card__link"
+                      >
+                        View credential
+                        <ExternalLink size={14} aria-hidden="true" />
+                      </a>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

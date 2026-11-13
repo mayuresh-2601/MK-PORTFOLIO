@@ -10,6 +10,7 @@ import {
 import api from "../../api/axios";
 import GithubIcon from "../../assets/GithubIcon";
 import SEO from "../../components/common/SEO";
+import { safeExternalUrl } from "../../utils/safeUrl";
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -132,7 +133,11 @@ export default function Projects() {
         {!loading && !error && projects.length > 0 && (
           <div className="work-grid">
             {projects.map((project, index) => {
-              const primaryLink = project.demo || project.github;
+              // Database content is editable from the admin dashboard. Only
+              // render links that are absolute HTTP(S) URLs.
+              const githubUrl = safeExternalUrl(project.github);
+              const demoUrl = safeExternalUrl(project.demo);
+              const primaryLink = demoUrl || githubUrl;
               return (
                 <article
                   key={project.id}
@@ -172,9 +177,9 @@ export default function Projects() {
                     <p className="work-card__desc">{project.description}</p>
 
                     <div className="work-card__links">
-                      {project.github && (
+                      {githubUrl && (
                         <a
-                          href={project.github}
+                          href={githubUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="work-card__link"
@@ -184,9 +189,9 @@ export default function Projects() {
                         </a>
                       )}
 
-                      {project.demo && (
+                      {demoUrl && (
                         <a
-                          href={project.demo}
+                          href={demoUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="work-card__link"
