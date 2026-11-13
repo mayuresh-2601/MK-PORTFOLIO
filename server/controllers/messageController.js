@@ -5,10 +5,7 @@ import {
 } from "../models/messageModel.js";
 
 import sendEmail from "../utils/sendEmail.js";
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const DEFAULT_SUBJECT = "Portfolio Contact Form";
+import { validateMessagePayload } from "../utils/messageValidation.js";
 
 /*
    Create Contact Message
@@ -16,65 +13,16 @@ const DEFAULT_SUBJECT = "Portfolio Contact Form";
 
 export const createMessage = async (req, res, next) => {
   try {
-    let { name, email, subject, message } = req.body || {};
+    const validation = validateMessagePayload(req.body);
 
-    // Reject malformed JSON types before calling `.trim()`. Without this a
-    // payload like {"name":123,...} would throw a TypeError and return 500.
-    if (
-      typeof name !== "string" ||
-      typeof email !== "string" ||
-      typeof message !== "string" ||
-      (subject !== undefined &&
-        subject !== null &&
-        typeof subject !== "string")
-    ) {
-      return res.status(400).json({
+    if (!validation.ok) {
+      return res.status(validation.status).json({
         success: false,
-        message: "Name, email, and message are required.",
+        message: validation.message,
       });
     }
 
-    name = name.trim();
-    email = email.trim();
-    subject = (subject || "").trim() || DEFAULT_SUBJECT;
-    message = message.trim();
-
-    // Validate required fields
-    if (!name || !email || !message) {
-      return res.status(400).json({
-        success: false,
-        message: "Name, email, and message are required.",
-      });
-    }
-
-    // Validate lengths before writing to the database
-    if (name.length > 100) {
-      return res.status(400).json({
-        success: false,
-        message: "Name must be 100 characters or fewer.",
-      });
-    }
-
-    if (email.length > 150 || !EMAIL_PATTERN.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a valid email address.",
-      });
-    }
-
-    if (subject.length > 200) {
-      return res.status(400).json({
-        success: false,
-        message: "Subject must be 200 characters or fewer.",
-      });
-    }
-
-    if (message.length > 5000) {
-      return res.status(400).json({
-        success: false,
-        message: "Message must be 5000 characters or fewer.",
-      });
-    }
+    const { name, email, subject, message } = validation.data;
 
     // Save message to database
     const result = await addMessage({

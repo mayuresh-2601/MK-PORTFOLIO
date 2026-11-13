@@ -109,7 +109,8 @@ export const getSystemSnapshot = async (req, res, next) => {
     const snapshot = {
       timestamp: new Date().toISOString(),
       host: {
-        hostname: os.hostname(),
+        // Do not expose os.hostname(). On Render it contains the internal
+        // service and pod identifiers, which are unnecessary for visitors.
         platform: os.platform(),
         arch: os.arch(),
         nodeVersion: process.version,

@@ -9,7 +9,7 @@ import db from "../config/db.js";
  */
 export const getAllProjects = async () => {
   const sql = `
-    SELECT *
+    SELECT id, title, description, github, demo, image, created_at
     FROM projects
     ORDER BY id DESC
   `;
@@ -29,7 +29,7 @@ export const getAllProjects = async () => {
 export const getProjectById = async (id) => {
   const [rows] = await db.execute(
     `
-      SELECT *
+      SELECT id, title, description, github, demo, image, created_at
       FROM projects
       WHERE id = ?
       LIMIT 1

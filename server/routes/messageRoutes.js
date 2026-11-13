@@ -9,6 +9,7 @@ import {
 import { protect } from "../middleware/authMiddleware.js";
 import { uploadSingle } from "../middleware/uploadMiddleware.js";
 import { messageLimiter } from "../middleware/rateLimiters.js";
+import { validateMessagePayload } from "../utils/messageValidation.js";
 
 const router = express.Router();
 
@@ -31,7 +32,10 @@ const router = express.Router();
 router.post(
   "/",
   messageLimiter,
-  uploadSingle("file", { allowDocuments: true }),
+  uploadSingle("file", {
+    allowDocuments: true,
+    validate: validateMessagePayload,
+  }),
   createMessage
 );
 

@@ -126,6 +126,10 @@ app.use(
     crossOriginResourcePolicy: {
       policy: "cross-origin",
     },
+    // This API only returns JSON; no page should ever frame it.
+    frameguard: {
+      action: "deny",
+    },
   })
 );
 

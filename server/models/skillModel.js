@@ -9,7 +9,7 @@ import db from "../config/db.js";
  */
 export const getSkills = async () => {
   const sql = `
-    SELECT *
+    SELECT id, name, level, created_at
     FROM skills
     ORDER BY id DESC
   `;
@@ -28,7 +28,7 @@ export const getSkills = async () => {
  */
 export const getSkillById = async (id) => {
   const [rows] = await db.execute(
-    "SELECT * FROM skills WHERE id = ? LIMIT 1",
+    "SELECT id, name, level, created_at FROM skills WHERE id = ? LIMIT 1",
     [Number(id)]
   );
 

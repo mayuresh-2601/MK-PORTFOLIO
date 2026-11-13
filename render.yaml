@@ -48,17 +48,17 @@ services:
       - key: DB_CONNECTION_LIMIT
         value: "10"
 
-      # Auth — set ADMIN_PASSWORD to the plain-text admin password
-      # (12+ characters). The API also supports ADMIN_PASSWORD_HASH (bcrypt)
-      # if you add it manually in the Render dashboard; the hash wins when
-      # both are present.
+      # Auth — production uses a bcrypt hash, generated locally with:
+      #   npm run hash-password -- "your-strong-password"
+      # ADMIN_PASSWORD remains supported for local development; if both are
+      # set, the hash wins.
       - key: JWT_SECRET
         sync: false
       - key: JWT_EXPIRES_IN
         value: 12h
       - key: ADMIN_EMAIL
         sync: false
-      - key: ADMIN_PASSWORD
+      - key: ADMIN_PASSWORD_HASH
         sync: false
 
       # Frontend origin (Vercel production URL, no trailing slash)

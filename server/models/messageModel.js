@@ -9,7 +9,7 @@ import db from "../config/db.js";
  */
 export const getMessages = async () => {
   const sql = `
-    SELECT *
+    SELECT id, name, email, subject, message, created_at
     FROM messages
     ORDER BY id DESC
   `;
@@ -29,7 +29,7 @@ export const getMessages = async () => {
 export const getMessageById = async (id) => {
   const [rows] = await db.execute(
     `
-      SELECT *
+      SELECT id, name, email, subject, message, created_at
       FROM messages
       WHERE id = ?
       LIMIT 1

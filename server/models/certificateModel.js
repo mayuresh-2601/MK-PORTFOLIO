@@ -9,7 +9,7 @@ import db from "../config/db.js";
  */
 export const getCertificates = async () => {
   const sql = `
-    SELECT *
+    SELECT id, title, issuer, image, link, created_at
     FROM certificates
     ORDER BY id DESC
   `;
@@ -29,7 +29,7 @@ export const getCertificates = async () => {
 export const getCertificateById = async (id) => {
   const [rows] = await db.execute(
     `
-      SELECT *
+      SELECT id, title, issuer, image, link, created_at
       FROM certificates
       WHERE id = ?
       LIMIT 1

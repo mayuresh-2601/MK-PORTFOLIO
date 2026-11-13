@@ -101,7 +101,7 @@ const uploadToCloudinary = (file, allowDocuments) =>
 
 export const uploadSingle = (
   fieldName,
-  { allowDocuments = false } = {}
+  { allowDocuments = false, validate } = {}
 ) => {
   const uploader = allowDocuments
     ? documentUploader
@@ -137,6 +137,27 @@ export const uploadSingle = (
           success: false,
           message: err.message || "File upload failed.",
         });
+      }
+
+      // Optional pre-upload validation. Multer has parsed the text fields by
+      // now, so an invalid public form submission is rejected before its file
+      // is sent to Cloudinary (no orphan assets, no wasted quota).
+      if (typeof validate === "function") {
+        try {
+          const result = validate(req.body || {});
+
+          if (result && result.ok === false) {
+            return res.status(result.status || 400).json({
+              success: false,
+              message: result.message || "Invalid request.",
+            });
+          }
+        } catch {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid request.",
+          });
+        }
       }
 
       // No file supplied — controllers decide whether one is required.
