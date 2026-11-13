@@ -32,8 +32,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Mayuresh Kasar | Full Stack Developer"
-        description="Portfolio of Mayuresh Kasar, a Full Stack Developer building secure web applications with React.js, Node.js, Express.js, MySQL/TiDB, Docker and CI/CD pipelines."
+        title="Mayuresh Kasar — Full Stack Developer Portfolio"
+        description="Mayuresh Kasar — full stack developer portfolio. Explore React, Node.js, Express, MySQL, Docker and CI/CD projects, skills, certificates, and live server telemetry."
         path="/"
       />
 
