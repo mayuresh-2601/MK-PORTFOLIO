@@ -268,6 +268,9 @@ Not complete:
 
 ### Delivered
 
+Documentation release commit: **`237cc2c`** (`docs: rebuild the complete project documentation set`).
+CI run: **`43573951282`** — **7/7 jobs success**, including the Docker stack, Render deploy, and production smoke tests.
+
 Twenty documents in `docs/`:
 
 1. `PRD.md`
@@ -409,15 +412,61 @@ It is **not** a guarantee of uptime, accessibility conformance, search ranking, 
 
 **Next review trigger:** after Cloudinary rotation, after any auth change, after any schema change, or within 90 days — whichever comes first.
 
+## 16. Post-release verification (documentation commit `237cc2c`)
+
+Fresh checks run after the documentation release deployed (2026-11-14, ~13:35 IST / 08:05 UTC):
+
+| Check | Result |
+|---|---|
+| API `/api/health` | `200`, `healthy` |
+| API `/api/health/ready` | `200`, `ready`, `database: connected` |
+| Projects / skills / certificates | `4` / `16` / `16` |
+| `/api/messages` without token | `401` |
+| API `X-Robots-Tag` | `noindex, nofollow` |
+| API `Cache-Control` | `no-store` |
+| API CSP `frame-ancestors 'none'` | Present |
+| Frontend homepage | `200` |
+| Homepage title | `Mayuresh Kasar - Full Stack Developer Portfolio` |
+| Homepage canonical | `https://mk-portfolio-phi-silk.vercel.app/` |
+| `/admin` | `200` |
+| `/admin` `X-Robots-Tag` | `noindex, nofollow` |
+| `/admin` CSP `frame-ancestors 'none'` | Present |
+| `robots.txt` | Present with `Sitemap:` |
+| `sitemap.xml` | 7 URLs; no `/admin` |
+| IndexNow key file | `200` |
+
+Render deployment evidence for `237cc2c`:
+
+```text
+Checking out commit 237cc2c8ad2d4964f9b2d7fbca40eca4ea221bc8 in branch main
+Using Node.js version 22.23.5
+added 115 packages ... found 0 vulnerabilities
+✅ Database connected successfully.
+🚀 API listening on 0.0.0.0:10000 (production).
+✅ Allowed browser origins: https://mk-portfolio-phi-silk.vercel.app
+🔐 Admin login: bcrypt hash.
+⚠️ Email is not configured - contact messages are saved but no notification email is sent.
+[auth] Failed admin login attempt from 52.156.110.65.
+```
+
+Interpretation: the documentation release did not regress production. The API and frontend are healthy on the same commit, auth is hash-only, the real client IP is logged, headers remain correct, and no fatal error or secret appears in the logs. The failed login is the expected wrong-password smoke test from CI; it confirms the real IP is now logged instead of Render's private proxy address.
+
+### Remaining warnings after release
+
+The five open items and two documentation warnings in section 1 are unchanged. In particular, the Cloudinary credential rotation is still outstanding, `README.md` still contains broken links to the removed docs and remains an unstaged owner edit.
+
 ---
 
 ## Appendix A — Evidence index
 
 | Evidence | Value |
 |---|---|
-| Audited commit | `af48648` |
-| CI run | `43571698661` |
-| CI result | 7/7 success |
+| Application commit audited | `af48648` |
+| Application CI run | `43571698661` |
+| Application CI result | 7/7 success |
+| Documentation release commit | `237cc2c` |
+| Documentation CI run | `43573951282` |
+| Documentation CI result | 7/7 success |
 | API health | `healthy` |
 | API readiness | `ready`, DB `connected` |
 | Content counts | 4 projects / 16 skills / 16 certificates |
@@ -437,5 +486,5 @@ It is **not** a guarantee of uptime, accessibility conformance, search ranking, 
 
 - This audit reflects the state at the date/time above.
 - Production changes after that time require a new verification pass.
-- The documentation commit that includes this file is docs-only; it must still pass the seven-job pipeline before being considered released.
+- The documentation release commit `237cc2c` passed all seven CI jobs in run `43573951282`; the post-release production checks are recorded in section 16.
 - Do not treat this document as a security certification or a ranking guarantee.

@@ -140,17 +140,21 @@ This plan describes how the portfolio was built, what is already in production, 
 
 **Exit criteria:** green `main` run deploys and verifies both live services.
 
-### Phase 7 — Documentation (In progress)
+### Phase 7 — Documentation (Done)
 
 | Task | Output | Status |
 |---|---|---|
 | Product and design docs | `PRD.md`, `DESIGN.md` | Done |
 | Technical docs | `ARCHITECTURE.md`, `DATABASE.md`, `API.md` | Done |
 | Agent and planning docs | `AGENTS.md`, `IMPLEMENTATION_PLAN.md` | Done |
-| Setup and feature docs | `PROJECT_SETUP.md`, `FEATURE_DEVELOPMENT.md`, `DATABASE_BACKEND.md`, `AUTHENTICATION.md` | In progress |
-| Integration, testing, debugging | `MCP.md`, `INTEGRATIONS.md`, `TESTING.md`, `DEBUGGING.md` | In progress |
-| Security, review, deployment, monitoring, audit | `SECURITY_AUDIT.md`, `CODE_REVIEW.md`, `DEPLOYMENT.md`, `MONITORING.md`, `FINAL_PRODUCTION_AUDIT.md` | In progress |
-| Remove legacy docs | Six approved files | Pending |
+| Setup and feature docs | `PROJECT_SETUP.md`, `FEATURE_DEVELOPMENT.md`, `DATABASE_BACKEND.md`, `AUTHENTICATION.md` | Done |
+| Integration, testing, debugging | `MCP.md`, `INTEGRATIONS.md`, `TESTING.md`, `DEBUGGING.md` | Done |
+| Security, review, deployment, monitoring, audit | `SECURITY_AUDIT.md`, `CODE_REVIEW.md`, `DEPLOYMENT.md`, `MONITORING.md`, `FINAL_PRODUCTION_AUDIT.md` | Done |
+| Remove legacy docs | Six approved files | Done |
+
+**Exit criteria:** 20 documents exist, relative links resolve, the six approved legacy files are removed, `README.md` is preserved, and the docs commit is green in CI.
+
+**Release evidence:** commit `237cc2c` (`docs: rebuild the complete project documentation set`), CI run `43573951282`, 7/7 jobs success. Post-release production checks are recorded in [FINAL_PRODUCTION_AUDIT.md](./FINAL_PRODUCTION_AUDIT.md).
 
 ## 4. Remaining work
 
@@ -283,3 +287,5 @@ Use this sequence for any non-trivial change:
 - `README.md` is preserved; its unrelated edit is not staged.
 - Relative links resolve.
 - The docs commit is pushed, CI passes, and the final production audit reflects fresh evidence.
+
+**Status: Done (2026-11-14).** Commit `237cc2c` is pushed to `main`; CI run `43573951282` completed with 7/7 jobs success. `README.md` remains modified and unstaged pending owner review (warning N8).
