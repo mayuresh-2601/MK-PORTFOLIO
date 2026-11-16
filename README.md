@@ -65,7 +65,7 @@ The public site presents projects, skills, certificates, and contact information
 The project is designed to demonstrate the engineering practices behind a real product:
 
 - **Separate frontend and backend** deployed independently to Vercel and Render.
-- **JWT-protected admin area** with full CRUD for portfolio content.
+- **Cookie-session admin area** with opaque HttpOnly session, CSRF protection, and full CRUD for portfolio content.
 - **Production database** on TiDB Cloud, with a MySQL-compatible schema and seed data.
 - **Docker Compose stack** that runs the entire application locally, including the database.
 - **Seven-job GitHub Actions pipeline** that lints, tests, builds, deploys, and smoke-tests the live system.
@@ -77,15 +77,15 @@ The project is designed to demonstrate the engineering practices behind a real p
 | Area | Implementation |
 |---|---|
 | Frontend | React 18, Vite 6, React Router 7, Tailwind CSS 4, Axios, Lucide |
-| Backend | Node.js 22, Express 5, MySQL2, JWT, bcryptjs, Helmet, CORS |
+| Backend | Node.js 22, Express 5, MySQL2, bcryptjs, Helmet, CORS |
 | Database | TiDB Cloud / MySQL 8, `utf8mb4`, four relational tables |
-| Auth | Single admin identity, HS256 JWT, timing-safe password comparison |
+| Auth | Single admin identity, bcrypt password, HttpOnly cookie session, CSRF protection, optional TOTP MFA |
 | Uploads | Cloudinary, in-memory Multer buffer, 5 MB image limit |
 | Email | Gmail API over HTTPS (Render-compatible) or Gmail SMTP |
 | AI | Google Gemini `gemini-3.5-flash-lite` |
 | Local stack | Docker Compose: React + Nginx, Express, MySQL |
 | Delivery | GitHub Actions -> Render REST API + Vercel Git integration |
-| Documentation | README, deployment guide, email setup, fixes, restore notes |
+| Documentation | README, deployment guide, email setup, fixes, restore notes, SECURITY_OPERATIONS.md |
 
 ---
 
@@ -166,12 +166,12 @@ All screenshots are captured from the live production deployment at **1440 x 900
 
 ### Admin dashboard
 
-- **JWT login** - one admin identity configured entirely through server-side environment variables.
+- **Cookie-session login** - one admin identity configured through server-side environment variables (bcrypt hash, optional TOTP MFA); session stored in HttpOnly cookie.
 - **Full CRUD** - create, edit, and delete projects, skills, and certificates.
 - **Image uploads** - project and certificate artwork is uploaded to Cloudinary; the API remains online if Cloudinary is not configured.
 - **Contact inbox** - read and delete messages submitted through the public form.
 - **Immediate feedback** - success and error states for every mutation, plus a manual refresh control.
-- **Protected routes** - the dashboard redirects to `/admin` when no valid token is stored.
+- **Protected routes** - the dashboard redirects to `/admin` when no valid session cookie is present.
 
 ### Contact and notifications
 
@@ -203,7 +203,7 @@ All screenshots are captured from the live production deployment at **1440 x 900
 | Fonts | Fontsource Inter + Space Mono | Self-hosted, privacy-friendly typography |
 | API | Node.js 22, Express 5 | Lightweight REST backend with modern async support |
 | Database | MySQL2, TiDB Cloud | Relational content with TLS and connection pooling |
-| Auth | jsonwebtoken, bcryptjs | Stateless admin sessions and optional bcrypt hashes |
+| Auth | bcrypt, HttpOnly cookie session, optional TOTP MFA | Server-side sessions; token hash in DB; CSRF-protected state changes |
 | Security | Helmet, CORS, express-rate-limit | Headers, origin allowlisting, and abuse limits |
 | Uploads | Multer + Cloudinary | Memory-buffered image uploads with a 5 MB limit |
 | Email | Nodemailer + Gmail API | HTTPS delivery works on Render's free tier |
@@ -220,7 +220,7 @@ All screenshots are captured from the live production deployment at **1440 x 900
 flowchart LR
     subgraph Browser["Browser"]
         U["Visitor"]
-        A["Admin<br/>JWT session"]
+        A["Admin<br/>Cookie session"]
     end
 
     subgraph Frontend["Vercel"]
@@ -248,21 +248,21 @@ flowchart LR
     U -->|HTTPS| V
     A -->|HTTPS| V
     U -->|"XHR /api/*"| R
-    A -->|"XHR + JWT"| R
+    A -->|"X-CSRF-Token + cookie"| R
     R -->|"SQL over TLS"| D
     R -->|"HTTPS"| C
     R -->|"HTTPS"| G
     R -->|"HTTPS"| AI
 ```
 
-The browser loads the static bundle from Vercel and calls the Render API directly. The API origin is baked into the build through `VITE_API_BASE_URL`. In local development and Docker, the browser uses same-origin `/api` instead.
+The browser loads the static bundle from Vercel and calls the Render API directly via same-origin `/api`. Cookies are set with `HttpOnly`, `Secure` (production), and `SameSite` attributes; state-changing requests require a matching `X-CSRF-Token`.
 
 ### Request flow
 
 1. Vercel serves the static React bundle and rewrites every SPA route to `index.html`.
-2. The browser calls the API origin configured in `VITE_API_BASE_URL` (or same-origin `/api` in local/Docker mode).
-3. Express applies CORS, Helmet, JSON parsing, rate limiting, and route handlers.
-4. Public reads come from TiDB; admin writes require a valid `Authorization: Bearer <jwt>` header.
+2. The browser calls the same-origin `/api` endpoint (or `VITE_API_BASE_URL` in the split Vercel/Render deployment).
+3. Express applies CORS, Helmet, JSON parsing, rate limiting, and route handlers. Every state-changing request requires `X-CSRF-Token` matching the session value; Origin/Referer are enforced for production calls.
+4. Public reads come from TiDB; admin writes use the cookie-based session (no Bearer token in the Authorization header).
 5. Contact messages are inserted first, then a Gmail notification is attempted.
 6. `/api/system` reads live process and host metrics directly from Node.js.
 
@@ -274,6 +274,7 @@ flowchart LR
     N -->|"static files"| B
     N -->|"/api/*"| S["Express API<br/>server container :5000"]
     S --> M[("MySQL 8<br/>db container :3306<br/>host port 3307")]
+    N -.->|session cookie| S
 ```
 
 ---
@@ -365,7 +366,7 @@ DB_PASSWORD=your-db-password
 DB_NAME=portfolio
 DB_SSL=true
 
-JWT_SECRET=replace-with-a-long-random-string
+ADMIN_PASSWORD_HASH= bcrypt hash generated with `npm run hash-password`
 ADMIN_EMAIL=your-admin@example.com
 ADMIN_PASSWORD=replace-with-a-strong-password
 ```
@@ -451,7 +452,7 @@ The project uses **three separate environment files**. Keeping them separate pre
 | Variable group | Local development | Local Docker | Render API | Vercel frontend |
 |---|---|---|---|---|
 | `DB_*` | `server/.env` | Root `.env` + Compose overrides | Render Environment | - |
-| `JWT_*`, `ADMIN_*` | `server/.env` | `server/.env` | Render Environment | - |
+| `ADMIN_PASSWORD_HASH` | Preferred | `server/.env` | Render Environment | - |
 | Gmail variables | `server/.env` | `server/.env` | Render Environment | - |
 | Cloudinary variables | `server/.env` | `server/.env` | Render Environment | - |
 | `GEMINI_API_KEY` | `server/.env` | `server/.env` | Render Environment | - |
@@ -490,8 +491,8 @@ Only `VITE_*` variables are public. Vite embeds them in the browser bundle, so t
 | `DB_NAME` | Yes | Database name. |
 | `DB_SSL` | Yes | `true` for TiDB Cloud, `false` for the local Docker MySQL container. |
 | `DB_CONNECTION_LIMIT` | No | Pool size. Defaults to `10`; capped at `20`. |
-| `JWT_SECRET` | Yes | Long random string, 32+ characters. Generate with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. |
-| `JWT_EXPIRES_IN` | No | Session lifetime. Defaults to `12h`. |
+| `ADMIN_PASSWORD_HASH` | Preferred | bcrypt hash, generated with `npm run hash-password`. Wins when both password options are set. |
+| `ADMIN_TOTP_SECRET` | Optional | Base32 secret; when set, password alone cannot create a session. Generated with `npm run mfa:setup`. |
 | `ADMIN_EMAIL` | Yes | The single admin email allowed to log in. |
 | `ADMIN_PASSWORD` | Yes* | Plain-text admin password, 12+ characters. |
 | `ADMIN_PASSWORD_HASH` | No | bcrypt hash generated with `npm run hash-password`. Wins when both password options are set. |
@@ -625,7 +626,7 @@ Copy-Item .env.example .env
 Copy-Item server/.env.example server/.env
 ```
 
-3. Set `JWT_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` in `server/.env`. The `DB_*` values in that file are overridden by Compose, so they do not need to match the container.
+3. Set `ADMIN_PASSWORD_HASH` in `server/.env` (bcrypt hash, generated with `npm run hash-password`) and `ADMIN_EMAIL`. Optionally set `ADMIN_TOTP_SECRET`. The `DB_*` values in that file are overridden by Compose, so they do not need to match the container.
 
 4. Build and start:
 
@@ -697,7 +698,7 @@ There are no runtime SQL bind mounts. The full stack therefore works from a USB 
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | Public | Exchange admin email/password for a JWT |
+| `POST` | `/api/auth/login` | Public | Exchange admin email/password for a cookie session |
 
 Request:
 
@@ -712,18 +713,30 @@ Response:
 ```json
 {
   "success": true,
-  "token": "<jwt>",
+  "csrfToken": "<64-hex-chars>",
+  "expiresAt": 1760000000000,
   "admin": {
     "email": "admin@example.com"
   }
 }
 ```
 
-Send the token on protected requests:
+The API sets an HttpOnly, Secure (production), SameSite cookie named `__Host-portfolio_session` (or `portfolio_session` for local HTTP). State-changing requests require a matching `X-CSRF-Token` header and an exact Origin/Referer.
+
+Logout:
 
 ```bash
-curl https://mk-portfolio-api.onrender.com/api/messages \
-  -H "Authorization: Bearer <jwt>"
+curl -X POST https://mk-portfolio-api.onrender.com/api/auth/logout \
+  -H "Origin: https://mk-portfolio-phi-silk.vercel.app" \
+  -H "X-CSRF-Token: <your-csrf-token>"
+```
+
+Log out all sessions:
+
+```bash
+curl -X POST https://mk-portfolio-api.onrender.com/api/auth/logout-all \
+  -H "Origin: https://mk-portfolio-phi-silk.vercel.app" \
+  -H "X-CSRF-Token: <your-csrf-token>"
 ```
 
 ### Portfolio content
@@ -882,9 +895,10 @@ VITE_API_BASE_URL=https://mk-portfolio-api.onrender.com
 5. Health check path: `/api/health`.
 6. Add the variables from `server/.env.example` in the Render dashboard. At minimum:
    - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL`
-   - `JWT_SECRET`, `JWT_EXPIRES_IN`
-   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`)
+   - `ADMIN_PASSWORD_HASH` (or leave `ADMIN_PASSWORD` as fallback)
+   - `ADMIN_EMAIL`
    - `CLIENT_URL`
+   - `ALLOW_VERCEL_PREVIEWS` (optional)
 7. Optional: add Cloudinary, Gmail API, and Gemini values.
 8. Deploy. CI will trigger subsequent deploys after a green pipeline.
 
@@ -911,15 +925,15 @@ Configure the database first, then the API, then point the frontend at the API. 
 
 ## Security
 
-- **One admin identity** - only the exact `ADMIN_EMAIL` plus `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`) from the server environment can log in.
+- **One admin identity** - only the exact `ADMIN_EMAIL` plus `ADMIN_PASSWORD_HASH` (or `ADMIN_PASSWORD` as fallback) from the server environment can log in.
 - **Timing-safe credential checks** - the plain-text path hashes both values with SHA-256 and uses `crypto.timingSafeEqual`; the bcrypt path uses `bcrypt.compare`.
-- **Hardened JWT sessions** - HS256 with issuer/audience checks, a 12-hour default expiry, and a role/email claim tied to the current admin.
-- **Login throttling** - 10 failed attempts per 15 minutes per IP.
+- **Cookie-session auth** - sessions are opaque random tokens in HttpOnly cookies; only SHA-256 hashes are stored in DB. Optional TOTP MFA via `ADMIN_TOTP_SECRET` requires a code at login.
+- **Login throttling** - 10 failed attempts per 15 minutes per resolved client IP.
 - **CORS allowlist** - `CLIENT_URL` contains exact production origins. Vercel previews are opt-in through `ALLOW_VERCEL_PREVIEWS`.
 - **Security headers** - Helmet on the API; CSP, HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and a restrictive permissions policy on the frontend.
 - **Input validation** - required fields, type checks, email format, length limits, and `400` responses for malformed JSON.
 - **Upload controls** - MIME allowlist, 5 MB image limit, one file per request, and in-memory buffering before Cloudinary.
-- **No secrets in the client** - only `VITE_*` values are public. Passwords, JWT secrets, refresh tokens, and API keys stay server-side.
+- **No secrets in the client** - only `VITE_*` values are public. Passwords, session hashes, refresh tokens, and API keys stay server-side.
 - **No secrets in images** - `.dockerignore` and CI checks keep `.env` files and build output out of container images.
 - **Graceful failure** - optional integrations return clear `503` or `502` responses without taking down the core site.
 - **Environment validation** - production startup fails fast if required values are missing or still placeholders.
