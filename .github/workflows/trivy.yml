@@ -13,6 +13,8 @@ on:
 
 permissions:
   contents: read
+  security-events: write
+  packages: read
 
 concurrency:
   group: trivy-${{ github.ref }}
@@ -26,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Scan Lockfiles and Configuration
         uses: aquasecurity/trivy-action@0.36.0
@@ -46,7 +48,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Build Server Image
         run: docker build --tag portfolio-server:scan ./server
