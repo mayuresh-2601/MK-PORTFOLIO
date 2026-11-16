@@ -16,10 +16,6 @@ permissions:
   security-events: write
   packages: read
 
-concurrency:
-  group: trivy-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   filesystem:
     name: Dependency & IaC Scan
@@ -37,9 +33,7 @@ jobs:
           scan-ref: .
           scanners: vuln,misconfig
           severity: CRITICAL,HIGH
-          ignore-unfixed: true
           exit-code: "1"
-          format: table
 
   images:
     name: Container Image Scan
@@ -59,9 +53,7 @@ jobs:
           scan-type: image
           image-ref: portfolio-server:scan
           severity: CRITICAL,HIGH
-          ignore-unfixed: true
           exit-code: "1"
-          format: table
 
       - name: Build Client Image
         run: docker build --tag portfolio-client:scan ./client
@@ -72,6 +64,4 @@ jobs:
           scan-type: image
           image-ref: portfolio-client:scan
           severity: CRITICAL,HIGH
-          ignore-unfixed: true
           exit-code: "1"
-          format: table
