@@ -3,29 +3,37 @@
 **Product:** Mayuresh Kasar Portfolio ("MAYURESH.DEV")
 **Document owner:** Mayuresh Kasar
 **Status:** Source of truth for admin authentication
-**Version:** 1.0
-**Last updated:** 2026-11-14
-**Code:** `server/utils/adminAuth.js`, `server/controllers/authController.js`, `server/middleware/authMiddleware.js`, `client/src/components/protected/ProtectedRoute.jsx`, `client/src/api/axios.js`
-**Related:** [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) · [API.md](./API.md) · [ARCHITECTURE.md](./ARCHITECTURE.md)
+**Version:** 2.0
+**Last updated:** 2026-11-16
+**Code:** `server/utils/adminAuth.js`, `server/utils/sessionConfig.js`, `server/utils/totp.js`, `server/controllers/authController.js`, `server/middleware/authMiddleware.js`, `server/models/sessionModel.js`, `client/src/components/protected/ProtectedRoute.jsx`, `client/src/api/axios.js`
+**Related:** [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) · [SECURITY_OPERATIONS.md](./SECURITY_OPERATIONS.md) · [API.md](./API.md) · [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
 
 ## 1. Model
 
-The application has **exactly one admin identity**, configured entirely through server environment variables. There is no `users` table, no signup, no password reset, no invitations, no roles beyond `admin`, and no per-resource ownership.
+The application has **exactly one admin identity**, configured entirely
+through server environment variables. There is no `users` table, no signup,
+no password reset, no invitations, no roles beyond `admin`, and no
+per-resource ownership.
 
 | Property | Value |
 |---|---|
 | Identity source | `ADMIN_EMAIL` + `ADMIN_PASSWORD_HASH` or `ADMIN_PASSWORD` |
 | Storage | Server environment only; never the database or browser |
 | Password algorithm | bcrypt (preferred) or constant-time SHA-256 comparison for the plain fallback |
-| Session | Stateless JWT, HS256 |
-| Token lifetime | `JWT_EXPIRES_IN`, default `12h` |
-| Token storage | Browser `localStorage` (current implementation) |
+| Session | Opaque random token in an HttpOnly cookie |
+| Session storage | `admin_sessions` table; only a SHA-256 hash of the token is stored |
+| Session lifetime | 120 minutes absolute / 30 minutes idle by default |
+| Second factor | Optional TOTP (`ADMIN_TOTP_SECRET`) |
+| Browser storage | No auth token. Only a cosmetic `sessionStorage` hint and an in-memory CSRF token |
 | Authorization | Server middleware on every private read/mutation |
-| Rate limit | 10 failed logins per 15 minutes per resolved client IP |
+| Login rate limit | 10 failed logins per 15 minutes per resolved client IP |
+| Revocation | Immediate: logout, log out all, expiry, idle timeout, or admin-email change |
 
-This is a deliberate design for a one-owner portfolio. It removes the attack surface of user registration and password recovery at the cost of requiring manual credential rotation.
+This is a deliberate design for a one-owner portfolio. It removes the attack
+surface of user registration and password recovery at the cost of requiring
+manual credential rotation.
 
 ## 2. Environment configuration
 
@@ -36,12 +44,46 @@ This is a deliberate design for a one-owner portfolio. It removes the attack sur
 | `ADMIN_EMAIL` | Yes | Valid email; trimmed/lowercased; must not be `@example.com` or a placeholder |
 | `ADMIN_PASSWORD_HASH` | Preferred | Valid bcrypt `$2a$/$2b$/$2y$` hash |
 | `ADMIN_PASSWORD` | Fallback | At least 12 characters; not a placeholder/common password; not equal to the email; ≤ 1,024 characters |
-| `JWT_SECRET` | Yes | Must be present; production validation requires adequate length/entropy |
-| `JWT_EXPIRES_IN` | No | Duration string such as `12h`; default `12h` |
 
-If both password forms are set, **the hash wins**. Startup emits a warning telling the operator to remove the plain value.
+If both password forms are set, **the hash wins**. Startup emits a warning
+telling the operator to remove the plain value.
 
-### 2.2 Startup validation
+### 2.2 Session variables
+
+| Variable | Default | Rules |
+|---|---|---|
+| `SESSION_TTL_MINUTES` | `120` | Integer 5–1440; absolute lifetime |
+| `SESSION_IDLE_MINUTES` | `30` | Integer 5–1440; cannot exceed the absolute lifetime |
+| `SESSION_RETENTION_DAYS` | `7` | Integer 1–90; how long expired/revoked rows are kept for audit |
+| `SESSION_COOKIE_SECURE` | `true` in production | Boolean; must stay `true` on HTTPS |
+| `SESSION_COOKIE_SAMESITE` | `none` in production, `lax` locally | `lax`, `strict` or `none`; `none` requires a Secure cookie |
+
+Because Vercel rewrites `/api` to Render, the session cookie is first-party
+on the portfolio origin. `SameSite=lax` is therefore a valid, stricter
+production choice. The default `none` also works but is only needed if the
+browser ever calls a different site directly.
+
+### 2.3 MFA and retired variables
+
+| Variable | Notes |
+|---|---|
+| `ADMIN_TOTP_SECRET` | Optional base32 secret. When present, a correct password alone cannot create a session |
+| `JWT_SECRET` | **Retired.** Ignored by the code; startup warns if it is still set |
+| `JWT_EXPIRES_IN` | **Retired.** Ignored |
+
+Generate an MFA secret with:
+
+```bash
+cd server
+npm run mfa:setup
+```
+
+The script prints a **new** secret, an `otpauth://` URL and the current code.
+Store the secret in Render as `ADMIN_TOTP_SECRET`, add the account to an
+authenticator app, then restart the API and test the code. The script never
+reads or prints an existing configured secret.
+
+### 2.4 Startup validation
 
 `validateAdminAuthConfig()` returns fatal errors and warnings. Fatal examples:
 
@@ -52,33 +94,38 @@ If both password forms are set, **the hash wins**. Startup emits a warning telli
 - invalid bcrypt hash;
 - plain password shorter than 12 characters;
 - placeholder/common plain password;
-- plain password equal to the email.
+- plain password equal to the email;
+- invalid `ADMIN_TOTP_SECRET`.
 
 Warnings include:
 
 - both password forms present;
 - plain password in production (hash is safer);
 - leading/trailing whitespace in the plain password;
-- only one character class in the plain password.
+- only one character class in the plain password;
+- MFA not configured in production.
 
-`validateEnvironment()` also validates `JWT_SECRET`, origins, ports, database values, and optional integration consistency. In production, fatal errors prevent the process from listening at all.
+`validateEnvironment()` also validates session lifetimes, cookie settings,
+origins, ports, database values, AI limits, ClamAV configuration and optional
+integration consistency. In production, fatal errors prevent the process from
+listening at all.
 
-### 2.3 Generating a bcrypt hash
+### 2.5 Generating a bcrypt hash
 
 ```bash
 cd server
 npm run hash-password -- "your-strong-password"
 ```
 
-The script prints the hash. Put it in the Render environment as `ADMIN_PASSWORD_HASH` and remove `ADMIN_PASSWORD`. Never commit the hash or paste it into a document, issue, or chat.
+The script prints the hash. Put it in the Render environment as
+`ADMIN_PASSWORD_HASH` and remove `ADMIN_PASSWORD`. Never commit the hash or
+paste it into a document, issue, or chat.
 
-The production service currently logs:
+The production service should log:
 
 ```text
-🔐 Admin login: bcrypt hash.
+🔐 Admin login: bcrypt hash; session 120m absolute / 30m idle.
 ```
-
-That confirms hash mode is active.
 
 ## 3. Login flow
 
@@ -86,18 +133,18 @@ That confirms hash mode is active.
 sequenceDiagram
     participant B as Admin browser
     participant API as Express API
-    participant ENV as Environment
-    B->>API: POST /api/auth/login {email, password}
-    API->>API: Type and length validation
-    API->>ENV: Read ADMIN_EMAIL + hash/password
-    alt valid
-        API->>API: Sign HS256 JWT
-        API-->>B: 200 {token, expiresIn, user}
-        B->>B: localStorage.setItem("token")
-        B->>API: Protected request + Bearer token
-    else invalid
-        API-->>B: 401 Invalid email or password.
+    participant DB as admin_sessions
+    B->>API: POST /api/auth/login {email, password, totp?}
+    API->>API: Validate types, lengths and origin
+    API->>API: bcrypt/constant-time credential comparison
+    alt MFA configured
+        API->>API: Verify 6-digit TOTP (±30 s window)
     end
+    API->>DB: Insert SHA-256(token), CSRF token, expiry
+    API-->>B: 200 {csrfToken, expiresAt, user} + HttpOnly cookie
+    B->>API: Protected request + cookie + X-CSRF-Token
+    API->>DB: Look up hash, check expiry/idle/revocation
+    API-->>B: 200 data
 ```
 
 ### 3.1 Request validation
@@ -107,281 +154,215 @@ sequenceDiagram
 - Password is not trimmed.
 - Email max 254 characters; password max 1,024.
 - Missing/invalid types return `400` with `Email and password are required.`
+- The route is limited to 10 failed attempts per 15 minutes per client IP.
 
 ### 3.2 Credential comparison
 
 - Email is normalized with trim + lowercase.
 - In hash mode: `bcrypt.compare(password, hash)`.
 - In plain mode: SHA-256 both values and `crypto.timingSafeEqual`.
-- The email comparison always runs, even when the password is wrong, reducing timing leakage.
+- The email comparison always runs, even when the password is wrong, reducing
+  timing leakage.
 - A bcrypt error is treated as a mismatch, not a 500.
-- If configuration is missing at request time, the response is `500 Server configuration error.` without naming the variable.
+- If configuration is missing at request time, the response is
+  `500 Server configuration error.` without naming the variable.
 
-### 3.3 Success response
+### 3.3 MFA
+
+When `ADMIN_TOTP_SECRET` is set:
+
+- A correct password without a code returns `401` with `mfaRequired: true`.
+- An invalid code returns the same generic `401`, plus `mfaRequired: true`.
+- TOTP is SHA-1, 6 digits, 30-second period, with a one-step window for clock
+  skew (RFC 6238).
+- Codes are compared in constant time and are never logged.
+- There are no backup codes. If the authenticator device is lost, the owner
+  must update `ADMIN_TOTP_SECRET` in Render and restart. Use the recovery
+  checklist in [SECURITY_OPERATIONS.md](./SECURITY_OPERATIONS.md).
+
+### 3.4 Success response
 
 ```json
 {
   "success": true,
   "message": "Login successful.",
-  "token": "<jwt>",
-  "expiresIn": "12h",
-  "user": {
-    "email": "admin@example.com",
-    "role": "admin"
-  }
+  "csrfToken": "<64 hex characters>",
+  "expiresAt": 1760000000000,
+  "mfaEnabled": true,
+  "user": { "email": "owner@example.com", "role": "admin" }
 }
 ```
 
-The client stores only the token in `localStorage` and navigates to `/admin/dashboard` with `replace: true`.
+No JWT, access token, or refresh token is returned. The session cookie is set
+with `HttpOnly`, `Secure` (production), `SameSite`, `Path=/` and no `Domain`.
+The cookie name is `__Host-portfolio_session` when Secure and
+`portfolio_session` for local HTTP.
 
-### 3.4 Failure behavior
+## 4. Session design
 
-- Bad credentials: `401 { "success": false, "message": "Invalid email or password." }`
-- No detail about which field was wrong.
-- Failed attempts are logged server-side with the resolved client IP, not the submitted email or password.
-- The auth limiter counts failed requests; successful logins are skipped.
+### 4.1 Database rows
 
-## 4. JWT design
+`admin_sessions` stores:
 
-### 4.1 Claims and signing
-
-| Claim | Value |
+| Column | Meaning |
 |---|---|
-| `sub` | Admin email |
-| `email` | Admin email |
-| `role` | `admin` |
-| `iss` | `portfolio-api` |
-| `aud` | `portfolio-admin` |
-| `exp` | Now + `JWT_EXPIRES_IN` |
-| Algorithm | HS256 only |
+| `token_hash` | SHA-256 of the cookie token (primary key) |
+| `admin_email` | Identity bound at login |
+| `csrf_token` | Per-session CSRF value |
+| `created_at` | Epoch milliseconds |
+| `last_seen_at` | Epoch milliseconds; drives the idle timeout |
+| `expires_at` | Epoch milliseconds; absolute expiry |
+| `revoked_at` | Epoch milliseconds, `NULL` while active |
 
-The signing secret is `JWT_SECRET`.
+A database leak does not expose usable session tokens: only hashes are stored.
+Epoch milliseconds avoid MySQL/TiDB timezone differences. Expired and revoked
+rows are deleted after `SESSION_RETENTION_DAYS` by startup/6-hour housekeeping.
 
-### 4.2 Verification
+### 4.2 Request checks
 
-`protect` middleware:
+For every protected route, in order:
 
-1. Requires `Authorization: Bearer <token>`.
-2. Rejects a missing/empty token with `401 Authorization token is required.`
-3. Requires `JWT_SECRET` and `ADMIN_EMAIL`; otherwise `500 Server configuration error.`
-4. Verifies with `algorithms: ["HS256"]`, issuer `portfolio-api`, audience `portfolio-admin`.
-5. Requires `role === "admin"`, and both `email` and `sub` to equal the **current** `ADMIN_EMAIL`.
-6. Sets `req.user = { email, role: "admin" }`.
-7. Maps `TokenExpiredError` to `401 Authentication token has expired.`
-8. Maps `JsonWebTokenError` to `401 Invalid authentication token.`
-9. Maps anything else to `401 Authentication failed.`
-10. Logs the error only outside production.
+1. Read the cookie named by the current configuration.
+2. Hash the token and look up the row.
+3. Reject when missing, revoked, expired, or idle longer than the timeout.
+4. Reject when the row's `admin_email` no longer matches `ADMIN_EMAIL`.
+5. For non-GET/HEAD/OPTIONS requests, require `X-CSRF-Token` equal to the
+   session's CSRF value.
+6. Update `last_seen_at` at most once per minute.
+7. Attach `req.user` and `req.session`.
 
-Because the token is tied to the current `ADMIN_EMAIL`, changing that variable invalidates every existing token even if `JWT_SECRET` is unchanged. Rotating `JWT_SECRET` also invalidates all tokens.
+A rejected session receives `401` and the cookie is cleared. A missing or
+mismatched CSRF token receives `403` with `code: "CSRF_TOKEN_INVALID"`.
 
-### 4.3 What is not implemented
+### 4.3 CSRF and origin defense
 
-- No refresh token.
-- No server-side session store or revocation list.
-- No logout endpoint. Logout is client-side removal of the token; the token remains valid until expiry if it was copied elsewhere.
-- No "remember me".
-- No token rotation on privilege change (there are no other privileges).
+Cookie authentication needs CSRF protection that Bearer tokens did not:
 
-## 5. Authorization boundaries
+- **Origin/Referer guard** runs globally for every state-changing request.
+  The origin must exactly match one entry in `CLIENT_URL` (or a localhost
+  origin outside production, or a Vercel preview when explicitly enabled).
+- **Per-session CSRF header** is a second, independent check.
+- The CSRF token is kept in memory only. It is not written to localStorage.
+- The login endpoint itself is origin-checked and rate-limited.
 
-| Route group | Access | Enforcement |
-|---|---|---|
-| Public reads (`GET /api/projects`, `/skills`, `/certificates`, `/system`) | Anyone | No token |
-| Contact submit (`POST /api/messages`) | Anyone | Validation + rate limit |
-| AI (`POST /api/ai/*`) | Anyone | Validation + rate limit |
-| Login (`POST /api/auth/login`) | Anyone | Auth limiter |
-| Content mutations (`POST/PUT/DELETE` projects, skills, certificates) | Admin | `protect` |
-| Message inbox (`GET /api/messages`) | Admin | `protect` |
-| Message delete (`DELETE /api/messages/:id`) | Admin | `protect` |
+### 4.4 Logout and revocation
 
-Client-side protection:
-
-- `ProtectedRoute` checks for a token and redirects to `/admin` if absent.
-- This is a UX gate, not a security boundary. Anyone can edit `localStorage`; the server still rejects them.
-- Axios attaches the token and clears local auth on `401` (except for the login request so the form error remains visible).
-
-## 6. Why the token is in `localStorage`
-
-Advantages:
-
-- simple, stateless, works with the split Vercel/Render deployment;
-- no cookie domain/SameSite complexity;
-- no CSRF token needed for the current API because credentials are sent in a header, not a cookie.
-
-Risks:
-
-- any XSS can read the token;
-- the token survives a tab close until expiry or logout;
-- a compromised dependency or injected script can exfiltrate it.
-
-Current mitigations:
-
-- strict CSP with no `unsafe-eval` and no third-party scripts;
-- no `dangerouslySetInnerHTML` for API/AI content;
-- short-ish 12-hour expiry;
-- API only accepts HS256 with the expected issuer/audience;
-- tokens are bound to the current admin email;
-- no token is ever logged.
-
-**Approval item A1:** move the token to an HttpOnly, Secure, SameSite cookie. That requires:
-
-- login sets a cookie instead of returning a token;
-- Axios uses `withCredentials`;
-- CSRF protection (double-submit token or SameSite=Strict plus origin checks);
-- logout clears the cookie server-side;
-- tests for cross-site request behavior;
-- CORS credentials remain restricted to exact origins.
-
-Do not make this change piecemeal; a cookie without CSRF protection can be worse than the current header token.
-
-## 7. Client behavior
-
-### Login page (`/admin`)
-
-- Email/password fields with labels.
-- Disabled state and "Signing in…" while the request is in flight.
-- Generic error banner on failure.
-- Back link to the public site.
-- `noindex, nofollow` metadata.
-
-### Protected route
-
-- Reads `localStorage.getItem("token")`.
-- Redirects to `/admin` when absent.
-- Does not validate the token locally; the first API call proves validity.
-
-### Axios interceptor
-
-- Adds `Authorization: Bearer <token>` when a token exists.
-- On `401`, removes the token and redirects to `/admin`, except for `/auth/login`.
-- Does not retry mutations.
-- Allows one retry for idempotent GET requests with no response (cold start).
-
-### Logout
-
-- Removes the token.
-- Navigates to `/admin`.
-- There is no server call; the old token remains cryptographically valid until expiry.
-
-## 8. Security properties
-
-| Property | Status |
+| Action | Effect |
 |---|---|
-| Credentials never reach the browser | Yes |
-| Password stored as bcrypt in production | Yes |
-| Plain fallback compared in constant time | Yes |
-| Generic login failure message | Yes |
-| Login rate limiting | Yes (10 failed / 15 min / IP) |
-| JWT algorithm pinning | Yes (HS256 only) |
-| Issuer/audience validation | Yes |
-| Token bound to current admin email | Yes |
-| Short-lived token | 12 h default |
-| Server-side authorization on mutations | Yes |
-| Admin pages noindex | Yes |
-| Token excluded from logs | Yes |
-| MFA | No |
-| Server-side revocation | No |
-| HttpOnly cookie | No |
-| Password rotation UI | No |
-| Audit log of admin actions | No |
+| `POST /api/auth/logout` | Sets `revoked_at` on the current row and clears the cookie |
+| `POST /api/auth/logout-all` | Sets `revoked_at` on every active row for the admin email |
+| Expiry | Row stops working at `expires_at` |
+| Idle timeout | Row stops working after `last_seen_at + idle` |
+| Admin email change | Every old row is rejected and revoked on next use |
+| Password/MFA change | Revoke sessions with log out all (or restart after rotating the secret) |
 
-## 9. Operational procedures
+There is no refresh token. A revoked or expired session cannot be renewed; the
+admin signs in again.
 
-### Rotate the admin password
+## 5. Client behavior
 
-1. Generate a bcrypt hash locally:
-   ```bash
-   cd server
-   npm run hash-password -- "new-strong-password"
-   ```
-2. Update `ADMIN_PASSWORD_HASH` in Render.
-3. Remove `ADMIN_PASSWORD` if present.
-4. Save and redeploy (or let Render restart).
-5. Verify startup logs show bcrypt hash mode.
-6. Sign in with the new password.
-7. Confirm an old session token is no longer useful only if `JWT_SECRET` was also rotated; otherwise old tokens remain valid until expiry. Rotate `JWT_SECRET` if immediate invalidation is required.
+- `client/src/api/axios.js` always uses same-origin `/api`, sends
+  `withCredentials: true`, and attaches `X-CSRF-Token` for unsafe methods.
+- The CSRF token returned by login is stored in a module variable, not
+  localStorage.
+- `ProtectedRoute` calls `GET /api/auth/session` once per protected mount. It
+  sets the CSRF token and the cosmetic admin-link hint before rendering.
+- A `401` clears the in-memory CSRF token and the admin hint. On admin pages it
+  redirects to `/admin`; it never reloads the login form after bad credentials.
+- `Navbar` shows the Admin link from `sessionStorage` only. That hint is not a
+  credential and cannot authorize anything.
+- Logout calls the server, then clears local state. "Log out all" calls
+  `/api/auth/logout-all`.
+- The login form reveals the authenticator field only when the API says
+  `mfaRequired`.
 
-### Rotate the JWT secret
+## 6. Threat model
 
-1. Generate a new random secret.
-2. Update `JWT_SECRET` in Render.
-3. Redeploy.
-4. All existing sessions become invalid; sign in again.
-
-### Compromised admin password
-
-1. Rotate the password hash immediately.
-2. Rotate `JWT_SECRET` to invalidate existing tokens.
-3. Review Render logs for unexpected admin activity.
-4. Review database content and messages for unauthorized changes.
-5. Record the incident and notify affected parties if personal data was accessed.
-
-### Lost admin access
-
-Recovery is manual: update `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` in Render and redeploy. There is no email reset flow. Keep a secure offline record of the credential and recovery steps.
-
-## 10. Threat model
-
-| Threat | Mitigation | Residual risk |
+| Threat | Control | Residual risk |
 |---|---|---|
-| Credential stuffing | Rate limit, strong password, generic errors | No MFA or IP allowlist |
-| Brute force | 10 failed / 15 min, bcrypt cost | Distributed attempts across IPs |
-| Timing oracle | Constant-time comparisons, both fields checked | Network noise, bcrypt cost variance |
-| JWT forgery | HS256 pinning, strong secret, issuer/audience | Secret compromise |
-| Token replay | 12 h expiry, HTTPS, bound to admin email | No revocation list |
-| XSS token theft | CSP, no unsafe scripts, text-only AI rendering | Any future XSS becomes credential theft |
-| CSRF | Bearer header, not cookies | Would change if cookies are adopted |
-| Privilege escalation | No roles; all protected routes require admin | None beyond admin compromise |
-| Session fixation | Token issued after successful login, no session ID | None material |
-| Log leakage | No tokens/passwords/emails logged on failure | IPs are logged |
-| Insider misuse | Single owner | No audit trail |
+| Credential stuffing | 10 failed logins/15 min/IP, generic errors, MFA | Distributed IPs; add edge/WAF limits if attacked |
+| Password database leak | No password database; env-only credential | Host/env compromise |
+| Session database leak | Only SHA-256 token hashes stored | CSRF values are also present but useless without the cookie |
+| XSS token theft | No token in JS-readable storage; HttpOnly cookie | XSS could still make authenticated requests in the victim browser |
+| CSRF | Origin/Referer guard + per-session header | Same-site subdomain compromise; keep `CLIENT_URL` exact |
+| Session replay | HTTPS, short TTL, idle timeout, revocation | Stolen live cookie until revoke/expiry |
+| Session fixation | Server generates a new token after login | None material |
+| Brute-force MFA | Login rate limit, 30 s codes, one-step window | No per-account lockout; single admin |
+| Log leakage | Security events omit email/password/token/CSRF/cookie | Request metadata and IPs are logged |
+| Admin email takeover | MFA and strong unique password | Email provider compromise |
 
-## 11. Testing
+## 7. Operations
 
-Existing coverage in `server/tests/adminAuth.test.js`:
+### 7.1 Verify authentication
 
-- plain-text password accepts only exact credentials;
-- bcrypt hash path;
-- hash precedence when both are set;
-- email normalization;
-- malformed types rejected;
-- placeholder/common password validation;
-- missing configuration errors.
+```bash
+# No cookie -> 401
+curl -i https://mk-portfolio-api.onrender.com/api/messages
 
-Production/CI coverage:
+# Failed login -> 401 and no Set-Cookie
+curl -i -X POST https://mk-portfolio-api.onrender.com/api/auth/login \
+  -H "Origin: https://mk-portfolio-phi-silk.vercel.app" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"not-the-admin@example.com","password":"wrong"}'
+```
 
-- login succeeds with CI credentials;
-- wrong password returns `401`;
-- protected endpoint returns `401` without a token;
-- authorizes and performs updates with a token;
-- login rate limiter is exercised in the Docker stack.
+Then sign in through the site and confirm:
 
-Gaps:
+- the browser stores a `HttpOnly` `__Host-portfolio_session` cookie;
+- localStorage contains no token;
+- `GET /api/auth/session` returns a CSRF token;
+- a state-changing request without `X-CSRF-Token` returns `403`;
+- logout makes the old cookie return `401`.
 
-- no test for token expiry (would require time control);
-- no test for issuer/audience mismatch;
-- no browser-level test that an expired token redirects;
-- no automated check that `ADMIN_PASSWORD` is absent from Render.
+### 7.2 Rotate the admin password
 
-Add tests with the existing `node:test` style. Do not use real credentials.
+1. Generate a new bcrypt hash with `npm run hash-password`.
+2. Update `ADMIN_PASSWORD_HASH` in Render and remove `ADMIN_PASSWORD`.
+3. Deploy/restart.
+4. Sign in and use **Log out all** to revoke sessions created with the old
+   credential.
 
-## 12. Approval items and recommendations
+### 7.3 Rotate MFA
 
-| ID | Item | Recommendation |
-|---|---|---|
-| A1 | HttpOnly cookie session | Evaluate; implement with CSRF protection, not as a partial change |
-| A2 | MFA for the single admin | Optional; adds recovery complexity |
-| A3 | Server-side token revocation | Only needed if cookie/session storage is adopted |
-| A4 | Admin audit log | Useful if a second admin or content workflow is added |
-| A5 | IP allowlist for `/admin` | Could reduce exposure but breaks mobile/network changes |
-| A6 | Password rotation schedule | Define owner policy; rotate on suspicion, not on a rigid timer |
+1. Run `npm run mfa:setup`.
+2. Update `ADMIN_TOTP_SECRET` in Render.
+3. Restart, add the new account to the authenticator, and test login.
+4. Use **Log out all** to revoke existing sessions.
 
-## 13. Rules for contributors
+### 7.4 Emergency lockout
 
-1. Never log or return a password, hash, token, or JWT secret.
-2. Never weaken JWT verification (no `algorithms` removal, no `ignoreExpiration`, no audience skip).
-3. Never add a client-side authorization check as the only control.
-4. Never add signup, password reset, or a users table without an approved product change.
-5. Never put `ADMIN_*` or `JWT_*` in a `VITE_*` variable.
-6. Any auth change requires tests, an update to this document, and the [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) checklist.
-7. Treat a printed token or hash as compromised; rotate it rather than reusing it.
+1. Set `AI_ENABLED=false` if the paid AI path may be abused.
+2. Change `ADMIN_PASSWORD_HASH` and `ADMIN_TOTP_SECRET`, or unset the admin
+   password entirely to make login return `500` while the incident is active.
+3. Restart Render.
+4. Revoke all sessions by deleting active rows or by making the admin email
+   temporarily different; after restoring the correct email, use log out all.
+5. Follow [INCIDENT_RESPONSE.md](./INCIDENT_RESPONSE.md).
+
+### 7.5 Known limitations
+
+- Rate limits and AI daily counters are in-memory. A restart resets them and a
+  multi-instance deployment would not share them. The per-minute limiter is
+  still a hard burst control per instance.
+- There is no password reset, backup code, or second admin. Recovery requires
+  Render environment access.
+- There is no refresh token. A session simply expires.
+- Session rows are not encrypted at rest beyond the provider's disk encryption;
+  they contain no usable bearer token.
+- The client hint in `sessionStorage` can be edited but has no security effect.
+
+## 8. Verification checklist
+
+- [ ] `GET /api/messages` without a cookie returns `401`.
+- [ ] The login response has no `token` field.
+- [ ] A successful login sets an `HttpOnly` cookie and no `Domain` attribute.
+- [ ] A failed login sets no cookie.
+- [ ] `X-CSRF-Token` is required for POST/PUT/DELETE.
+- [ ] `Origin` is required for state changes in production.
+- [ ] Logout revokes the session immediately.
+- [ ] Log out all revokes every session.
+- [ ] An idle or expired session returns `401`.
+- [ ] Changing `ADMIN_EMAIL` invalidates old sessions.
+- [ ] MFA is required when `ADMIN_TOTP_SECRET` is set.
+- [ ] `JWT_SECRET` is absent from Render and startup only warns if present.
+- [ ] No token appears in localStorage, sessionStorage, URLs, or logs.

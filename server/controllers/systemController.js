@@ -1,138 +1,68 @@
 // server/controllers/systemController.js
 import os from "os";
-import fs from "fs";
-import { execFile } from "child_process";
-import { promisify } from "util";
 
-const execFileAsync = promisify(execFile);
-
-// Detects whether this process is running inside a Docker container.
-// The /.dockerenv file is created by Docker itself at container start —
-// this is the standard, reliable way to check.
-function isRunningInDocker() {
-  try {
-    return fs.existsSync("/.dockerenv");
-  } catch {
-    return false;
-  }
-}
+/**
+ * Public telemetry.
+ *
+ * This endpoint is intentionally small. It no longer exposes the OS platform,
+ * architecture, kernel/Node version, hostname, Docker version, git branch or
+ * process identifiers. Visitors see useful live signals; attackers do not
+ * get a free fingerprint of the host.
+ */
 
 function getCpuLoadPercent(cores) {
   // os.loadavg() is Linux/macOS only and returns 0s on Windows — expected,
-  // since this endpoint is designed to run on the actual Linux deployment
-  // (Render), not a local Windows dev machine.
+  // since this endpoint is designed for the actual Linux deployment.
   const [load1] = os.loadavg();
   const percent = (load1 / cores) * 100;
+
   return Math.min(100, Math.round(percent * 10) / 10);
 }
 
-function getMemoryStats() {
+function getMemoryPercent() {
   const total = os.totalmem();
   const free = os.freemem();
-  const used = total - free;
-  return {
-    totalMB: Math.round(total / 1024 / 1024),
-    usedMB: Math.round(used / 1024 / 1024),
-    freeMB: Math.round(free / 1024 / 1024),
-    usedPercent: Math.round((used / total) * 1000) / 10,
-  };
+
+  if (!total) return 0;
+
+  return Math.min(100, Math.round(((total - free) / total) * 1000) / 10);
 }
 
-// Git and Docker metadata change rarely. Running `git`/`docker` with
-// execSync on every 5-second poll blocked the event loop, so the values are
-// collected asynchronously once and cached for five minutes.
-const STATIC_INFO_TTL_MS = 5 * 60 * 1000;
+const aiEnabled = () =>
+  !/^(false|0|no|off)$/i.test(
+    String(process.env.AI_ENABLED || "").trim()
+  ) && Boolean(String(process.env.GEMINI_API_KEY || "").trim());
 
-let cachedStaticInfo = null;
-let cachedStaticInfoExpiresAt = 0;
-let staticInfoRequest = null;
+const getDeployedCommit = () => {
+  const commit = String(
+    process.env.RENDER_GIT_COMMIT ||
+      process.env.GIT_COMMIT ||
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      ""
+  ).trim();
 
-const readCommand = async (file, args) => {
-  try {
-    const { stdout } = await execFileAsync(file, args, {
-      timeout: 1500,
-      windowsHide: true,
-      maxBuffer: 64 * 1024,
-    });
-
-    return stdout.trim() || null;
-  } catch {
-    return null;
-  }
+  return /^[a-f0-9]{7,40}$/i.test(commit) ? commit.slice(0, 7) : null;
 };
-
-const loadStaticInfo = async () => {
-  const [dockerVersion, gitCommit, gitBranch] = await Promise.all([
-    readCommand("docker", ["--version"]),
-    readCommand("git", ["rev-parse", "--short", "HEAD"]),
-    readCommand("git", ["rev-parse", "--abbrev-ref", "HEAD"]),
-  ]);
-
-  return {
-    dockerVersion,
-    gitCommit,
-    gitBranch,
-  };
-};
-
-const getStaticInfo = () => {
-  if (cachedStaticInfo && Date.now() < cachedStaticInfoExpiresAt) {
-    return Promise.resolve(cachedStaticInfo);
-  }
-
-  // Collapse concurrent cache misses into one set of child processes.
-  if (staticInfoRequest) return staticInfoRequest;
-
-  staticInfoRequest = loadStaticInfo()
-    .then((info) => {
-      cachedStaticInfo = info;
-      cachedStaticInfoExpiresAt = Date.now() + STATIC_INFO_TTL_MS;
-      return info;
-    })
-    .finally(() => {
-      staticInfoRequest = null;
-    });
-
-  return staticInfoRequest;
-};
-
-// Warm the cache after startup without delaying the first health check.
-void getStaticInfo().catch(() => {});
 
 export const getSystemSnapshot = async (req, res, next) => {
   try {
-    const inDocker = isRunningInDocker();
-    const staticInfo = await getStaticInfo();
-    const cpus = os.cpus();
-    const cores = cpus.length || 1;
+    const cores = os.cpus().length || 1;
 
     const snapshot = {
       timestamp: new Date().toISOString(),
-      host: {
-        // Do not expose os.hostname(). On Render it contains the internal
-        // service and pod identifiers, which are unnecessary for visitors.
-        platform: os.platform(),
-        arch: os.arch(),
-        nodeVersion: process.version,
-        uptimeSeconds: Math.round(os.uptime()),
-        processUptimeSeconds: Math.round(process.uptime()),
-      },
+      uptimeSeconds: Math.round(process.uptime()),
       cpu: {
         cores,
-        model: cpus[0]?.model ?? "unknown",
         loadPercent: getCpuLoadPercent(cores),
       },
-      memory: getMemoryStats(),
-      docker: {
-        runningInContainer: inDocker,
-        // Only attempt docker CLI calls if NOT already inside a container —
-        // a container usually can't see the host's other containers unless
-        // the docker socket is explicitly mounted.
-        version: !inDocker ? staticInfo.dockerVersion : null,
+      memory: {
+        usedPercent: getMemoryPercent(),
       },
-      git: {
-        commit: staticInfo.gitCommit,
-        branch: staticInfo.gitBranch,
+      services: {
+        ai: aiEnabled() ? "available" : "disabled",
+      },
+      deployment: {
+        commit: getDeployedCommit(),
       },
     };
 

@@ -32,7 +32,13 @@ if (!/^[A-Za-z0-9_]+$/.test(databaseName)) {
   process.exit(1);
 }
 
-const REQUIRED_TABLES = ["projects", "skills", "certificates", "messages"];
+const REQUIRED_TABLES = [
+  "projects",
+  "skills",
+  "certificates",
+  "messages",
+  "admin_sessions",
+];
 
 const log = (message) => console.log(message);
 
@@ -167,6 +173,22 @@ const migrate = async () => {
 
   try {
     const tables = await getTableNames(connection);
+
+    // Sessions were added after the original schema. Create the table before
+    // the required-table check so an existing deployment can upgrade in one
+    // command instead of failing with "missing table".
+    if (!tables.includes("admin_sessions")) {
+      const sessionsSql = await readSql(
+        "migrations/002_admin_sessions.sql"
+      );
+
+      await connection.query(sessionsSql);
+      tables.push("admin_sessions");
+
+      log("✅ Created admin_sessions.");
+    } else {
+      log("ℹ️  admin_sessions already present.");
+    }
 
     const missingTables = REQUIRED_TABLES.filter(
       (table) => !tables.includes(table)

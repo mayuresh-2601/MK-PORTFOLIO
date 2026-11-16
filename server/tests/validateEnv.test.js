@@ -19,11 +19,21 @@ const MANAGED_KEYS = [
   "DB_NAME",
   "DB_SSL",
   "DB_CONNECTION_LIMIT",
+  "SESSION_TTL_MINUTES",
+  "SESSION_IDLE_MINUTES",
+  "SESSION_RETENTION_DAYS",
+  "SESSION_COOKIE_SECURE",
+  "SESSION_COOKIE_SAMESITE",
   "JWT_SECRET",
-  "JWT_EXPIRES_IN",
   "ADMIN_EMAIL",
   "ADMIN_PASSWORD",
   "ADMIN_PASSWORD_HASH",
+  "ADMIN_TOTP_SECRET",
+  "AI_ENABLED",
+  "AI_DAILY_LIMIT",
+  "AI_GLOBAL_DAILY_LIMIT",
+  "CLAMAV_HOST",
+  "CLAMAV_PORT",
   "EMAIL_USER",
   "EMAIL_PASS",
   "EMAIL_TRANSPORT",
@@ -50,9 +60,9 @@ const BASE_ENV = {
   DB_NAME: "portfolio",
   DB_SSL: "false",
   DB_CONNECTION_LIMIT: "10",
-  JWT_SECRET:
-    "9f4c1e7a2b8d5f0c3a6e9b2d7f4c1a8e5b0d3f6c9a2e7b4d1f8c5a0e3b6d9f2c",
-  JWT_EXPIRES_IN: "12h",
+  SESSION_TTL_MINUTES: "120",
+  SESSION_IDLE_MINUTES: "30",
+  SESSION_RETENTION_DAYS: "7",
   ADMIN_EMAIL: "owner@gmail.com",
   ADMIN_PASSWORD: "A-very-long-test-password-2026!",
   EMAIL_TRANSPORT: "none",
@@ -119,23 +129,71 @@ test("invalid ports are fatal", () => {
   );
 });
 
-test("a short production JWT secret is fatal", () => {
-  setEnv({ JWT_SECRET: "too-short" });
+test("an out-of-range session lifetime is fatal", () => {
+  setEnv({ SESSION_TTL_MINUTES: "2" });
 
   const result = validateEnvironment({ production: true });
 
   assert.ok(
-    result.errors.some((error) => error.includes("at least 32 characters"))
+    result.errors.some((error) =>
+      error.includes("SESSION_TTL_MINUTES must be an integer")
+    )
   );
 });
 
-test("a zero JWT lifetime is fatal", () => {
-  setEnv({ JWT_EXPIRES_IN: "0" });
+test("an idle timeout longer than the absolute session is fatal", () => {
+  setEnv({
+    SESSION_TTL_MINUTES: "30",
+    SESSION_IDLE_MINUTES: "60",
+  });
 
   const result = validateEnvironment({ production: true });
 
   assert.ok(
-    result.errors.some((error) => error.includes("greater than zero"))
+    result.errors.some((error) =>
+      error.includes("cannot be longer than SESSION_TTL_MINUTES")
+    )
+  );
+});
+
+test("SameSite=None without a Secure cookie is fatal", () => {
+  setEnv({
+    SESSION_COOKIE_SAMESITE: "none",
+    SESSION_COOKIE_SECURE: "false",
+  });
+
+  const result = validateEnvironment({ production: true });
+
+  assert.ok(
+    result.errors.some((error) =>
+      error.includes("SESSION_COOKIE_SAMESITE=none requires a Secure cookie")
+    )
+  );
+});
+
+test("the retired JWT secret only warns", () => {
+  setEnv({
+    JWT_SECRET:
+      "9f4c1e7a2b8d5f0c3a6e9b2d7f4c1a8e5b0d3f6c9a2e7b4d1f8c5a0e3b6d9f2c",
+  });
+
+  const result = validateEnvironment({ production: true });
+
+  assert.deepEqual(result.errors, []);
+  assert.ok(
+    result.warnings.some((warning) =>
+      warning.includes("JWT_SECRET is no longer used")
+    )
+  );
+});
+
+test("an invalid AI kill-switch value is fatal", () => {
+  setEnv({ AI_ENABLED: "maybe" });
+
+  const result = validateEnvironment({ production: true });
+
+  assert.ok(
+    result.errors.some((error) => error.includes("AI_ENABLED must be true or false"))
   );
 });
 

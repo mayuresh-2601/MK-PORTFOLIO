@@ -3,16 +3,29 @@ import axios from "axios";
 
 // API Base URL
 
-const configuredApiUrl =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  "";
+// Always use same-origin `/api` requests. Vite proxies `/api` during
+// development and preview, Nginx proxies it in Docker, and Vercel rewrites
+// it to Render in production. Keeping the API on the site's own origin is
+// what makes the HttpOnly session cookie first-party and avoids third-party
+// cookie blocking. A direct cross-site API URL is deliberately not supported.
+const API_URL = "";
 
-// Leave VITE_API_BASE_URL unset for same-origin `/api` requests. Vite
-// proxies `/api` during development and preview, Nginx proxies it in
-// Docker, and split deployments (for example Vercel + Render) can set an
-// explicit API origin. This avoids baking localhost into a production build.
-const API_URL = (configuredApiUrl || "").replace(/\/$/, "");
+
+// CSRF token
+//
+// The session cookie is HttpOnly, so JavaScript cannot read it. The matching
+// CSRF token is returned by login and `/auth/session` and kept in memory only.
+// It is not an authentication credential on its own.
+
+let csrfToken = "";
+
+export const setCsrfToken = (token) => {
+  csrfToken = typeof token === "string" ? token : "";
+};
+
+export const clearCsrfToken = () => {
+  csrfToken = "";
+};
 
 
 // Axios Instance
@@ -34,12 +47,14 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
-
     config.headers = config.headers || {};
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const method = (config.method || "get").toLowerCase();
+    const isSafeMethod =
+      method === "get" || method === "head" || method === "options";
+
+    if (!isSafeMethod && csrfToken) {
+      config.headers["X-CSRF-Token"] = csrfToken;
     }
 
     // Let the browser automatically set multipart/form-data headers
@@ -54,6 +69,15 @@ api.interceptors.request.use(
 
 
 // Response Interceptor
+
+const clearAdminHint = () => {
+  try {
+    sessionStorage.removeItem("portfolio_admin_hint");
+  } catch {
+    // Storage can be unavailable in locked-down browsers; the hint is
+    // cosmetic and must never break the request pipeline.
+  }
+};
 
 api.interceptors.response.use(
   (response) => response,
@@ -80,15 +104,17 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const requestUrl = error.config?.url || "";
       const isLoginRequest = /\/auth\/login\/?$/.test(requestUrl);
+      const isSessionCheck = /\/auth\/session\/?$/.test(requestUrl);
       const path = window.location.pathname;
 
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      clearCsrfToken();
+      clearAdminHint();
 
       // Never reload the login screen after bad credentials — that would
-      // erase the form error. Only kick unauthenticated admin pages out.
+      // erase the form error. The protected route handles its own redirect.
       if (
         !isLoginRequest &&
+        !isSessionCheck &&
         path.startsWith("/admin") &&
         path !== "/admin"
       ) {

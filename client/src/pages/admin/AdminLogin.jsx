@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldCheck, LoaderCircle, ArrowLeft } from "lucide-react";
-import api from "../../api/axios";
+import api, { setCsrfToken } from "../../api/axios";
 import SEO from "../../components/common/SEO";
 
 export default function AdminLogin() {
@@ -10,49 +10,82 @@ export default function AdminLogin() {
   const [form, setForm] = useState({
     email: "",
     password: "",
+    totp: "",
   });
 
-  const [loading, setLoading] = useState(false);
+  // idle | submitting | error. A successful login navigates away, so there
+  // is no success state to render.
+  const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const totpRef = useRef(null);
+  const submitting = status === "submitting";
+
+  useEffect(() => {
+    if (mfaRequired) {
+      totpRef.current?.focus();
+    }
+  }, [mfaRequired]);
 
   const handleChange = (event) => {
     setForm((previous) => ({
       ...previous,
       [event.target.name]: event.target.value,
     }));
+
+    if (status === "error") {
+      setStatus("idle");
+      setError("");
+    }
   };
 
   const handleLogin = async (event) => {
     event.preventDefault();
 
-    if (loading) return;
+    if (submitting) return;
 
     const email = form.email.trim();
 
     if (!email || !form.password) {
+      setStatus("error");
       setError("Please enter your email and password.");
       return;
     }
 
-    try {
-      setLoading(true);
-      setError("");
+    setStatus("submitting");
+    setError("");
 
+    try {
       const { data } = await api.post("/auth/login", {
         email,
         password: form.password,
+        totp: form.totp.trim(),
       });
 
-      localStorage.setItem("token", data.token);
+      // The session itself is an HttpOnly cookie. Only the CSRF token is
+      // kept in memory for state-changing requests.
+      setCsrfToken(data.csrfToken);
+
+      try {
+        sessionStorage.setItem("portfolio_admin_hint", "1");
+      } catch {
+        // Cosmetic navigation hint only.
+      }
 
       navigate("/admin/dashboard", { replace: true });
     } catch (loginError) {
+      const response = loginError?.response?.data;
+
+      setStatus("error");
+
+      if (response?.mfaRequired) {
+        setMfaRequired(true);
+      }
+
       setError(
-        loginError?.response?.data?.message ||
+        response?.message ||
           "Unable to login. Please try again."
       );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -119,7 +152,7 @@ export default function AdminLogin() {
               value={form.email}
               onChange={handleChange}
               autoComplete="email"
-              disabled={loading}
+              disabled={submitting}
               required
               className="login-input"
             />
@@ -137,19 +170,46 @@ export default function AdminLogin() {
               value={form.password}
               onChange={handleChange}
               autoComplete="current-password"
-              disabled={loading}
+              disabled={submitting}
               required
               className="login-input"
             />
           </div>
 
+          {mfaRequired && (
+            <div className="login-field">
+              <label className="login-label" htmlFor="admin-totp">
+                Authenticator code
+              </label>
+              <input
+                ref={totpRef}
+                id="admin-totp"
+                type="text"
+                name="totp"
+                placeholder="6-digit code"
+                value={form.totp}
+                onChange={handleChange}
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                disabled={submitting}
+                required
+                className="login-input"
+              />
+              <p className="meta" style={{ marginTop: "0.5rem" }}>
+                Open your authenticator app and enter the current code.
+              </p>
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="btn btn--acid btn--pill btn--wide"
             style={{ marginTop: "0.5rem" }}
           >
-            {loading ? (
+            {submitting ? (
               <>
                 <LoaderCircle
                   className="spin"

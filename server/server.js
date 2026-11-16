@@ -10,8 +10,15 @@ import { cloudinaryConfigured } from "./config/cloudinary.js";
 import { getEmailConfig } from "./config/email.js";
 import { validateEnvironment } from "./config/validateEnv.js";
 
-import { getAdminAuthConfig } from "./utils/adminAuth.js";
+import {
+  getAdminAuthConfig,
+  getAdminMfaConfig,
+} from "./utils/adminAuth.js";
 import { getClientIp } from "./utils/clientIp.js";
+import { cleanupSessions } from "./models/sessionModel.js";
+import { getAllowedOrigins, isAllowedOrigin, requireTrustedOrigin } from "./utils/origin.js";
+import { randomHex } from "./utils/security.js";
+import { getSessionConfig } from "./utils/sessionConfig.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
@@ -51,7 +58,9 @@ if (validation.errors.length > 0) {
 }
 
 const adminAuthConfig = getAdminAuthConfig();
+const adminMfaConfig = getAdminMfaConfig();
 const emailConfig = getEmailConfig();
+const sessionConfig = getSessionConfig();
 
 
 // Express Configuration
@@ -68,14 +77,7 @@ app.set("json escape", true);
 // CORS Configuration
 
 
-const allowedOrigins = (process.env.CLIENT_URL || "")
-  .split(",")
-  .map((origin) => origin.trim().replace(/\/$/, ""))
-  .filter(Boolean);
-
-const allowVercelPreviews = /^(true|1|yes|on)$/i.test(
-  process.env.ALLOW_VERCEL_PREVIEWS || ""
-);
+const allowedOrigins = getAllowedOrigins();
 
 app.use(
   cors({
@@ -86,25 +88,7 @@ app.use(
         return callback(null, true);
       }
 
-      const normalizedOrigin = origin.replace(/\/$/, "");
-
-      const isLocalDev =
-        !isProduction &&
-        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(
-          normalizedOrigin
-        );
-
-      const isVercelPreview =
-        allowVercelPreviews &&
-        /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(
-          normalizedOrigin
-        );
-
-      if (
-        isLocalDev ||
-        isVercelPreview ||
-        allowedOrigins.includes(normalizedOrigin)
-      ) {
+      if (isAllowedOrigin(origin, { production: isProduction })) {
         return callback(null, true);
       }
 
@@ -122,15 +106,33 @@ app.use(
 // Global Middleware
 
 
+// A request id makes security events correlatable without logging headers
+// or request bodies. Clients may send one, but only a short safe value is
+// reused; otherwise the server generates a fresh id.
+app.use((req, res, next) => {
+  const supplied = String(req.get("x-request-id") || "").trim();
+  const requestId = /^[A-Za-z0-9._-]{8,80}$/.test(supplied)
+    ? supplied
+    : randomHex(12);
+
+  req.id = requestId;
+  res.set("X-Request-Id", requestId);
+  next();
+});
+
 app.use(
   helmet({
     crossOriginResourcePolicy: {
       policy: "cross-origin",
     },
+    // This host only returns JSON. A restrictive policy means even an
+    // accidentally served HTML document cannot load scripts or frames.
     contentSecurityPolicy: {
-      useDefaults: true,
+      useDefaults: false,
       directives: {
-        // Keep the CSP frame protection aligned with frameguard below.
+        "default-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'none'"],
         "frame-ancestors": ["'none'"],
       },
     },
@@ -172,6 +174,10 @@ app.use(
     limit: "1mb",
   })
 );
+
+// Cookie-authenticated state changes must prove a trusted browser origin.
+// The session middleware additionally requires the per-session CSRF header.
+app.use(requireTrustedOrigin);
 
 // API responses should not be cached by browsers or CDNs.
 app.use("/api", (req, res, next) => {
@@ -258,6 +264,18 @@ const startServer = async () => {
 
     console.log("✅ Database connected successfully.");
 
+    // Expired/revoked session rows are kept for a short audit window, then
+    // removed. Housekeeping is best-effort and must never block startup.
+    cleanupSessions(Date.now() - sessionConfig.retentionMs).catch(() => {});
+
+    const cleanupTimer = setInterval(() => {
+      cleanupSessions(Date.now() - sessionConfig.retentionMs).catch(
+        () => {}
+      );
+    }, 6 * 60 * 60 * 1000);
+
+    cleanupTimer.unref();
+
     server = app.listen(PORT, HOST, () => {
       console.log(
         `🚀 API listening on ${HOST}:${PORT} (${
@@ -280,8 +298,24 @@ const startServer = async () => {
           adminAuthConfig.mode === "hash"
             ? "bcrypt hash"
             : "env password (timing-safe)"
-        }.`
+        }; session ${sessionConfig.ttlMinutes}m absolute / ${sessionConfig.idleMinutes}m idle.`
       );
+
+      if (!adminMfaConfig.enabled) {
+        console.warn(
+          "⚠️ MFA is not configured. Set ADMIN_TOTP_SECRET to require an authenticator code (run npm run mfa:setup)."
+        );
+      }
+
+      if (process.env.CLAMAV_HOST) {
+        console.log(
+          "🦠 Uploads are scanned by the configured ClamAV service (fail-closed)."
+        );
+      } else {
+        console.warn(
+          "⚠️ CLAMAV_HOST is not configured — uploads get signature validation but no malware scan."
+        );
+      }
 
       if (!cloudinaryConfigured) {
         console.warn(

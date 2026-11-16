@@ -16,8 +16,17 @@
 # Dependencies
 
 node_modules/
+node_modules*
 client/node_modules/
+client/node_modules*
 server/node_modules/
+server/node_modules*
+
+
+# Database Backups (contain contact messages and portfolio content)
+
+backups/
+server/backups/
 
 
 # Build Output

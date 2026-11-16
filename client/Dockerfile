@@ -28,19 +28,28 @@ RUN npm run build
 
 # Stage 2 - Nginx Production Server
 
-FROM nginx:stable-alpine
+# The unprivileged image listens on 8080 and runs as UID 101. It keeps the
+# same nginx configuration surface but cannot bind privileged ports or write
+# outside its tmp paths.
+FROM nginxinc/nginx-unprivileged:stable-alpine
+
+# The image runs as UID 101 by default. Package installation needs root for
+# this single layer only; the final image drops back to 101 below.
+USER root
 
 # Install timezone data and clear default nginx files in a single layer.
 # hadolint ignore=DL3018
 RUN apk add --no-cache tzdata \
     && rm -rf /usr/share/nginx/html/*
 
-# Copy production build
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy production build and configuration as the runtime user.
+COPY --chown=101:101 --from=builder /app/dist /usr/share/nginx/html
+COPY --chown=101:101 nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+USER 101
 
-EXPOSE 80
+EXPOSE 8080
+
+STOPSIGNAL SIGQUIT
 
 CMD ["nginx", "-g", "daemon off;"]

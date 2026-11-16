@@ -97,6 +97,10 @@ jobs:
         working-directory: server
         run: npm ci
 
+      - name: Audit Server Dependencies
+        working-directory: server
+        run: npm audit --audit-level=high
+
       - name: Check Server Syntax
         working-directory: server
         run: npm run check
@@ -125,14 +129,18 @@ jobs:
         working-directory: client
         run: npm ci
 
+      - name: Audit Client Dependencies
+        working-directory: client
+        run: npm audit --audit-level=high
+
       - name: Lint Client
         working-directory: client
         run: npm run lint
 
       - name: Build Client
         working-directory: client
-        env:
-          VITE_API_BASE_URL: ${{ env.PRODUCTION_API_URL }}
+        # No API origin is baked into the bundle: the client always uses
+        # same-origin /api, and each host proxies it (Vite, Nginx, Vercel).
         run: npm run build
 
       - name: Verify Build Output
@@ -232,8 +240,11 @@ jobs:
           # not TiDB Cloud's CA-signed endpoint.
           DB_SSL=false
 
-          # 48 characters — production validation requires at least 32.
-          JWT_SECRET=ci_test_jwt_secret_0123456789abcdef0123456789
+          # Short-lived, revocable cookie sessions. The compose file forces
+          # Secure=false/SameSite=lax because this stack runs on local HTTP.
+          SESSION_TTL_MINUTES=120
+          SESSION_IDLE_MINUTES=30
+          SESSION_RETENTION_DAYS=7
 
           # CI-only admin identity. Never used in a real deployment.
           ADMIN_EMAIL=ci-admin@portfolio.test
@@ -301,7 +312,7 @@ jobs:
           docker compose exec -T db sh -c \
             'MYSQL_PWD=ci_test_password mysql -uroot portfolio_alt < /docker-entrypoint-initdb.d/seed.sql'
 
-          for TABLE in projects skills certificates messages; do
+          for TABLE in projects skills certificates messages admin_sessions; do
             COUNT=$(docker compose exec -T -e MYSQL_PWD=ci_test_password db \
               mysql -uroot -N -B -e "SELECT COUNT(*) FROM portfolio_alt.${TABLE};" | tr -d '\r')
 
@@ -361,6 +372,7 @@ jobs:
             --output /dev/null \
             --write-out "%{http_code}" \
             --request POST \
+            --header "Origin: http://localhost" \
             --header "Content-Type: application/json" \
             --data '{bad json' \
             http://localhost:5000/api/messages)
@@ -377,6 +389,7 @@ jobs:
             --output /dev/null \
             --write-out "%{http_code}" \
             --request POST \
+            --header "Origin: http://localhost" \
             --header "Content-Type: application/json" \
             --data '{"name":123,"email":"a@b.com","message":"hi"}' \
             http://localhost:5000/api/messages)
@@ -392,11 +405,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          rm -f /tmp/login.json /tmp/login-headers.txt /tmp/cookies.txt /tmp/csrf.txt
+
           LOGIN_STATUS=$(curl \
             --silent \
+            --show-error \
+            --dump-header /tmp/login-headers.txt \
+            --cookie-jar /tmp/cookies.txt \
             --output /tmp/login.json \
             --write-out "%{http_code}" \
             --request POST \
+            --header "Origin: http://localhost" \
             --header "Content-Type: application/json" \
             --data '{"email":"ci-admin@portfolio.test","password":"ci_test_password_2026!"}' \
             http://localhost:5000/api/auth/login)
@@ -408,10 +427,23 @@ jobs:
             exit 1
           fi
 
-          TOKEN=$(jq -r '.token' /tmp/login.json)
+          if jq -e 'has("token")' /tmp/login.json > /dev/null; then
+            echo "::error::Login response still exposes a JWT/token field."
+            exit 1
+          fi
 
-          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            echo "::error::Login response did not include a token."
+          CSRF=$(jq -r '.csrfToken // empty' /tmp/login.json)
+
+          if [ -z "$CSRF" ] || [ "$CSRF" = "null" ]; then
+            echo "::error::Login response did not include a CSRF token."
+            exit 1
+          fi
+
+          printf '%s' "$CSRF" > /tmp/csrf.txt
+
+          if ! grep -qi '^set-cookie:.*HttpOnly' /tmp/login-headers.txt; then
+            echo "::error::Session cookie is missing the HttpOnly attribute."
+            cat /tmp/login-headers.txt
             exit 1
           fi
 
@@ -420,20 +452,29 @@ jobs:
               --silent \
               --output /dev/null \
               --write-out "%{http_code}" \
-              --header "Authorization: Bearer ${TOKEN}" \
+              --cookie /tmp/cookies.txt \
               "http://localhost:5000/api/${ROUTE}")
 
             if [ "$PROTECTED_STATUS" != "200" ]; then
-              echo "::error::Protected route /api/${ROUTE} rejected the token (${PROTECTED_STATUS})."
+              echo "::error::Protected route /api/${ROUTE} rejected the session cookie (${PROTECTED_STATUS})."
               exit 1
             fi
           done
+
+          SESSION_CSRF=$(curl -fsS --cookie /tmp/cookies.txt \
+            http://localhost:5000/api/auth/session | jq -r '.csrfToken // empty')
+
+          if [ "$SESSION_CSRF" != "$CSRF" ]; then
+            echo "::error::/api/auth/session did not return the session CSRF token."
+            exit 1
+          fi
 
           WRONG_STATUS=$(curl \
             --silent \
             --output /dev/null \
             --write-out "%{http_code}" \
             --request POST \
+            --header "Origin: http://localhost" \
             --header "Content-Type: application/json" \
             --data '{"email":"ci-admin@portfolio.test","password":"wrong-password"}' \
             http://localhost:5000/api/auth/login)
@@ -448,6 +489,7 @@ jobs:
             --output /dev/null \
             --write-out "%{http_code}" \
             --request POST \
+            --header "Origin: http://localhost" \
             --header "Content-Type: application/json" \
             --data '{"email":"someone@else.com","password":"ci_test_password_2026!"}' \
             http://localhost:5000/api/auth/login)
@@ -457,19 +499,54 @@ jobs:
             exit 1
           fi
 
-          echo "Admin authentication OK."
+          NO_CSRF_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request PUT \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "Content-Type: application/json" \
+            --data '{"name":"CSRF probe","level":1}' \
+            http://localhost:5000/api/skills/1)
+
+          if [ "$NO_CSRF_STATUS" != "403" ]; then
+            echo "::error::A state change without X-CSRF-Token returned ${NO_CSRF_STATUS}, expected 403."
+            exit 1
+          fi
+
+          BAD_ORIGIN_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request PUT \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: https://evil.example" \
+            --header "X-CSRF-Token: ${CSRF}" \
+            --header "Content-Type: application/json" \
+            --data '{"name":"Origin probe","level":1}' \
+            http://localhost:5000/api/skills/1)
+
+          if [ "$BAD_ORIGIN_STATUS" != "403" ]; then
+            echo "::error::An untrusted Origin returned ${BAD_ORIGIN_STATUS}, expected 403."
+            exit 1
+          fi
+
+          echo "Admin cookie authentication, CSRF and origin checks OK."
 
       - name: Test Admin Update Endpoints
         run: |
           set -euo pipefail
 
-          TOKEN=$(jq -r '.token' /tmp/login.json)
+          CSRF=$(cat /tmp/csrf.txt)
 
           # --- skills ---
           SKILL_ID=$(curl -fsS \
             --request POST \
             --header "Content-Type: application/json" \
-            --header "Authorization: Bearer ${TOKEN}" \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
             --data '{"name":"CI Update Skill","level":50}' \
             http://localhost:5000/api/skills | jq -r '.id')
 
@@ -483,6 +560,7 @@ jobs:
             --output /dev/null \
             --write-out "%{http_code}" \
             --request PUT \
+            --header "Origin: http://localhost" \
             --header "Content-Type: application/json" \
             --data '{"name":"Hijacked","level":1}' \
             "http://localhost:5000/api/skills/${SKILL_ID}")
@@ -498,7 +576,9 @@ jobs:
             --write-out "%{http_code}" \
             --request PUT \
             --header "Content-Type: application/json" \
-            --header "Authorization: Bearer ${TOKEN}" \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
             --data '{"name":"CI Updated Skill","level":55}' \
             "http://localhost:5000/api/skills/${SKILL_ID}")
 
@@ -517,7 +597,9 @@ jobs:
 
           curl -fsS \
             --request DELETE \
-            --header "Authorization: Bearer ${TOKEN}" \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
             "http://localhost:5000/api/skills/${SKILL_ID}" > /dev/null
 
           echo "Skill update OK."
@@ -526,7 +608,9 @@ jobs:
           CERT_ID=$(curl -fsS \
             --request POST \
             --header "Content-Type: application/json" \
-            --header "Authorization: Bearer ${TOKEN}" \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
             --data '{"title":"CI Update Certificate","issuer":"Audit","link":"https://example.com/ci"}' \
             http://localhost:5000/api/certificates | jq -r '.id')
 
@@ -541,7 +625,9 @@ jobs:
             --write-out "%{http_code}" \
             --request PUT \
             --header "Content-Type: application/json" \
-            --header "Authorization: Bearer ${TOKEN}" \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
             --data '{"title":"CI Renamed Certificate","issuer":"Audit","link":"https://example.com/ci"}' \
             "http://localhost:5000/api/certificates/${CERT_ID}")
 
@@ -560,7 +646,9 @@ jobs:
 
           curl -fsS \
             --request DELETE \
-            --header "Authorization: Bearer ${TOKEN}" \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
             "http://localhost:5000/api/certificates/${CERT_ID}" > /dev/null
 
           echo "Certificate update OK."
@@ -572,7 +660,9 @@ jobs:
           curl -fsS \
             --request PUT \
             --header "Content-Type: application/json" \
-            --header "Authorization: Bearer ${TOKEN}" \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
             --data '{"title":"CI Renamed Project"}' \
             "http://localhost:5000/api/projects/${PROJECT_ID}" > /dev/null
 
@@ -588,11 +678,44 @@ jobs:
           curl -fsS \
             --request PUT \
             --header "Content-Type: application/json" \
-            --header "Authorization: Bearer ${TOKEN}" \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
             --data "$(jq -nc --arg title "${PROJECT_TITLE}" '{title: $title}')" \
             "http://localhost:5000/api/projects/${PROJECT_ID}" > /dev/null
 
           echo "Project update OK."
+
+          # Revocation is the point of server-side sessions: after logout the
+          # old cookie must stop working immediately.
+          LOGOUT_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request POST \
+            --cookie /tmp/cookies.txt \
+            --header "Origin: http://localhost" \
+            --header "X-CSRF-Token: ${CSRF}" \
+            http://localhost:5000/api/auth/logout)
+
+          if [ "$LOGOUT_STATUS" != "200" ]; then
+            echo "::error::Logout returned ${LOGOUT_STATUS}, expected 200."
+            exit 1
+          fi
+
+          AFTER_LOGOUT_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --cookie /tmp/cookies.txt \
+            http://localhost:5000/api/messages)
+
+          if [ "$AFTER_LOGOUT_STATUS" != "401" ]; then
+            echo "::error::A revoked session still accessed /api/messages (${AFTER_LOGOUT_STATUS})."
+            exit 1
+          fi
+
+          echo "Session revocation OK."
 
       - name: Test Frontend
         run: |
@@ -636,7 +759,9 @@ jobs:
             "X-Frame-Options" \
             "X-Content-Type-Options" \
             "Referrer-Policy" \
-            "Permissions-Policy"
+            "Permissions-Policy" \
+            "Cross-Origin-Opener-Policy" \
+            "Cross-Origin-Resource-Policy"
           do
             if ! echo "$HEADERS" | grep -qi "^${HEADER}:"; then
               echo "::error::Missing security header: ${HEADER}"
@@ -646,6 +771,16 @@ jobs:
 
           if echo "$HEADERS" | grep -qi "^Server:.*nginx/[0-9]"; then
             echo "::error::Nginx version is exposed in the Server header."
+            exit 1
+          fi
+
+          if ! echo "$HEADERS" | grep -qi "connect-src 'self'"; then
+            echo "::error::CSP still allows an over-broad connect-src."
+            exit 1
+          fi
+
+          if ! echo "$HEADERS" | grep -qi "img-src 'self' data: https://res.cloudinary.com"; then
+            echo "::error::CSP img-src is not limited to self/data/Cloudinary."
             exit 1
           fi
 
@@ -681,9 +816,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
-        with:
-          # Full history lets us prove the deployed commit belongs to this branch.
-          fetch-depth: 0
 
       - name: Validate Render Credentials
         env:
@@ -743,20 +875,22 @@ jobs:
               live)
                 DEPLOYED_SHA=$(echo "$RESPONSE" | jq -r '.commit.id // empty')
 
-                if [ -n "$DEPLOYED_SHA" ]; then
-                  if git merge-base --is-ancestor "$GITHUB_SHA" "$DEPLOYED_SHA" 2>/dev/null || \
-                     git merge-base --is-ancestor "$DEPLOYED_SHA" "$GITHUB_SHA" 2>/dev/null; then
-                    echo "Deployed commit ${DEPLOYED_SHA:0:7} is on this branch."
-                  else
-                    echo "::error::Deployed commit ${DEPLOYED_SHA:0:7} is unrelated to ${GITHUB_SHA:0:7}."
-                    exit 1
-                  fi
-
-                  echo "### API deployed" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- Commit: \`${DEPLOYED_SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- Deploy: \`${DEPLOY_ID}\`" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- URL: ${PRODUCTION_API_URL}" >> "$GITHUB_STEP_SUMMARY"
+                if [ -z "$DEPLOYED_SHA" ]; then
+                  echo "::error::Render reported the deploy as live without a commit id."
+                  exit 1
                 fi
+
+                if [ "$DEPLOYED_SHA" != "$GITHUB_SHA" ]; then
+                  echo "::error::Render deployed ${DEPLOYED_SHA:0:7}, expected ${GITHUB_SHA:0:7}."
+                  exit 1
+                fi
+
+                echo "Deployed commit ${DEPLOYED_SHA:0:7} matches the pushed commit."
+
+                echo "### API deployed" >> "$GITHUB_STEP_SUMMARY"
+                echo "- Commit: \`${DEPLOYED_SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
+                echo "- Deploy: \`${DEPLOY_ID}\`" >> "$GITHUB_STEP_SUMMARY"
+                echo "- URL: ${PRODUCTION_API_URL}" >> "$GITHUB_STEP_SUMMARY"
 
                 exit 0
                 ;;
@@ -829,33 +963,70 @@ jobs:
           done
 
           SYSTEM=$(curl -fsS --max-time 60 "${PRODUCTION_API_URL}/api/system")
-          NODE_VERSION=$(echo "$SYSTEM" | jq -r '.data.host.nodeVersion')
 
-          case "$NODE_VERSION" in
-            v22.*) echo "Production Node.js: ${NODE_VERSION}" ;;
-            *) echo "::error::Production is running Node ${NODE_VERSION}, expected v22.x."; exit 1 ;;
-          esac
+          # Public telemetry must stay minimal: no host, OS, Node version,
+          # Docker or git-branch fingerprinting.
+          if echo "$SYSTEM" | jq -e '.data.host or .data.docker or .data.git' > /dev/null; then
+            echo "::error::Public telemetry exposes host/docker/git details."
+            echo "$SYSTEM" | jq .
+            exit 1
+          fi
+
+          echo "$SYSTEM" | jq -e \
+            '.success == true and (.data.uptimeSeconds | type == "number") and (.data.services.ai == "available" or .data.services.ai == "disabled")' > /dev/null
+
+          echo "Production telemetry is minimal and healthy."
 
       - name: Verify Production Auth and CORS
         run: |
           set -euo pipefail
 
-          WRONG_PASSWORD_STATUS=$(curl \
+          WRONG_PASSWORD_HEADERS=$(curl \
             --silent \
+            --show-error \
+            --dump-header - \
             --output /dev/null \
-            --write-out "%{http_code}" \
             --max-time 60 \
             --request POST \
+            --header "Origin: ${PRODUCTION_SITE_URL}" \
             --header "Content-Type: application/json" \
             --data '{"email":"not-the-admin@example.com","password":"definitely-wrong"}' \
             "${PRODUCTION_API_URL}/api/auth/login")
+
+          WRONG_PASSWORD_STATUS=$(echo "$WRONG_PASSWORD_HEADERS" | head -n 1 | awk '{print $2}')
 
           if [ "$WRONG_PASSWORD_STATUS" != "401" ]; then
             echo "::error::Wrong production credentials returned ${WRONG_PASSWORD_STATUS}, expected 401."
             exit 1
           fi
 
-          echo "Production admin auth rejects invalid credentials."
+          if echo "$WRONG_PASSWORD_HEADERS" | grep -qi '^set-cookie:'; then
+            echo "::error::A failed login must not set a session cookie."
+            exit 1
+          fi
+
+          API_HEADERS=$(curl --silent --show-error --head --max-time 60 \
+            "${PRODUCTION_API_URL}/api/health")
+
+          for HEADER in \
+            "content-security-policy" \
+            "x-frame-options" \
+            "x-content-type-options" \
+            "referrer-policy" \
+            "strict-transport-security"
+          do
+            if ! echo "$API_HEADERS" | grep -qi "^${HEADER}:"; then
+              echo "::error::Missing production API security header: ${HEADER}"
+              exit 1
+            fi
+          done
+
+          if ! echo "$API_HEADERS" | grep -qi "default-src 'none'"; then
+            echo "::error::Production API CSP is not locked down to default-src 'none'."
+            exit 1
+          fi
+
+          echo "Production admin auth and API security headers OK."
 
           CORS_HEADERS=$(curl \
             --silent \
@@ -929,7 +1100,9 @@ jobs:
             "x-content-type-options" \
             "referrer-policy" \
             "permissions-policy" \
-            "strict-transport-security"
+            "strict-transport-security" \
+            "cross-origin-opener-policy" \
+            "cross-origin-resource-policy"
           do
             if ! echo "$HEADERS" | grep -qi "^${HEADER}:"; then
               echo "::error::Missing production security header: ${HEADER}"
@@ -937,7 +1110,34 @@ jobs:
             fi
           done
 
-          echo "Production security headers OK."
+          if ! echo "$HEADERS" | grep -qi "connect-src 'self'"; then
+            echo "::error::Production CSP connect-src is over-broad."
+            exit 1
+          fi
+
+          if ! echo "$HEADERS" | grep -qi "img-src 'self' data: https://res.cloudinary.com"; then
+            echo "::error::Production CSP img-src is over-broad."
+            exit 1
+          fi
+
+          # The Vercel rewrite must proxy the same-origin API so the session
+          # cookie is first-party. This is the path the browser actually uses.
+          PROXY_STATUS=$(curl \
+            --silent \
+            --output /tmp/proxy-health.json \
+            --write-out "%{http_code}" \
+            --max-time 60 \
+            "${PRODUCTION_SITE_URL}/api/health")
+
+          if [ "$PROXY_STATUS" != "200" ]; then
+            echo "::error::Vercel /api rewrite returned ${PROXY_STATUS}, expected 200."
+            cat /tmp/proxy-health.json || true
+            exit 1
+          fi
+
+          jq -e '.success == true and .status == "healthy"' /tmp/proxy-health.json > /dev/null
+
+          echo "Production security headers and same-origin /api rewrite OK."
 
       - name: Verify SEO Files
         run: |

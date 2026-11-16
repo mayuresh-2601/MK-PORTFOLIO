@@ -7,6 +7,8 @@
  * asset and only then return 400.
  */
 
+import { checkContactSpam } from "./spamGuard.js";
+
 export const DEFAULT_SUBJECT = "Portfolio Contact Form";
 
 export const MESSAGE_LIMITS = {
@@ -78,6 +80,14 @@ export const validateMessagePayload = (body = {}) => {
     return reject(
       `Message must be ${MESSAGE_LIMITS.message} characters or fewer.`
     );
+  }
+
+  // Honeypot, minimum fill time and link/email flood checks. Keep this after
+  // field validation so malformed payloads still get the clearer error.
+  const spam = checkContactSpam({ ...(body || {}), message });
+
+  if (!spam.ok) {
+    return reject(spam.message, spam.status);
   }
 
   return {

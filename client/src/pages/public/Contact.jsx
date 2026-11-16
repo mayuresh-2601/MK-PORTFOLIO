@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Mail, Send, ArrowUpRight } from "lucide-react";
 import api from "../../api/axios";
 import GithubIcon from "../../assets/GithubIcon";
@@ -32,13 +32,17 @@ export default function Contact() {
     email: "",
     subject: "",
     message: "",
+    website: "",
   });
 
-  const [status, setStatus] = useState({
-    loading: false,
-    success: "",
-    error: "",
-  });
+  // Sent with the payload so the API can reject implausibly fast automated
+  // submissions. Reset after a successful send.
+  const formStartedAtRef = useRef(Date.now());
+
+  // One state at a time: idle | loading | success | error. Typing after a
+  // result returns the form to idle so a stale banner cannot mislead.
+  const [status, setStatus] = useState({ state: "idle", message: "" });
+  const loading = status.state === "loading";
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -47,6 +51,12 @@ export default function Contact() {
       ...previous,
       [name]: value,
     }));
+
+    setStatus((previous) =>
+      previous.state === "success" || previous.state === "error"
+        ? { state: "idle", message: "" }
+        : previous
+    );
   };
 
   const resetForm = () => {
@@ -55,47 +65,50 @@ export default function Contact() {
       email: "",
       subject: "",
       message: "",
+      website: "",
     });
+
+    formStartedAtRef.current = Date.now();
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (status.loading) return;
+    if (loading) return;
 
     const payload = {
       name: formData.name.trim(),
       email: formData.email.trim(),
       subject: formData.subject.trim(),
       message: formData.message.trim(),
+      website: formData.website,
+      formStartedAt: formStartedAtRef.current,
     };
 
     if (!payload.name || !payload.email || !payload.subject || !payload.message) {
       setStatus({
-        loading: false,
-        success: "",
-        error: "Please fill in all required fields.",
+        state: "error",
+        message: "Please fill in all required fields.",
       });
       return;
     }
 
     try {
-      setStatus({ loading: true, success: "", error: "" });
+      setStatus({ state: "loading", message: "" });
 
       const { data } = await api.post("/messages", payload);
 
       setStatus({
-        loading: false,
-        success: data?.message || "Your message has been sent successfully!",
-        error: "",
+        state: "success",
+        message:
+          data?.message || "Your message has been sent successfully!",
       });
 
       resetForm();
     } catch (error) {
       setStatus({
-        loading: false,
-        success: "",
-        error:
+        state: "error",
+        message:
           error?.response?.data?.message ||
           "Something went wrong. Please try again.",
       });
@@ -192,22 +205,45 @@ export default function Contact() {
             <p className="meta text-ink">Response within 24–48 hours</p>
           </div>
 
-          {status.success && (
+          {status.state === "success" && (
             <div
               className="form-status form-status--success"
               role="status"
             >
-              {status.success}
+              {status.message}
             </div>
           )}
 
-          {status.error && (
+          {status.state === "error" && (
             <div className="form-status form-status--error" role="alert">
-              {status.error}
+              {status.message}
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
+            {/* Honeypot: hidden from people, visible to simple bots. */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: "-10000px",
+                width: "1px",
+                height: "1px",
+                overflow: "hidden",
+              }}
+            >
+              <label htmlFor="contact-website">Website</label>
+              <input
+                id="contact-website"
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={formData.website}
+                onChange={handleChange}
+              />
+            </div>
+
             <div className="form-grid">
               <div className="form-field">
                 <label className="form-label" htmlFor="contact-name">
@@ -218,7 +254,7 @@ export default function Contact() {
                   type="text"
                   name="name"
                   autoComplete="name"
-                  disabled={status.loading}
+                  disabled={loading}
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="Enter your full name"
@@ -236,7 +272,7 @@ export default function Contact() {
                   type="email"
                   name="email"
                   autoComplete="email"
-                  disabled={status.loading}
+                  disabled={loading}
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="you@example.com"
@@ -253,7 +289,7 @@ export default function Contact() {
                   id="contact-subject"
                   type="text"
                   name="subject"
-                  disabled={status.loading}
+                  disabled={loading}
                   value={formData.subject}
                   onChange={handleChange}
                   placeholder="Project discussion"
@@ -270,7 +306,7 @@ export default function Contact() {
                   id="contact-message"
                   rows={6}
                   name="message"
-                  disabled={status.loading}
+                  disabled={loading}
                   value={formData.message}
                   onChange={handleChange}
                   placeholder="Tell me about your project..."
@@ -283,11 +319,11 @@ export default function Contact() {
               <div className="form-field form-field--full">
                 <button
                   type="submit"
-                  disabled={status.loading}
+                  disabled={loading}
                   className="btn btn--black btn--pill btn--wide"
                 >
                   <Send size={17} aria-hidden="true" />
-                  {status.loading ? "Sending message..." : "Send message"}
+                  {loading ? "Sending message..." : "Send message"}
                 </button>
               </div>
             </div>

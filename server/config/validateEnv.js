@@ -14,7 +14,15 @@ const PLACEHOLDER_PATTERN =
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BOOLEAN_PATTERN = /^(true|false|1|0|yes|no|on|off)$/i;
-const JWT_EXPIRY_PATTERN = /^\d+(ms|s|m|h|d|w|y)?$/i;
+const SAME_SITE_VALUES = new Set(["lax", "strict", "none"]);
+
+const readInteger = (key) => {
+  if (!hasValue(process.env[key])) return null;
+
+  const value = Number(process.env[key]);
+
+  return Number.isInteger(value) ? value : NaN;
+};
 
 const VALID_EMAIL_TRANSPORTS = new Set([
   "auto",
@@ -117,7 +125,6 @@ export const validateEnvironment = ({
     "DB_HOST",
     "DB_USER",
     "DB_NAME",
-    "JWT_SECRET",
     "ADMIN_EMAIL",
   ];
 
@@ -219,57 +226,106 @@ export const validateEnvironment = ({
     }
   }
 
-  const jwtSecret = String(
-    process.env.JWT_SECRET || ""
-  ).trim();
+  if (hasValue(process.env.JWT_SECRET)) {
+    warnings.push(
+      "JWT_SECRET is no longer used. Admin authentication now uses revocable server-side cookie sessions; remove it from the environment after verifying the cookie flow."
+    );
+  }
 
-  if (jwtSecret) {
-    if (isPlaceholder(jwtSecret)) {
+  const sessionTtl = readInteger("SESSION_TTL_MINUTES");
+  const sessionIdle = readInteger("SESSION_IDLE_MINUTES");
+  const sessionRetention = readInteger("SESSION_RETENTION_DAYS");
+
+  for (const [key, value, min, max] of [
+    ["SESSION_TTL_MINUTES", sessionTtl, 5, 1440],
+    ["SESSION_IDLE_MINUTES", sessionIdle, 5, 1440],
+    ["SESSION_RETENTION_DAYS", sessionRetention, 1, 90],
+  ]) {
+    if (value === null) continue;
+
+    if (!Number.isInteger(value) || value < min || value > max) {
       errors.push(
-        "JWT_SECRET is still a placeholder. Generate a random secret with: " +
-          'node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"'
-      );
-    }
-
-    if (production && jwtSecret.length < 32) {
-      errors.push(
-        "JWT_SECRET must be at least 32 characters in production."
-      );
-    } else if (!production && jwtSecret.length < 32) {
-      warnings.push(
-        "JWT_SECRET is shorter than 32 characters. Use a longer random value before deploying."
-      );
-    }
-
-    if (new Set(jwtSecret).size < 10) {
-      warnings.push(
-        "JWT_SECRET has very little character variety. Use a random value."
+        `${key} must be an integer between ${min} and ${max}.`
       );
     }
   }
 
-  if (hasValue(process.env.JWT_EXPIRES_IN)) {
-    const expiry = process.env.JWT_EXPIRES_IN.trim();
+  if (
+    Number.isInteger(sessionTtl) &&
+    Number.isInteger(sessionIdle) &&
+    sessionIdle > sessionTtl
+  ) {
+    errors.push(
+      "SESSION_IDLE_MINUTES cannot be longer than SESSION_TTL_MINUTES."
+    );
+  }
 
-    if (!JWT_EXPIRY_PATTERN.test(expiry)) {
+  if (
+    hasValue(process.env.SESSION_COOKIE_SECURE) &&
+    !BOOLEAN_PATTERN.test(process.env.SESSION_COOKIE_SECURE.trim())
+  ) {
+    errors.push("SESSION_COOKIE_SECURE must be true or false.");
+  }
+
+  const secureCookie =
+    hasValue(process.env.SESSION_COOKIE_SECURE)
+      ? /^(true|1|yes|on)$/i.test(
+          process.env.SESSION_COOKIE_SECURE.trim()
+        )
+      : production;
+
+  if (production && !secureCookie) {
+    warnings.push(
+      "SESSION_COOKIE_SECURE=false in production. Use HTTPS and Secure cookies for any public deployment; the override exists only for local Docker/CI."
+    );
+  }
+
+  const sameSite = String(
+    process.env.SESSION_COOKIE_SAMESITE || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (sameSite && !SAME_SITE_VALUES.has(sameSite)) {
+    errors.push(
+      "SESSION_COOKIE_SAMESITE must be lax, strict or none."
+    );
+  }
+
+  const effectiveSameSite =
+    sameSite || (production ? "none" : "lax");
+
+  if (effectiveSameSite === "none" && !secureCookie) {
+    errors.push(
+      "SESSION_COOKIE_SAMESITE=none requires a Secure cookie. Set SESSION_COOKIE_SECURE=true or use sameSite=lax with the same-origin /api proxy."
+    );
+  }
+
+  if (hasValue(process.env.AI_ENABLED) &&
+    !BOOLEAN_PATTERN.test(process.env.AI_ENABLED.trim())) {
+    errors.push("AI_ENABLED must be true or false.");
+  }
+
+  for (const [key, min, max] of [
+    ["AI_DAILY_LIMIT", 1, 1000],
+    ["AI_GLOBAL_DAILY_LIMIT", 1, 100000],
+  ]) {
+    const value = readInteger(key);
+
+    if (value === null) continue;
+
+    if (!Number.isInteger(value) || value < min || value > max) {
       errors.push(
-        "JWT_EXPIRES_IN must look like 30m, 12h, 7d, or a number of seconds."
+        `${key} must be an integer between ${min} and ${max}.`
       );
-    } else if (/^\d+$/.test(expiry) && Number(expiry) <= 0) {
-      errors.push("JWT_EXPIRES_IN must be greater than zero.");
-    } else if (/^0+[a-z]+$/i.test(expiry)) {
-      errors.push("JWT_EXPIRES_IN must be greater than zero.");
-    } else if (/^(\d+)(d|w|y)$/i.test(expiry)) {
-      const amount = Number(expiry.replace(/[a-z]+$/i, ""));
-      const unit = expiry.replace(/^\d+/, "").toLowerCase();
-      const days =
-        unit === "d" ? amount : unit === "w" ? amount * 7 : amount * 365;
+    }
+  }
 
-      if (days > 30) {
-        warnings.push(
-          "JWT_EXPIRES_IN is longer than 30 days. Shorter admin sessions are safer."
-        );
-      }
+  if (hasValue(process.env.CLAMAV_PORT)) {
+    const port = readInteger("CLAMAV_PORT");
+
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      errors.push("CLAMAV_PORT must be an integer between 1 and 65535.");
     }
   }
 

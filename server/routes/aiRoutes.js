@@ -6,12 +6,24 @@ import {
   askAboutMeHandler,
 } from "../controllers/aiController.js";
 
-import { aiLimiter } from "../middleware/rateLimiters.js";
+import {
+  aiDailyLimiter,
+  aiGlobalDailyLimiter,
+  aiLimiter,
+  requireAiEnabled,
+} from "../middleware/rateLimiters.js";
 
 const router = express.Router();
 
-router.post("/explain-skill", aiLimiter, explainSkillHandler);
-router.post("/explain-certificate", aiLimiter, explainCertificateHandler);
-router.post("/ask-about-me", aiLimiter, askAboutMeHandler);
+const aiGuards = [
+  requireAiEnabled,
+  aiGlobalDailyLimiter,
+  aiDailyLimiter,
+  aiLimiter,
+];
+
+router.post("/explain-skill", ...aiGuards, explainSkillHandler);
+router.post("/explain-certificate", ...aiGuards, explainCertificateHandler);
+router.post("/ask-about-me", ...aiGuards, askAboutMeHandler);
 
 export default router;

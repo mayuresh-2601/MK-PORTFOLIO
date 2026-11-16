@@ -1,115 +1,152 @@
-import jwt from "jsonwebtoken";
-
 import { getAdminAuthConfig } from "../utils/adminAuth.js";
+import {
+  findSessionByToken,
+  revokeSession,
+  touchSession,
+} from "../models/sessionModel.js";
+import {
+  clearSessionCookie,
+  getSessionConfig,
+  readSessionCookie,
+} from "../utils/sessionConfig.js";
+import {
+  safeEqual,
+  sha256,
+} from "../utils/security.js";
+import {
+  requestContext,
+  securityError,
+  securityEvent,
+} from "../utils/securityLog.js";
+import { getClientIp } from "../utils/clientIp.js";
 
 /*
-   JWT Authentication Middleware
+   Cookie-session authentication
 
-   Tokens are signed and verified with HS256 only, and must belong to the
-   current ADMIN_EMAIL with the admin role. Rotating ADMIN_EMAIL or
-   JWT_SECRET therefore invalidates every previously issued token.
+   The browser sends an opaque session token in an HttpOnly cookie. Only the
+   SHA-256 hash exists in the database, so revoking a row immediately kills
+   the session. There is no JWT in localStorage and no bearer token fallback.
+
+   State-changing requests must also present the session's CSRF token in
+   X-CSRF-Token. The global origin guard is the first line of defense; this
+   header is the second.
 */
 
-export const protect = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const TOUCH_INTERVAL_MS = 60 * 1000;
 
-  // ------------------------------------------
-  // Validate Authorization Header
-  // ------------------------------------------
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
-      success: false,
-      message: "Authorization token is required.",
-    });
-  }
+const rejectSession = (res, config, reason, req) => {
+  clearSessionCookie(res, config);
 
-  const token = authHeader.substring(7).trim();
+  securityEvent(
+    "auth.session.rejected",
+    requestContext(req, {
+      ip: getClientIp(req),
+      reason,
+    })
+  );
 
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: "Authorization token is required.",
-    });
-  }
+  return res.status(401).json({
+    success: false,
+    message: "Session expired. Please sign in again.",
+  });
+};
 
-  const jwtSecret = String(process.env.JWT_SECRET || "").trim();
-  const adminConfig = getAdminAuthConfig();
-
-  if (!jwtSecret || !adminConfig.email) {
-    console.error(
-      "JWT_SECRET or ADMIN_EMAIL environment variable is missing."
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Server configuration error.",
-    });
-  }
-
+export const protect = async (req, res, next) => {
   try {
-    // Enforce the same issuer/audience/algorithm that authController uses,
-    // so tokens minted for another service cannot be reused here.
-    const decoded = jwt.verify(token, jwtSecret, {
-      algorithms: ["HS256"],
-      issuer: "portfolio-api",
-      audience: "portfolio-admin",
-    });
+    const config = getSessionConfig();
+    const token = readSessionCookie(req, config);
 
-    if (!decoded || typeof decoded !== "object") {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid authentication token.",
-      });
+    if (!token) {
+      return rejectSession(res, config, "missing_cookie", req);
     }
 
-    const tokenEmail = String(decoded.email || "")
-      .trim()
-      .toLowerCase();
+    const tokenHash = sha256(token);
+    const session = await findSessionByToken(tokenHash);
 
-    const tokenSubject = String(decoded.sub || "")
-      .trim()
-      .toLowerCase();
+    if (!session) {
+      return rejectSession(res, config, "not_found", req);
+    }
+
+    const now = Date.now();
+    const expiresAt = Number(session.expires_at);
+    const lastSeenAt = Number(session.last_seen_at);
+
+    if (session.revoked_at) {
+      return rejectSession(res, config, "revoked", req);
+    }
+
+    if (!Number.isFinite(expiresAt) || now >= expiresAt) {
+      await revokeSession(tokenHash, now);
+      return rejectSession(res, config, "expired", req);
+    }
 
     if (
-      decoded.role !== "admin" ||
-      tokenEmail !== adminConfig.email ||
-      tokenSubject !== adminConfig.email
+      !Number.isFinite(lastSeenAt) ||
+      now - lastSeenAt > config.idleMs
     ) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid authentication token.",
-      });
+      await revokeSession(tokenHash, now);
+      return rejectSession(res, config, "idle_timeout", req);
+    }
+
+    const adminConfig = getAdminAuthConfig();
+
+    if (!adminConfig.email || session.admin_email !== adminConfig.email) {
+      await revokeSession(tokenHash, now);
+      return rejectSession(res, config, "admin_changed", req);
+    }
+
+    if (!SAFE_METHODS.has(String(req.method || "").toUpperCase())) {
+      const submittedCsrf = String(
+        req.get("x-csrf-token") || ""
+      ).trim();
+
+      if (
+        !submittedCsrf ||
+        !safeEqual(submittedCsrf, session.csrf_token)
+      ) {
+        securityEvent(
+          "auth.csrf.rejected",
+          requestContext(req, {
+            ip: getClientIp(req),
+            method: req.method,
+            path: req.originalUrl?.split("?")[0],
+          })
+        );
+
+        return res.status(403).json({
+          success: false,
+          code: "CSRF_TOKEN_INVALID",
+          message:
+            "Request verification failed. Refresh the page and try again.",
+        });
+      }
+    }
+
+    if (now - lastSeenAt > TOUCH_INTERVAL_MS) {
+      await touchSession(tokenHash, now);
     }
 
     req.user = {
-      email: adminConfig.email,
+      email: session.admin_email,
       role: "admin",
+    };
+
+    req.session = {
+      tokenHash,
+      csrfToken: session.csrf_token,
+      expiresAt,
+      lastSeenAt,
     };
 
     return next();
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error("Authentication Error:", error);
-    }
+    securityError("auth.session.error", requestContext(req, {
+      ip: getClientIp(req),
+      error: error.message,
+    }));
 
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication token has expired.",
-      });
-    }
-
-    if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid authentication token.",
-      });
-    }
-
-    return res.status(401).json({
-      success: false,
-      message: "Authentication failed.",
-    });
+    return next(error);
   }
 };
 

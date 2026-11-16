@@ -1,0 +1,56 @@
+name: OWASP ZAP Baseline
+
+on:
+  schedule:
+    - cron: "53 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zap-baseline
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://mk-portfolio-phi-silk.vercel.app' }}
+
+jobs:
+  baseline:
+    name: Passive Scan of Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Pull ZAP
+        run: docker pull ghcr.io/zaproxy/zaproxy:stable
+
+      - name: Run ZAP Baseline
+        # -I keeps warnings from failing the run; FAIL-level findings still
+        # do. The report is uploaded either way.
+        run: |
+          set -euo pipefail
+          mkdir -p zap-report
+
+          docker run --rm \
+            --volume "${PWD}:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t "${PRODUCTION_SITE_URL}" \
+            -m 5 \
+            -J zap-report/report.json \
+            -r zap-report/report.html \
+            -w zap-report/report.md \
+            -I
+
+      - name: Upload ZAP Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline-report
+          path: zap-report/
+          if-no-files-found: warn
+          retention-days: 14

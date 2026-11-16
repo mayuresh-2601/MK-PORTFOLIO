@@ -19,7 +19,16 @@ export default function Navbar() {
   const closeButtonRef = useRef(null);
   const overlayRef = useRef(null);
   const previouslyFocusedRef = useRef(null);
-  const token = localStorage.getItem("token");
+  // Cosmetic only: the real session is an HttpOnly cookie. This hint never
+  // contains a token and is cleared on logout or any 401 response.
+  let showAdminLink = false;
+
+  try {
+    showAdminLink =
+      sessionStorage.getItem("portfolio_admin_hint") === "1";
+  } catch {
+    showAdminLink = false;
+  }
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -32,6 +41,19 @@ export default function Navbar() {
   useEffect(() => {
     setIsOpen(false);
   }, [location.pathname]);
+
+  // The menu button is hidden above 1180px. Close the overlay when the
+  // viewport crosses that breakpoint so it cannot stay open with its
+  // trigger gone and the page scroll still locked.
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1181px)");
+    const handleChange = (event) => {
+      if (event.matches) setIsOpen(false);
+    };
+
+    desktop.addEventListener("change", handleChange);
+    return () => desktop.removeEventListener("change", handleChange);
+  }, []);
 
   // Lock page scroll, trap focus, and wire Escape while the overlay is open.
   useEffect(() => {
@@ -130,7 +152,7 @@ export default function Navbar() {
               );
             })}
 
-            {token && (
+            {showAdminLink && (
               <li>
                 <Link to="/admin/dashboard" className="site-nav__admin">
                   Admin
@@ -201,7 +223,7 @@ export default function Navbar() {
               </Link>
             ))}
 
-            {token && (
+            {showAdminLink && (
               <Link
                 to="/admin/dashboard"
                 className="site-nav__overlay-link"

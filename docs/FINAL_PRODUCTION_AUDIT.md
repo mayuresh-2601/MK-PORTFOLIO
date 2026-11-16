@@ -26,7 +26,7 @@ It is **not** "warning-free". Five items remain open, one of which is a credenti
 | 2 | Gmail notifications are not configured (messages still save) | Medium | Configure OAuth or accept inbox-only |
 | 3 | No automated database backup or restore drill | Medium | Define and test |
 | 4 | No external uptime alerting | Medium | Add monitor |
-| 5 | Focus ring contrast is 2.71:1 (pink on acid); no automated accessibility gate | Medium | Approve and fix |
+| 5 | Focus ring contrast was 2.71:1 (pink on acid); no automated accessibility gate | Medium | Focus ring fixed with a two-layer indicator; axe/Lighthouse gate still open |
 
 Two repository/documentation warnings are also recorded:
 
@@ -185,35 +185,40 @@ Recommended tooling fix (not applied in this documentation change): prune `node_
 - No secret in tracked files, documentation, build output, or live assets (except known placeholders/CI fixtures).
 - No secret in git history per pattern scan.
 - Admin authentication is server-side and hash-only in production.
-- JWT is HS256 with issuer/audience/role/email checks and 12-hour expiry.
+- Sessions are opaque, revocable HttpOnly cookies; only token hashes are stored.
+- Optional TOTP MFA is available; CSRF uses Origin/Referer plus a per-session
+  header.
 - All mutations and the message inbox require `protect`.
 - SQL is parameterized; public reads use explicit columns.
 - User-supplied URLs are HTTP(S)-only on server and client.
-- Uploads are MIME/size limited; contact payloads are validated before upload.
+- Uploads are MIME/size limited, magic-byte checked, and optionally ClamAV
+  scanned with fail-closed behavior.
+- Contact submissions use a honeypot, minimum fill time and link/email flood
+  checks.
 - CORS is an exact origin allowlist.
-- CSP includes `frame-ancestors 'none'`; `X-Frame-Options: DENY`; HSTS; nosniff; referrer and permissions policies.
+- CSP for the API is `default-src 'none'`; the browser CSP is `connect-src
+  'self'` with Cloudinary-only images.
+- CSP includes `frame-ancestors 'none'`; `X-Frame-Options: DENY`; HSTS;
+  nosniff; COOP/CORP; referrer and permissions policies.
 - `/admin` and API are noindex.
 - Production 5xx and 404 responses do not leak internals.
-- Telemetry excludes hostname and environment secrets.
+- Telemetry is minimal and excludes platform/runtime/Docker/git branch.
 - Optional integrations fail gracefully.
-- `npm audit --omit=dev` reports zero vulnerabilities.
+- `npm audit --audit-level=high` reports zero vulnerabilities.
+- CodeQL, Gitleaks, Trivy, Dependabot, npm audit and ZAP workflows exist.
 
 ### Open
 
 | Item | Severity | Status |
 |---|---|---|
-| Cloudinary credential rotation | High | Open |
-| JWT in `localStorage` | Medium | Accepted; approval to change |
-| No MFA | Medium | Accepted |
-| No server-side token revocation | Medium | Accepted |
-| No backup/restore drill | Medium | Open |
-| No uptime alerting | Medium | Open |
+| Cloudinary credential rotation | High | Open — owner |
+| Production backup rotation + restore drill | Medium | Tooling added; drill owner-blocked |
+| No uptime alerting | Medium | Open — owner |
+| Live MFA not yet configured in Render | Medium | Open — owner |
+| Live ClamAV endpoint not configured | Low | Optional; magic-byte validation active |
 | In-memory rate limits | Low | Accepted |
-| Broad CSP `connect-src`/`img-src` | Low | Accepted |
 | `style-src 'unsafe-inline'` | Low | Accepted |
-| Public telemetry | Low | Accepted by product |
 | No admin audit log | Low | Accepted |
-| No malware scan on uploads | Low | Accepted |
 | No Cloudinary cleanup on delete | Low | Accepted |
 
 Full detail: [SECURITY_AUDIT.md](./SECURITY_AUDIT.md).
@@ -235,7 +240,7 @@ Implemented:
 
 Open:
 
-- focus ring pink-on-acid is **2.71:1** (fails the 3:1 UI/focus threshold);
+- focus ring now uses an ink inner ring (16.07:1 on acid) plus a pink outer ring (5.93:1 on ink), so at least one layer clears 3:1 on every surface;
 - white-on-pink is **3.18:1** (large text only; avoid body text);
 - gray-on-acid is **4.11:1** (avoid body text);
 - no axe/Lighthouse CI gate;
@@ -354,7 +359,7 @@ The owner may learn about an outage from a visitor. Add at least one external mo
 | Data integrity | Warning | No backup/restore drill |
 | Availability | Ready with warnings | Free-tier cold start; no alerting |
 | Performance | Ready | Warm pages fast; no load test |
-| Accessibility | Warning | Focus contrast and no automated gate |
+| Accessibility | Warning | Focus contrast fixed; no automated gate |
 | SEO | Ready | Technical SEO complete; indexing/ranking not guaranteed |
 | CI/CD | Ready | 7/7 jobs green; deploy gated |
 | Documentation | Ready with warning | 20 docs; README links need owner update |
@@ -376,13 +381,14 @@ The owner may learn about an outage from a visitor. Add at least one external mo
 
 ### Next UI change
 
-- [ ] Replace the focus ring with a higher-contrast two-layer indicator.
+- [x] Replace the focus ring with a higher-contrast two-layer indicator.
 - [ ] Add an automated axe/Lighthouse check to CI.
 
 ### Next auth change
 
-- [ ] Decide on HttpOnly cookie + CSRF vs. current `localStorage` token.
-- [ ] If adopted, implement login/logout, CSRF, and tests as one coordinated change.
+- [x] Decide on HttpOnly cookie + CSRF vs. current `localStorage` token.
+- [x] Implement login/logout, CSRF, revocation and tests as one coordinated change.
+- [ ] Set `ADMIN_TOTP_SECRET` in Render and verify an MFA login.
 
 ### When email is required
 
@@ -400,7 +406,10 @@ The owner may learn about an outage from a visitor. Add at least one external mo
 | Static assets | Vercel immutable assets + `index.html` no-cache |
 | API cache | `no-store`; nothing to purge |
 
-The rollback path exists but the database path is unproven without a restore drill. That is why data integrity is rated "Warning".
+The rollback path exists and the application now has tested backup/verify/
+restore tooling. The production database path is still unproven until the
+owner runs a restore drill against a scratch database. That is why data
+integrity remains rated "Warning".
 
 ## 15. Final determination
 

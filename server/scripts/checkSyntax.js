@@ -14,23 +14,33 @@ import { spawnSync } from "node:child_process";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverRoot = path.resolve(__dirname, "..");
 
-const files = readdirSync(serverRoot, {
-  recursive: true,
-  withFileTypes: true,
-})
-  .filter((entry) => {
-    const directory = entry.parentPath || entry.path || "";
+const ignoredDirectories = new Set([
+  "node_modules",
+  ".git",
+  "coverage",
+  "dist",
+  "build",
+]);
 
-    return (
-      entry.isFile() &&
-      entry.name.endsWith(".js") &&
-      !directory.includes("node_modules")
-    );
-  })
-  .map((entry) =>
-    path.join(entry.parentPath || entry.path || "", entry.name)
-  )
-  .sort();
+const collectJavaScriptFiles = (directory) => {
+  const files = [];
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      if (!ignoredDirectories.has(entry.name)) {
+        files.push(...collectJavaScriptFiles(entryPath));
+      }
+    } else if (entry.isFile() && entry.name.endsWith(".js")) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+};
+
+const files = collectJavaScriptFiles(serverRoot).sort();
 
 if (files.length === 0) {
   console.error("No JavaScript files found to check.");

@@ -1,34 +1,49 @@
 import express from "express";
 
-import { login } from "../controllers/authController.js";
+import {
+  getSession,
+  login,
+  logout,
+  logoutAll,
+} from "../controllers/authController.js";
+import { protect } from "../middleware/authMiddleware.js";
 import { authLimiter } from "../middleware/rateLimiters.js";
 
 const router = express.Router();
 
-/* 
+/*
    Authentication Routes
- */
+
+   Login issues an opaque HttpOnly session cookie. There is no JWT in the
+   response body, so no token is ever exposed to JavaScript or localStorage.
+*/
 
 /**
  * @route   POST /api/auth/login
- * @desc    Authenticate admin user and return a JWT token
+ * @desc    Authenticate admin (password + optional TOTP) and start a session
  * @access  Public
  */
 router.post("/login", authLimiter, login);
 
-/* 
-   Future Routes
+/**
+ * @route   GET /api/auth/session
+ * @desc    Return the current session's CSRF token and expiry
+ * @access  Private (Admin cookie session)
  */
+router.get("/session", protect, getSession);
 
 /**
- * Future authentication routes can be added here.
- *
- * Example:
- *
- * router.post("/logout", logout);
- * router.get("/me", protect, getCurrentUser);
- * router.post("/refresh-token", refreshToken);
- * router.put("/change-password", protect, changePassword);
+ * @route   POST /api/auth/logout
+ * @desc    Revoke the current session and clear the cookie
+ * @access  Private (Admin cookie session)
  */
+router.post("/logout", protect, logout);
+
+/**
+ * @route   POST /api/auth/logout-all
+ * @desc    Revoke every active session for the admin account
+ * @access  Private (Admin cookie session)
+ */
+router.post("/logout-all", protect, logoutAll);
 
 export default router;

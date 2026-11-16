@@ -17,13 +17,17 @@
 | API readiness | `/api/health/ready` runs `SELECT 1` | Synthetic multi-region checks |
 | CI production smoke | Health, content, auth, CORS, routes, headers, SEO | Scheduled smoke runs (only on deploy) |
 | Logs | Render runtime logs, CI logs, Vercel build logs | Centralized log search/retention policy |
-| Telemetry | Public `/system` page (CPU, memory, uptime, runtime, git) | APM, tracing, error tracking |
+| Telemetry | Public `/system` page (CPU load, memory %, uptime, AI status, short commit) | APM, tracing, error tracking |
 | Database | TiDB console metrics (provider) | Application-level slow-query alerts |
 | Frontend | Vercel deployment status | Real-user monitoring / Web Vitals |
 | Alerts | None | Email/SMS/Slack alerting |
-| Backups | Provider-dependent | Application backup job and restore drill |
+| Backups | `npm run db:backup` / `db:verify` / `db:restore` tooling; provider backups | Scheduled off-site backup job and documented restore drill |
 
-**Honest status:** the system is observable when someone looks, but it is not proactively monitored. An outage may be discovered by a visitor before the owner.
+**Honest status:** the system is observable when someone looks, and the new
+security-event logs make abuse visible, but there is still no external uptime
+alerter. An outage may be discovered by a visitor before the owner. The
+quarterly restore drill and log alerting steps are in
+[SECURITY_OPERATIONS.md](./SECURITY_OPERATIONS.md).
 
 ## 2. Health endpoints
 

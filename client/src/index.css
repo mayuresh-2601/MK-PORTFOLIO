@@ -20,6 +20,9 @@
   --shadow-pink: 8px 8px 0 var(--pink);
   --shadow-acid: 8px 8px 0 var(--acid);
 
+  --scrollbar-thumb: var(--acid);
+  --scrollbar-track: var(--ink);
+
   --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
   --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
@@ -40,8 +43,18 @@
 }
 
 html {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
   scroll-behavior: smooth;
   scroll-padding-top: calc(var(--nav-h) + 1rem);
+}
+
+.site-nav__overlay,
+.terminal-body,
+.chat-body,
+.modal-card {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
 }
 
 body {
@@ -84,26 +97,24 @@ button {
   color: var(--white);
 }
 
-::-webkit-scrollbar {
-  width: 14px;
-}
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+  }
 
-::-webkit-scrollbar-track {
-  background: var(--ink);
-}
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
 
-::-webkit-scrollbar-thumb {
-  background: var(--acid);
-  border: 3px solid var(--ink);
-}
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border: 3px solid var(--scrollbar-track);
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--pink);
-}
-
-:focus-visible {
-  outline: 3px solid var(--pink);
-  outline-offset: 3px;
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--pink);
+  }
 }
 
 .app-shell {
@@ -1717,9 +1728,10 @@ button {
 }
 
 .form-input:focus {
-  outline: none;
   transform: translate(-2px, -2px);
-  box-shadow: 4px 4px 0 var(--pink);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    4px 4px 0 var(--pink);
 }
 
 .form-input:disabled {
@@ -1946,7 +1958,6 @@ button {
 }
 
 .chat-input:focus {
-  outline: none;
   border-color: var(--pink);
 }
 
@@ -2070,9 +2081,10 @@ button {
 }
 
 .login-input:focus {
-  outline: none;
   border-color: var(--pink);
-  box-shadow: 4px 4px 0 var(--pink);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    4px 4px 0 var(--pink);
 }
 
 .admin-page {
@@ -2155,8 +2167,9 @@ button {
 }
 
 .admin-input:focus {
-  outline: none;
-  box-shadow: 3px 3px 0 var(--pink);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    3px 3px 0 var(--pink);
 }
 
 .admin-file {
@@ -2257,6 +2270,13 @@ button {
 
 .admin-delete:hover {
   transform: scale(1.1) rotate(-6deg);
+}
+
+.admin-edit:disabled,
+.admin-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .admin-message {
@@ -2867,6 +2887,14 @@ button {
 /* ============================================================
    Reduced motion
    ============================================================ */
+
+/* The ink inner ring and pink outer ring each clear 3:1 on the surfaces
+   where the other one does not, so focus stays visible on light and dark. */
+:focus-visible {
+  outline: 3px solid var(--pink);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px var(--ink);
+}
 
 @media (prefers-reduced-motion: reduce) {
   html {

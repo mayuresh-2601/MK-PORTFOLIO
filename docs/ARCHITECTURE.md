@@ -156,12 +156,15 @@ client/
 
 | State | Owner | Pattern |
 |---|---|---|
-| Projects/skills/certificates lists | Page component | `loading`, `error`, data array |
-| Contact submission | Contact page | `{ loading, success, error }` |
-| AI explanation | Reusable modal | `loading`, `error`, `explanation`, cancellation flag |
-| System snapshot | System page | Snapshot + inline error, 5-second poll |
-| Admin data | Dashboard | Four arrays + global `loading` + feedback banner |
+| Projects/skills/certificates lists | Page component | Mutually exclusive `loading` / `error` / empty / data render gates; one request per mount |
+| Contact submission | Contact page | Single `status.state`: `idle`, `loading`, `success`, or `error`; typing resets a finished result to idle |
+| AI explanation | Reusable modal | Keyed request state: `idle`, `loading`, `success`, or `error`; an `AbortController` cancels the previous payload |
+| System snapshot | System page | Snapshot + `lastUpdatedAt` + inline error; the next 5-second poll starts only after the previous one ends, so cold starts cannot stack requests |
+| Admin data | Dashboard | One exclusive `pending` operation (`load`, `add-project`, `delete`, ...) plus four data arrays and a feedback banner; writes and deletes are rejected while busy |
 | Auth | `localStorage` + route guard | Token presence gate; server remains authoritative |
+| Mobile navigation | Navbar | `isOpen` is closed on route change and when the 1181 px breakpoint removes the menu trigger |
+
+Rule: a component must never expose contradictory states such as loading plus error, or a stale list plus "empty". New asynchronous UI uses one status value or one keyed request object and guards re-entry.
 
 ### Build and environment
 

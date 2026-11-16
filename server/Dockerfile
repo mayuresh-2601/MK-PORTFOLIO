@@ -24,22 +24,24 @@ RUN if [ -f package-lock.json ]; then \
     fi && \
     npm cache clean --force 2>/dev/null
 
-# Copy application source
-COPY . .
-
 # Production environment
 ENV NODE_ENV=production
+ENV npm_config_update_notifier=false
 
 # Create non-root user with explicit ids so the numeric USER below always
 # resolves, no matter how the host maps uids.
 RUN addgroup -S -g 1001 nodegroup && \
-    adduser -S -u 1001 -G nodegroup nodeuser && \
-    chown -R nodeuser:nodegroup /app
+    adduser -S -u 1001 -G nodegroup nodeuser
+
+# Copy application source as the runtime user; no recursive chown is needed.
+COPY --chown=1001:1001 . .
 
 USER 1001:1001
 
 # Expose backend port
 EXPOSE 5000
+
+STOPSIGNAL SIGTERM
 
 # Health check in exec form so the container runtime receives wget's exit code
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

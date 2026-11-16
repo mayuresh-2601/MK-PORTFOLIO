@@ -3,6 +3,17 @@ import path from "node:path";
 import multer from "multer";
 
 import cloudinary, { cloudinaryConfigured } from "../config/cloudinary.js";
+import { validateFileSignature } from "../utils/fileSignature.js";
+import {
+  isClamavConfigured,
+  scanBuffer,
+} from "../utils/malwareScan.js";
+import {
+  requestContext,
+  securityError,
+  securityEvent,
+} from "../utils/securityLog.js";
+import { getClientIp } from "../utils/clientIp.js";
 
 /* 
    Allowed File Types
@@ -162,6 +173,56 @@ export const uploadSingle = (
 
       // No file supplied — controllers decide whether one is required.
       if (!req.file) return next();
+
+      // Magic bytes must match the declared type before the buffer leaves
+      // this process. This catches renamed executables and HTML/SVG payloads
+      // that claim to be an allowed image or document.
+      const signature = validateFileSignature(req.file, {
+        allowDocuments,
+      });
+
+      if (!signature.ok) {
+        securityEvent(
+          "upload.signature.rejected",
+          requestContext(req, {
+            ip: getClientIp(req),
+            mimetype: req.file.mimetype,
+          })
+        );
+
+        return res.status(400).json({
+          success: false,
+          message: signature.message,
+        });
+      }
+
+      if (isClamavConfigured()) {
+        const scan = await scanBuffer(req.file.buffer);
+
+        if (!scan.ok) {
+          securityEvent(
+            scan.infected
+              ? "upload.malware.rejected"
+              : "upload.scanner.unavailable",
+            requestContext(req, {
+              ip: getClientIp(req),
+              mimetype: req.file.mimetype,
+            })
+          );
+
+          securityError("upload.scan.failed", {
+            requestId: req.id,
+            infected: Boolean(scan.infected),
+          });
+
+          return res.status(scan.infected ? 400 : 503).json({
+            success: false,
+            message: scan.infected
+              ? "The uploaded file failed the malware scan."
+              : "File scanning is temporarily unavailable. Please try again later.",
+          });
+        }
+      }
 
       if (!cloudinaryConfigured) {
         return res.status(503).json({

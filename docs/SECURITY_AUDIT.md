@@ -15,7 +15,7 @@
 Reviewed:
 
 - Express middleware order, headers, CORS, rate limiting, error handling;
-- admin authentication, JWT verification, credential storage;
+- admin authentication, cookie-session verification, credential storage;
 - every route/controller/model for validation, authorization, and SQL construction;
 - upload handling and Cloudinary integration;
 - contact persistence and email behavior;
@@ -33,7 +33,7 @@ Method:
 - production header checks with `curl`;
 - live route audit with Playwright;
 - secret pattern scans;
-- `npm audit --omit=dev` in both packages;
+- `npm audit --audit-level=high` in both packages;
 - Render log review;
 - CI smoke-test evidence.
 
@@ -52,15 +52,31 @@ The application implements a solid baseline for a single-admin portfolio:
 - errors do not leak internals in production;
 - the CI pipeline gates production deploys and runs live smoke tests.
 
-**Open risk is concentrated in operations, not application logic:**
+**Remediated on 2026-11-16:**
+
+1. The admin JWT/localStorage model was replaced with opaque, revocable
+   HttpOnly cookie sessions (S-02, S-04).
+2. Optional TOTP MFA was added (S-03).
+3. CSP was narrowed to `connect-src 'self'` and Cloudinary images (S-08).
+4. Public telemetry no longer exposes platform, runtime, Docker or git branch
+   (S-10).
+5. Magic-byte validation and optional fail-closed ClamAV scanning were added
+   (S-12).
+6. COOP/CORP and related headers were added (S-16).
+7. CodeQL, Dependabot, Gitleaks, Trivy, npm audit and ZAP workflows were added
+   to the CI surface.
+
+**Open risk is now concentrated in operations, not application logic:**
 
 1. Cloudinary credentials were exposed during development and must be rotated.
-2. The admin JWT is stored in `localStorage`, so any future XSS becomes token theft.
-3. There is no verified backup/restore drill.
-4. There is no external uptime alerting.
-5. MFA and server-side session revocation are not implemented.
+2. A production restore drill and off-site backup rotation are still owner
+   tasks; the application tooling exists.
+3. There is no external uptime alerting.
 
-**Verdict:** acceptable for a personal portfolio with the documented warnings, **provided the Cloudinary credential is rotated**. Production readiness detail is in [FINAL_PRODUCTION_AUDIT.md](./FINAL_PRODUCTION_AUDIT.md).
+**Verdict:** acceptable for a personal portfolio with the documented warnings,
+**provided the Cloudinary credential is rotated** and the operational items are
+completed. Production readiness detail is in
+[FINAL_PRODUCTION_AUDIT.md](./FINAL_PRODUCTION_AUDIT.md).
 
 ## 3. Findings
 
@@ -69,21 +85,21 @@ Severity: **Critical** (immediate compromise), **High** (likely serious impact),
 | ID | Severity | Finding | Status |
 |---|---|---|---|
 | S-01 | High | Cloudinary API key/secret appeared in earlier tool output; treat as exposed | **Open — rotate** |
-| S-02 | Medium | Admin JWT stored in `localStorage` | Accepted; approval to move to HttpOnly cookie |
-| S-03 | Medium | No MFA for the single admin | Accepted; optional |
-| S-04 | Medium | No server-side token revocation/logout | Accepted; tied to S-02 |
-| S-05 | Medium | No verified database backup/restore drill | **Open — operational** |
+| S-02 | Medium | Admin JWT stored in `localStorage` | **Fixed** — HttpOnly cookie sessions |
+| S-03 | Medium | No MFA for the single admin | **Fixed** — optional TOTP |
+| S-04 | Medium | No server-side token revocation/logout | **Fixed** — DB-backed revocation |
+| S-05 | Medium | No verified database backup/restore drill | **Tooling added** — production drill still owner-blocked |
 | S-06 | Medium | No external uptime/alerting | **Open — operational** |
 | S-07 | Low | Rate limits are in-memory and per instance | Accepted for single instance |
-| S-08 | Low | CSP `connect-src https:` and `img-src https:` are broad | Accepted; tighten if third-party hosts are known |
+| S-08 | Low | CSP `connect-src https:` and `img-src https:` are broad | **Fixed** — `connect-src 'self'`, Cloudinary-only images |
 | S-09 | Low | CSP allows `style-src 'unsafe-inline'` | Accepted; required by current inline styles |
-| S-10 | Low | Public telemetry reveals platform, runtime, commit, CPU, memory | Accepted; hostname excluded |
-| S-11 | Low | No admin audit trail | Accepted for single admin |
-| S-12 | Low | Uploaded files are not malware-scanned | Accepted; type/size limits only |
+| S-10 | Low | Public telemetry reveals platform, runtime, commit, CPU, memory | **Fixed** — minimal telemetry |
+| S-11 | Low | No admin audit trail | Accepted; structured security events added |
+| S-12 | Low | Uploaded files are not malware-scanned | **Fixed in code** — optional ClamAV, fail-closed; live scanner owner-blocked |
 | S-13 | Low | No Cloudinary cleanup on row delete | Accepted; quota/privacy follow-up |
-| S-14 | Low | No automated accessibility gate (focus contrast) | Open; not a security issue but a quality risk |
+| S-14 | Low | No automated accessibility gate (focus contrast) | Focus contrast fixed manually; automated gate still open |
 | S-15 | Info | `GET /` reports `environment` | Accepted; no secret |
-| S-16 | Info | No `Cross-Origin-Opener-Policy` header | Optional hardening |
+| S-16 | Info | No `Cross-Origin-Opener-Policy` header | **Fixed** — COOP/CORP added |
 
 ## 4. Verified controls
 
@@ -98,12 +114,15 @@ Severity: **Critical** (immediate compromise), **High** (likely serious impact),
 | Generic login failure | `401 Invalid email or password.` |
 | Both fields checked | Email match evaluated even when password fails |
 | Login rate limit | 10 failed / 15 min / resolved IP |
-| JWT HS256 only | `algorithms: ["HS256"]` |
-| Issuer/audience validation | `portfolio-api` / `portfolio-admin` |
-| Token bound to current admin email | `sub` and `email` checked against `ADMIN_EMAIL` |
-| Short expiry | `JWT_EXPIRES_IN`, default `12h` |
+| Opaque session tokens | 32 random bytes, base64url, HttpOnly cookie |
+| Only hashes stored | SHA-256 token hash in `admin_sessions` |
+| Revocation | `revoked_at` on logout / log out all |
+| Short absolute + idle expiry | 120 minutes / 30 minutes by default |
+| Token bound to current admin email | `admin_email` checked against `ADMIN_EMAIL` |
+| CSRF | Exact Origin/Referer + per-session `X-CSRF-Token` |
+| MFA | Optional RFC 6238 TOTP |
 | Server-side protection | `protect` on all mutations and `/api/messages` |
-| Client guard is not the control | `ProtectedRoute` documented as UX only |
+| Client guard is not the control | `ProtectedRoute` performs a server session check |
 
 ### 4.2 Input and data handling
 
@@ -197,43 +216,53 @@ API (`server/server.js`):
 
 ---
 
-### S-02 — JWT in `localStorage` (Medium, accepted)
+### S-02 — JWT in `localStorage` (Medium, fixed)
 
-**Impact:** Any XSS can read the token and act as admin until expiry. Current CSP and text-only rendering reduce the likelihood but do not eliminate it.
+**Old impact:** Any XSS could read the token and act as admin until expiry.
 
-**Current mitigations:** strict CSP, no `unsafe-eval`, no third-party scripts, no `dangerouslySetInnerHTML` for API/AI content, 12-hour expiry, token bound to the admin email.
+**Fix (2026-11-16):** the API now issues an opaque random token in an
+HttpOnly, Secure, SameSite cookie. The browser stores no auth token in
+JavaScript-readable storage. State changes require a per-session
+`X-CSRF-Token` and an exact Origin/Referer. See
+[AUTHENTICATION.md](./AUTHENTICATION.md).
 
-**Recommendation:** move to an HttpOnly, Secure, SameSite cookie with CSRF protection. This is a coordinated change, not a one-line fix. See [AUTHENTICATION.md](./AUTHENTICATION.md).
-
-**Decision:** Accepted for now; approval item A1.
-
----
-
-### S-03 — No MFA (Medium, accepted)
-
-**Impact:** A stolen/guessed password gives full admin access.
-
-**Mitigations:** 12+ character password, bcrypt, rate limit, generic errors, no public signup.
-
-**Recommendation:** add TOTP or a hardware key if admin risk increases. For a single portfolio owner, this is optional.
+**Residual:** XSS can still make authenticated requests in the victim browser,
+but it can no longer exfiltrate a reusable token.
 
 ---
 
-### S-04 — No server-side logout/revocation (Medium, accepted)
+### S-03 — No MFA (Medium, fixed)
 
-**Impact:** A copied token remains valid until expiry; logout only removes it from the browser.
+**Old impact:** A stolen/guessed password gave full admin access.
 
-**Mitigation:** rotate `JWT_SECRET` to invalidate all tokens; use a 12-hour expiry.
+**Fix (2026-11-16):** optional TOTP via `ADMIN_TOTP_SECRET`; a correct
+password alone cannot create a session when MFA is configured.
 
-**Recommendation:** adopt short-lived access tokens + a server-side session/refresh store only if the auth model changes.
+**Residual:** no backup codes; recovery requires Render environment access.
 
 ---
 
-### S-05 — No verified backup/restore (Medium, open)
+### S-04 — No server-side logout/revocation (Medium, fixed)
 
-**Impact:** Data loss from a bad migration, accidental delete, or provider incident is unrecoverable beyond provider defaults.
+**Old impact:** A copied token remained valid until expiry.
 
-**Required action:** define a backup cadence, store encrypted backups separately, and complete a restore drill into a staging database. See [DATABASE.md](./DATABASE.md).
+**Fix (2026-11-16):** sessions live in `admin_sessions` and are revoked
+immediately by logout, log out all, expiry, idle timeout, or an admin-email
+change. Only SHA-256 hashes are stored.
+
+---
+
+### S-05 — No verified backup/restore (Medium, tooling added)
+
+**Impact:** Data loss from a bad migration, accidental delete, or provider
+incident is unrecoverable beyond provider defaults.
+
+**Fix (2026-11-16):** `npm run db:backup`, `db:verify` and `db:restore` export
+schema + rows to JSON, write/verify a SHA-256 sidecar, exclude
+`admin_sessions`, and support a scratch-database rehearsal. See
+[SECURITY_OPERATIONS.md](./SECURITY_OPERATIONS.md#5-backups-and-restore-drills).
+
+**Still owner-blocked:** a production backup rotation and a live restore drill.
 
 ---
 
@@ -253,11 +282,13 @@ API (`server/server.js`):
 
 ---
 
-### S-08 — Broad CSP connect/img sources (Low, accepted)
+### S-08 — Broad CSP connect/img sources (Low, fixed)
 
-`connect-src 'self' https:` allows requests to any HTTPS host; `img-src ... https:` allows any HTTPS image. The app legitimately needs the Render API and Cloudinary.
-
-**Recommendation:** when host lists are stable, restrict to `https://mk-portfolio-api.onrender.com` and `https://res.cloudinary.com` (plus any required font/image hosts). Test thoroughly before tightening.
+**Fix (2026-11-16):** `connect-src 'self'` (the frontend uses the same-origin
+`/api` rewrite) and `img-src 'self' data: https://res.cloudinary.com`.
+`default-src`, `script-src`, `base-uri`, `object-src`, `frame-ancestors` and
+`form-action` are also restricted. See `client/vercel.json` and
+`client/nginx.conf`.
 
 ---
 
@@ -269,13 +300,12 @@ The app uses inline `style` attributes for progress widths and layout values. Re
 
 ---
 
-### S-10 — Public telemetry (Low, accepted)
+### S-10 — Public telemetry (Low, fixed)
 
-Exposes platform, architecture, Node version, host/process uptime, CPU cores/model/load, memory, Docker status, git commit/branch. It deliberately excludes hostname, environment variables, paths, tokens, and database details.
-
-**Risk:** fingerprinting and infrastructure insight. **Benefit:** credible operational proof.
-
-**Decision:** keep public unless the owner changes the product intent. Re-review if the service handles sensitive data.
+**Fix (2026-11-16):** the public snapshot now exposes only timestamp, uptime,
+CPU cores/load, memory percentage, AI availability and a short commit hash.
+Platform, architecture, Node version, hostname, Docker status, git branch and
+process identifiers were removed. See `controllers/systemController.js`.
 
 ---
 
@@ -287,11 +317,13 @@ There is no record of which admin action changed what. With one admin, the value
 
 ---
 
-### S-12 — No malware scanning (Low, accepted)
+### S-12 — No malware scanning (Low, fixed in code)
 
-Uploads are limited by MIME and size but not scanned. The allowed types exclude executables, and files are served by Cloudinary rather than executed by the API.
-
-**Recommendation:** add scanning only if untrusted public uploads become a core feature.
+**Fix (2026-11-16):** every upload is checked against magic bytes for its
+declared MIME type and extension. Optional ClamAV INSTREAM scanning runs when
+`CLAMAV_HOST` is set and fails closed (503) on scanner errors. A local
+`clamav` Compose profile is available. Live production scanning still needs a
+reachable clamd service.
 
 ---
 
@@ -305,9 +337,9 @@ Deleting a database row leaves the asset in Cloudinary. This grows quota usage a
 
 ### S-14 — Accessibility gate (Low, open)
 
-The focus ring is pink on acid at 2.71:1. This is a WCAG risk, not a security vulnerability. There is no automated axe/Lighthouse gate.
+The focus ring previously used pink on acid at 2.71:1. It now pairs an ink inner ring (16.07:1 on acid) with a pink outer ring (5.93:1 on ink), so at least one layer clears 3:1 on every surface. This was a WCAG risk, not a security vulnerability. There is still no automated axe/Lighthouse gate.
 
-**Recommendation:** adopt a two-layer focus ring and add an automated check. See [DESIGN.md](./DESIGN.md) and [TESTING.md](./TESTING.md).
+**Recommendation:** keep the two-layer focus ring and add an automated check. See [DESIGN.md](./DESIGN.md) and [TESTING.md](./TESTING.md).
 
 ---
 
@@ -315,23 +347,24 @@ The focus ring is pink on acid at 2.71:1. This is a WCAG risk, not a security vu
 
 `GET /` returns `"environment": "production" | "development"`. This is not sensitive and helps confirm the deployment. No change required.
 
-### S-16 — COOP header (Info)
+### S-16 — COOP header (Info, fixed)
 
-`Cross-Origin-Opener-Policy` is not set. It is optional for this app because there are no popups or cross-origin windows.
-
-**Recommendation:** add `same-origin` if a future feature opens windows; verify it does not break OAuth flows.
+`Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Resource-Policy: same-origin` are now set by Vercel and Nginx,
+along with `X-Permitted-Cross-Domain-Policies: none`.
 
 ## 6. Threat model summary
 
 | Threat | Likelihood | Impact | Controls | Residual |
 |---|---|---|---|---|
-| Credential stuffing | Medium | Admin compromise | Rate limit, strong password, generic errors | No MFA |
-| XSS token theft | Low | Admin compromise | CSP, escaping, no unsafe scripts | localStorage |
+| Credential stuffing | Medium | Admin compromise | Rate limit, strong password, MFA, generic errors | Distributed IPs |
+| XSS token theft | Low | Admin compromise | CSP, escaping, HttpOnly cookie, no JS token | XSS can still act in-session |
+| CSRF | Low | Admin action | Origin/Referer + per-session header | Same-site subdomain compromise |
 | SQL injection | Low | Data breach | Parameterized SQL, validation | None known |
-| File upload abuse | Medium | Quota/storage abuse | MIME/size limits, auth on admin uploads | No AV scan |
-| Contact spam | Medium | Inbox noise | 5/15 min limit, validation | Distributed spam |
-| AI cost abuse | Low | Quota burn | 10/min, bounded output | Multiple IPs |
-| Secret leakage | Medium | Service compromise | Env-only, scans, CI hygiene | Cloudinary rotation |
+| File upload abuse | Medium | Quota/storage abuse | MIME/magic bytes, size limits, optional ClamAV | Live scanner owner-blocked |
+| Contact spam | Medium | Inbox noise | 5/15 min limit, honeypot, timing, link flood checks | Distributed spam |
+| AI cost abuse | Low | Quota burn | 10/min, daily/global caps, kill switch, bounded output | Multiple IPs |
+| Secret leakage | Medium | Service compromise | Env-only, Gitleaks, CI hygiene | Cloudinary rotation |
 | Clickjacking | Low | UI redress | `frame-ancestors 'none'`, `DENY` | None known |
 | DoS | Low | Availability | Body limits, rate limits, single instance | No WAF |
 | Supply chain | Low | Code execution | Small deps, lockfiles, audit | No SCA gate beyond audit |
@@ -360,12 +393,12 @@ Re-run these checks after the documentation deploy and record the result in [FIN
 | Priority | Action | Owner | Target |
 |---|---|---|---|
 | P0 | Rotate Cloudinary key/secret and verify uploads | Owner | Immediate |
-| P1 | Define backup cadence and complete a restore drill | Owner | This month |
+| P1 | Complete a production restore drill and off-site rotation | Owner | This month |
 | P1 | Add external uptime monitoring + alert channel | Owner | This month |
-| P2 | Approve and implement HttpOnly cookie auth with CSRF | Owner + agent | Next auth change |
+| P1 | Set `ADMIN_TOTP_SECRET` and verify MFA login | Owner | This week |
+| P2 | Configure a production ClamAV endpoint (or accept magic-byte only) | Owner | When uploads grow |
 | P2 | Configure Gmail OAuth and verify delivery | Owner | When email is required |
 | P2 | Add axe/Lighthouse CI and fix focus contrast | Agent | Next UI change |
-| P3 | Tighten CSP hosts | Agent | After host list is stable |
 | P3 | Add Cloudinary cleanup/retention | Agent | When media volume grows |
 | P3 | Add admin audit log | Agent | If roles are added |
 

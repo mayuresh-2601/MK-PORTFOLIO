@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 
 import bcrypt from "bcryptjs";
 
+import { isValidTotpSecret } from "./totp.js";
+
 /*
    Admin credential verification.
 
@@ -71,6 +73,21 @@ export const getAdminAuthConfig = () => {
     hash,
     password,
     mode: hash ? "hash" : password ? "plain" : "none",
+  };
+};
+
+/**
+ * Optional TOTP second factor. The secret is only read from the server
+ * environment and is never returned to the browser or written to logs.
+ */
+export const getAdminMfaConfig = () => {
+  const secret = String(process.env.ADMIN_TOTP_SECRET || "")
+    .replace(/[\s-]/g, "")
+    .toUpperCase();
+
+  return {
+    enabled: Boolean(secret),
+    secret,
   };
 };
 
@@ -177,6 +194,21 @@ export const validateAdminAuthConfig = ({
     }
   }
 
+  const mfa = getAdminMfaConfig();
+
+  if (mfa.enabled && !isValidTotpSecret(mfa.secret)) {
+    errors.push(
+      "ADMIN_TOTP_SECRET is not a valid base32 TOTP secret. " +
+        'Generate one with: npm run mfa:setup'
+    );
+  }
+
+  if (!mfa.enabled && production) {
+    warnings.push(
+      "MFA is not configured. Set ADMIN_TOTP_SECRET to require an authenticator code at admin login."
+    );
+  }
+
   if (mode === "plain") {
     if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
       errors.push(
@@ -242,6 +274,7 @@ export const validateAdminAuthConfig = ({
 
 export default {
   getAdminAuthConfig,
+  getAdminMfaConfig,
   verifyAdminCredentials,
   validateAdminAuthConfig,
 };

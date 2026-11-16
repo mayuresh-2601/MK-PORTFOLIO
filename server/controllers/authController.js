@@ -1,10 +1,30 @@
-import jwt from "jsonwebtoken";
-
 import {
   getAdminAuthConfig,
+  getAdminMfaConfig,
   verifyAdminCredentials,
 } from "../utils/adminAuth.js";
+import {
+  clearSessionCookie,
+  getSessionConfig,
+  setSessionCookie,
+} from "../utils/sessionConfig.js";
+import {
+  cleanupSessions,
+  createSession,
+  revokeAllSessions,
+  revokeSession,
+} from "../models/sessionModel.js";
 import { getClientIp } from "../utils/clientIp.js";
+import {
+  randomHex,
+  randomToken,
+  sha256,
+} from "../utils/security.js";
+import { verifyTotp } from "../utils/totp.js";
+import {
+  requestContext,
+  securityEvent,
+} from "../utils/securityLog.js";
 
 /*
    Admin Login
@@ -13,10 +33,21 @@ import { getClientIp } from "../utils/clientIp.js";
    server environment (ADMIN_EMAIL + ADMIN_PASSWORD or ADMIN_PASSWORD_HASH),
    never from the database. Both fields are checked on every request so an
    attacker cannot tell which one was wrong from the response or its timing.
+
+   A successful password check creates a short-lived, server-side session.
+   The browser receives an opaque token in an HttpOnly cookie, never a JWT
+   that JavaScript (or localStorage) can read.
 */
 
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 1024;
+
+const safeContext = (req, extra = {}) => ({
+  ...requestContext(req, {
+    ip: getClientIp(req),
+  }),
+  ...extra,
+});
 
 export const login = async (req, res, next) => {
   try {
@@ -50,27 +81,8 @@ export const login = async (req, res, next) => {
     }
 
     const adminConfig = getAdminAuthConfig();
-    const jwtSecret = String(process.env.JWT_SECRET || "").trim();
 
-    // jsonwebtoken treats a bare numeric string as milliseconds, but a
-    // number as seconds. Convert digits explicitly so `JWT_EXPIRES_IN=43200`
-    // means twelve hours as documented, and normalize units to lowercase.
-    const rawJwtExpiry = String(
-      process.env.JWT_EXPIRES_IN || "12h"
-    ).trim();
-
-    const jwtExpiry = /^\d+$/.test(rawJwtExpiry)
-      ? Number(rawJwtExpiry)
-      : rawJwtExpiry.toLowerCase();
-
-    // Validate environment variables. This should already have been caught
-    // at startup, but keep a defensive check in case the process is started
-    // by a different entry point in the future.
-    if (
-      !adminConfig.email ||
-      adminConfig.mode === "none" ||
-      !jwtSecret
-    ) {
+    if (!adminConfig.email || adminConfig.mode === "none") {
       console.error(
         "Authentication environment variables are missing or invalid."
       );
@@ -87,8 +99,9 @@ export const login = async (req, res, next) => {
     );
 
     if (!credentialsMatch) {
-      console.warn(
-        `[auth] Failed admin login attempt from ${getClientIp(req)}.`
+      securityEvent(
+        "auth.login.failed",
+        safeContext(req, { reason: "credentials" })
       );
 
       return res.status(401).json({
@@ -97,32 +110,64 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // The token is tied to the current ADMIN_EMAIL. Changing the env email
-    // invalidates old tokens because the middleware checks the same claim.
-    const token = jwt.sign(
-      {
-        sub: adminConfig.email,
-        email: adminConfig.email,
-        role: "admin",
-      },
-      jwtSecret,
-      {
-        algorithm: "HS256",
-        expiresIn: jwtExpiry,
-        issuer: "portfolio-api",
-        audience: "portfolio-admin",
-      }
-    );
+    const mfa = getAdminMfaConfig();
 
-    console.log(
-      `[auth] Admin login succeeded from ${getClientIp(req)}.`
+    if (mfa.enabled) {
+      const code =
+        typeof req.body?.totp === "string"
+          ? req.body.totp.trim()
+          : "";
+
+      if (!verifyTotp(mfa.secret, code)) {
+        securityEvent(
+          "auth.login.failed",
+          safeContext(req, {
+            reason: code ? "mfa_invalid" : "mfa_required",
+          })
+        );
+
+        return res.status(401).json({
+          success: false,
+          mfaRequired: true,
+          message: "Enter a valid 6-digit authenticator code.",
+        });
+      }
+    }
+
+    const sessionConfig = getSessionConfig();
+    const token = randomToken(32);
+    const tokenHash = sha256(token);
+    const csrfToken = randomHex(32);
+    const now = Date.now();
+    const expiresAt = now + sessionConfig.ttlMs;
+
+    await createSession({
+      tokenHash,
+      email: adminConfig.email,
+      csrfToken,
+      now,
+      expiresAt,
+    });
+
+    // Best-effort housekeeping; never block a successful login on it.
+    cleanupSessions(now - sessionConfig.retentionMs).catch(() => {});
+
+    setSessionCookie(res, token, sessionConfig);
+
+    securityEvent(
+      "auth.login.succeeded",
+      safeContext(req, {
+        mfa: mfa.enabled,
+        expiresAt,
+      })
     );
 
     return res.status(200).json({
       success: true,
       message: "Login successful.",
-      token,
-      expiresIn: jwtExpiry,
+      csrfToken,
+      expiresAt,
+      mfaEnabled: mfa.enabled,
       user: {
         email: adminConfig.email,
         role: "admin",
@@ -137,4 +182,61 @@ export const login = async (req, res, next) => {
   }
 };
 
-export default { login };
+export const getSession = async (req, res) => {
+  return res.status(200).json({
+    success: true,
+    csrfToken: req.session.csrfToken,
+    expiresAt: req.session.expiresAt,
+    user: req.user,
+  });
+};
+
+export const logout = async (req, res, next) => {
+  try {
+    const sessionConfig = getSessionConfig();
+
+    if (req.session?.tokenHash) {
+      await revokeSession(req.session.tokenHash);
+    }
+
+    clearSessionCookie(res, sessionConfig);
+
+    securityEvent("auth.logout", safeContext(req));
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logoutAll = async (req, res, next) => {
+  try {
+    const sessionConfig = getSessionConfig();
+    const result = await revokeAllSessions(req.user.email);
+
+    clearSessionCookie(res, sessionConfig);
+
+    securityEvent(
+      "auth.logout_all",
+      safeContext(req, { revokedSessions: result.affectedRows })
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "All admin sessions have been revoked.",
+      revokedSessions: result.affectedRows,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export default {
+  login,
+  getSession,
+  logout,
+  logoutAll,
+};

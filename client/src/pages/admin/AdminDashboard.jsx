@@ -13,8 +13,9 @@ import {
   RefreshCw,
   Pencil,
   X,
+  ShieldOff,
 } from "lucide-react";
-import api from "../../api/axios";
+import api, { clearCsrfToken } from "../../api/axios";
 import SEO from "../../components/common/SEO";
 
 const emptyProject = {
@@ -62,8 +63,14 @@ export default function AdminDashboard() {
   const [skillForm, setSkillForm] = useState(emptySkill);
   const [certForm, setCertForm] = useState(emptyCertificate);
 
-  const [loading, setLoading] = useState(false);
+  // One exclusive operation at a time: "load" while fetching, or the name
+  // of the write in progress. A single string prevents overlapping writes
+  // and the shared-boolean races the dashboard used to have.
+  const [pending, setPending] = useState("load");
+  const loading = pending !== null;
+
   const [feedback, setFeedback] = useState({ type: "", text: "" });
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Editing state: { type, id } plus the values of the edited record.
   const [editing, setEditing] = useState(null);
@@ -75,7 +82,7 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      setLoading(true);
+      setPending("load");
 
       const results = await Promise.allSettled([
         api.get("/projects"),
@@ -85,8 +92,6 @@ export default function AdminDashboard() {
       ]);
 
       const extract = (result) => {
-        if (result.status !== "fulfilled") return [];
-
         const payload = result.value.data;
 
         if (Array.isArray(payload)) return payload;
@@ -95,10 +100,23 @@ export default function AdminDashboard() {
         return [];
       };
 
-      setProjects(extract(results[0]));
-      setSkills(extract(results[1]));
-      setCertificates(extract(results[2]));
-      setMessages(extract(results[3]));
+      // Keep the last good list when one endpoint fails. Replacing a failed
+      // section with [] used to show "No projects yet" beside an error.
+      if (results[0].status === "fulfilled") {
+        setProjects(extract(results[0]));
+      }
+
+      if (results[1].status === "fulfilled") {
+        setSkills(extract(results[1]));
+      }
+
+      if (results[2].status === "fulfilled") {
+        setCertificates(extract(results[2]));
+      }
+
+      if (results[3].status === "fulfilled") {
+        setMessages(extract(results[3]));
+      }
 
       const failed = results.find(
         (result) => result.status === "rejected"
@@ -120,11 +138,6 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
 
-      setProjects([]);
-      setSkills([]);
-      setCertificates([]);
-      setMessages([]);
-
       setFeedback({
         type: "error",
         text:
@@ -132,13 +145,57 @@ export default function AdminDashboard() {
           "Failed to load dashboard data. Is the API running?",
       });
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    window.location.href = "/";
+  const finishLogout = () => {
+    clearCsrfToken();
+
+    try {
+      sessionStorage.removeItem("portfolio_admin_hint");
+    } catch {
+      // Cosmetic only.
+    }
+
+    window.location.replace("/admin");
+  };
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // The cookie may already be expired or revoked. Clearing local state
+      // and returning to the login screen is still the right outcome.
+    } finally {
+      finishLogout();
+    }
+  };
+
+  const handleLogoutAll = async () => {
+    if (loggingOut) return;
+
+    if (
+      !window.confirm(
+        "Sign out of every device? All active admin sessions will be revoked."
+      )
+    ) {
+      return;
+    }
+
+    setLoggingOut(true);
+
+    try {
+      await api.post("/auth/logout-all");
+    } catch {
+      // Fall through to the same local cleanup.
+    } finally {
+      finishLogout();
+    }
   };
 
   /* 
@@ -146,6 +203,8 @@ export default function AdminDashboard() {
    */
 
   const startEdit = (type, item) => {
+    if (pending) return;
+
     if (type === "skill") {
       setEditing({ type, id: item.id });
       setEditForm({
@@ -185,12 +244,12 @@ export default function AdminDashboard() {
   const saveEdit = async (event) => {
     event.preventDefault();
 
-    if (!editing) return;
+    if (!editing || pending) return;
+
+    setPending("save");
+    setFeedback({ type: "", text: "" });
 
     try {
-      setLoading(true);
-      setFeedback({ type: "", text: "" });
-
       if (editing.type === "skill") {
         if (!editForm.name.trim()) {
           setFeedback({ type: "error", text: "Skill name is required." });
@@ -256,12 +315,14 @@ export default function AdminDashboard() {
           "Failed to update the item. Please try again.",
       });
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
   const addProject = async (event) => {
     event.preventDefault();
+
+    if (pending) return;
 
     if (!projectForm.title || !projectForm.description || !projectForm.imageFile) {
       setFeedback({
@@ -271,10 +332,10 @@ export default function AdminDashboard() {
       return;
     }
 
-    try {
-      setLoading(true);
-      setFeedback({ type: "", text: "" });
+    setPending("add-project");
+    setFeedback({ type: "", text: "" });
 
+    try {
       const data = new FormData();
       data.append("title", projectForm.title);
       data.append("description", projectForm.description);
@@ -296,22 +357,24 @@ export default function AdminDashboard() {
           "Failed to add project. Please try again.",
       });
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
   const addSkill = async (event) => {
     event.preventDefault();
 
+    if (pending) return;
+
     if (!skillForm.name.trim()) {
       setFeedback({ type: "error", text: "Skill name is required." });
       return;
     }
 
-    try {
-      setLoading(true);
-      setFeedback({ type: "", text: "" });
+    setPending("add-skill");
+    setFeedback({ type: "", text: "" });
 
+    try {
       await api.post("/skills", {
         name: skillForm.name.trim(),
         level: Number(skillForm.level) || 0,
@@ -329,12 +392,14 @@ export default function AdminDashboard() {
           "Failed to add skill. Please try again.",
       });
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
   const addCertificate = async (event) => {
     event.preventDefault();
+
+    if (pending) return;
 
     if (!certForm.title.trim()) {
       setFeedback({
@@ -344,10 +409,10 @@ export default function AdminDashboard() {
       return;
     }
 
-    try {
-      setLoading(true);
-      setFeedback({ type: "", text: "" });
+    setPending("add-certificate");
+    setFeedback({ type: "", text: "" });
 
+    try {
       const data = new FormData();
       data.append("title", certForm.title);
       data.append("issuer", certForm.issuer);
@@ -374,18 +439,21 @@ export default function AdminDashboard() {
           "Failed to add certificate. Please try again.",
       });
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
   const deleteItem = async (endpoint, id) => {
+    if (pending) return;
     if (!window.confirm("Confirm deletion?")) return;
 
+    setPending("delete");
+    setFeedback({ type: "", text: "" });
+
     try {
-      setFeedback({ type: "", text: "" });
       await api.delete(`/${endpoint}/${id}`);
-      await loadData();
       setFeedback({ type: "success", text: "Item deleted." });
+      await loadData();
     } catch (error) {
       console.error(`Failed to delete ${endpoint} item:`, error);
       setFeedback({
@@ -394,6 +462,8 @@ export default function AdminDashboard() {
           error?.response?.data?.message ||
           "Failed to delete item. Please try again.",
       });
+    } finally {
+      setPending(null);
     }
   };
 
@@ -429,7 +499,17 @@ export default function AdminDashboard() {
             </button>
             <button
               type="button"
+              onClick={handleLogoutAll}
+              disabled={loggingOut}
+              className="btn btn--black btn--sm btn--pill"
+            >
+              <ShieldOff size={14} aria-hidden="true" />
+              Log out all
+            </button>
+            <button
+              type="button"
               onClick={handleLogout}
+              disabled={loggingOut}
               className="btn btn--pink btn--sm btn--pill"
             >
               <LogOut size={14} aria-hidden="true" />
@@ -447,6 +527,16 @@ export default function AdminDashboard() {
             style={{ marginTop: "1.5rem" }}
           >
             {feedback.text}
+          </div>
+        )}
+
+        {pending === "load" && (
+          <div
+            className="form-status"
+            role="status"
+            style={{ marginTop: "1.5rem" }}
+          >
+            Loading dashboard data...
           </div>
         )}
 
@@ -586,6 +676,7 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={cancelEdit}
+                  disabled={loading}
                   className="btn btn--pill"
                 >
                   <X size={16} aria-hidden="true" />
@@ -685,7 +776,7 @@ export default function AdminDashboard() {
             </form>
 
             <div className="admin-list">
-              {projects.length === 0 && (
+              {pending !== "load" && projects.length === 0 && (
                 <p className="meta meta--muted">No projects yet.</p>
               )}
               {projects.map((project) => (
@@ -695,6 +786,7 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => startEdit("project", project)}
+                      disabled={loading}
                       className="admin-edit"
                       aria-label={`Edit ${project.title}`}
                     >
@@ -703,6 +795,7 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => deleteItem("projects", project.id)}
+                      disabled={loading}
                       className="admin-delete"
                       aria-label={`Delete ${project.title}`}
                     >
@@ -755,7 +848,7 @@ export default function AdminDashboard() {
             </form>
 
             <div className="admin-list">
-              {skills.length === 0 && (
+              {pending !== "load" && skills.length === 0 && (
                 <p className="meta meta--muted">No skills yet.</p>
               )}
               {skills.map((skill) => (
@@ -767,6 +860,7 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => startEdit("skill", skill)}
+                      disabled={loading}
                       className="admin-edit"
                       aria-label={`Edit ${skill.name}`}
                     >
@@ -775,6 +869,7 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => deleteItem("skills", skill.id)}
+                      disabled={loading}
                       className="admin-delete"
                       aria-label={`Delete ${skill.name}`}
                     >
@@ -851,7 +946,7 @@ export default function AdminDashboard() {
             </form>
 
             <div className="admin-list">
-              {certificates.length === 0 && (
+              {pending !== "load" && certificates.length === 0 && (
                 <p className="meta meta--muted">No certificates yet.</p>
               )}
               {certificates.map((certificate) => (
@@ -861,6 +956,7 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => startEdit("certificate", certificate)}
+                      disabled={loading}
                       className="admin-edit"
                       aria-label={`Edit ${certificate.title}`}
                     >
@@ -871,6 +967,7 @@ export default function AdminDashboard() {
                       onClick={() =>
                         deleteItem("certificates", certificate.id)
                       }
+                      disabled={loading}
                       className="admin-delete"
                       aria-label={`Delete ${certificate.title}`}
                     >
@@ -889,13 +986,15 @@ export default function AdminDashboard() {
               Contact inbox
             </h2>
 
-            <p className="meta meta--muted">
-              {messages.length === 0
-                ? "No messages yet."
-                : `${messages.length} ${
-                    messages.length === 1 ? "message" : "messages"
-                  } received`}
-            </p>
+            {pending !== "load" && (
+              <p className="meta meta--muted">
+                {messages.length === 0
+                  ? "No messages yet."
+                  : `${messages.length} ${
+                      messages.length === 1 ? "message" : "messages"
+                    } received`}
+              </p>
+            )}
 
             <div className="admin-list">
               {messages.map((message) => (
@@ -928,6 +1027,7 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => deleteItem("messages", message.id)}
+                    disabled={loading}
                     className="admin-delete"
                     aria-label={`Delete message from ${message.name}`}
                   >

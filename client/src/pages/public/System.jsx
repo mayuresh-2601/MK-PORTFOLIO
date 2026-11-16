@@ -4,7 +4,7 @@ import {
   MemoryStick,
   Server,
   GitBranch,
-  Container,
+  Sparkles,
   Terminal,
   Send,
   Loader2,
@@ -56,6 +56,7 @@ function formatUptime(seconds) {
 export default function System() {
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState("");
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [terminalLines, setTerminalLines] = useState([
     "$ connecting to live server metrics...",
   ]);
@@ -67,25 +68,28 @@ export default function System() {
 
   useEffect(() => {
     let cancelled = false;
+    let timer;
 
-    const fetchSnapshot = async () => {
+    // Poll after each response instead of on a fixed interval. On a Render
+    // cold start one request can outlive several 5-second ticks, and the old
+    // interval fired overlapping requests that resolved out of order.
+    const poll = async () => {
       try {
         const res = await api.get("/system");
         if (cancelled) return;
         const data = res.data.data;
         setSnapshot(data);
         setError("");
+        setLastUpdatedAt(new Date());
 
         setTerminalLines((previous) => {
           const next = [
             ...previous,
-            `$ uptime -> up ${formatUptime(data.host.uptimeSeconds)}, load ${data.cpu.loadPercent}%`,
-            `$ free -m -> ${data.memory.usedMB}MB / ${data.memory.totalMB}MB used (${data.memory.usedPercent}%)`,
-            data.docker.runningInContainer
-              ? "$ cat /.dockerenv -> container detected: this API is running inside Docker"
-              : `$ docker --version -> ${data.docker.version || "not available on host"}`,
-            data.git.commit
-              ? `$ git rev-parse --short HEAD -> ${data.git.commit} (${data.git.branch})`
+            `$ uptime -> up ${formatUptime(data.uptimeSeconds)}, load ${data.cpu.loadPercent}%`,
+            `$ free -> ${data.memory.usedPercent}% memory in use`,
+            `$ ai status -> ${data.services.ai}`,
+            data.deployment.commit
+              ? `$ deployed commit -> ${data.deployment.commit}`
               : null,
           ].filter(Boolean);
           return next.slice(-14); // keep terminal from growing forever
@@ -96,14 +100,18 @@ export default function System() {
             "Live metrics unavailable right now — backend may be waking up (free-tier cold start)."
           );
         }
+      } finally {
+        if (!cancelled) {
+          timer = setTimeout(poll, POLL_INTERVAL_MS);
+        }
       }
     };
 
-    fetchSnapshot();
-    const interval = setInterval(fetchSnapshot, POLL_INTERVAL_MS);
+    poll();
+
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      clearTimeout(timer);
     };
   }, []);
 
@@ -140,7 +148,12 @@ export default function System() {
       const res = await api.post("/ai/ask-about-me", { question });
       setChatHistory((previous) => [
         ...previous,
-        { role: "ai", text: res.data.answer },
+        {
+          role: "ai",
+          text:
+            res.data.answer ||
+            "No answer was returned. Please try again shortly.",
+        },
       ]);
     } catch (err) {
       setChatHistory((previous) => [
@@ -161,7 +174,7 @@ export default function System() {
     <section className="page page-section system-page grid-dark">
       <SEO
         title="Live System Metrics | Mayuresh Kasar"
-        description="Live telemetry from the portfolio API: CPU load, memory usage, uptime, Node.js version and the deployed Git commit, refreshed every few seconds."
+        description="Live telemetry from the portfolio API: CPU load, memory usage, uptime and AI availability, refreshed every few seconds."
         path="/system"
       />
 
@@ -181,14 +194,17 @@ export default function System() {
         </div>
 
         <p className="lede reveal" style={{ color: "#d1d5db", marginBottom: "2.5rem" }}>
-          Real metrics pulled live from the server this site runs on — proof of
-          the Linux, Docker, and backend monitoring skills listed above, not
-          just a claim on a resume.
+          Real metrics pulled live from the API this site runs on — proof that
+          the backend is live, measured, and actively rate-limited, not just a
+          claim on a resume.
         </p>
 
         {error && (
           <div className="system-error reveal" role="status" style={{ marginBottom: "1.5rem" }}>
             {error}
+            {snapshot && lastUpdatedAt
+              ? ` Showing the last reading from ${lastUpdatedAt.toLocaleTimeString()}.`
+              : ""}
           </div>
         )}
 
@@ -197,35 +213,31 @@ export default function System() {
             icon={Cpu}
             label="CPU Load"
             value={snapshot ? `${snapshot.cpu.loadPercent}%` : "—"}
-            sub={snapshot ? `${snapshot.cpu.cores} core(s)` : "Waiting..."}
+            sub={snapshot ? "1-minute average" : "Waiting..."}
           />
           <StatCard
             icon={MemoryStick}
             label="Memory"
             value={snapshot ? `${snapshot.memory.usedPercent}%` : "—"}
-            sub={
-              snapshot
-                ? `${snapshot.memory.usedMB}MB / ${snapshot.memory.totalMB}MB`
-                : "Waiting..."
-            }
+            sub={snapshot ? "Of host memory" : "Waiting..."}
           />
           <StatCard
             icon={Server}
             label="Uptime"
-            value={snapshot ? formatUptime(snapshot.host.uptimeSeconds) : "—"}
-            sub={snapshot ? snapshot.host.platform : "Waiting..."}
+            value={snapshot ? formatUptime(snapshot.uptimeSeconds) : "—"}
+            sub="API process"
           />
           <StatCard
-            icon={Container}
-            label="Environment"
+            icon={Sparkles}
+            label="AI Assistant"
             value={
               snapshot
-                ? snapshot.docker.runningInContainer
-                  ? "Docker"
-                  : "Bare Node"
+                ? snapshot.services.ai === "available"
+                  ? "Online"
+                  : "Paused"
                 : "—"
             }
-            sub={snapshot ? `Node ${snapshot.host.nodeVersion}` : "Waiting..."}
+            sub={snapshot ? "Rate-limited" : "Waiting..."}
           />
         </div>
 
@@ -323,9 +335,9 @@ export default function System() {
 
         <div className="system-footer-note">
           <GitBranch size={14} aria-hidden="true" />
-          {snapshot?.git.commit
-            ? `Deployed from commit ${snapshot.git.commit} on ${snapshot.git.branch}`
-            : "Git metadata unavailable in this environment"}
+          {snapshot?.deployment.commit
+            ? `Deployed from commit ${snapshot.deployment.commit}`
+            : "Deployment metadata unavailable in this environment"}
         </div>
       </div>
     </section>

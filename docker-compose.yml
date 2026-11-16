@@ -14,14 +14,15 @@ services:
     restart: unless-stopped
 
     # Only the two values MySQL needs. Never mount server/.env into the
-    # database container: it also contains the JWT secret, admin password,
+    # database container: it also contains the admin password, MFA secret,
     # Gmail tokens and Cloudinary keys.
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
 
     ports:
-      - "3307:3306"
+      # Loopback only: the database must never be reachable from the LAN.
+      - "127.0.0.1:3307:3306"
 
     volumes:
       - mysql_data:/var/lib/mysql
@@ -41,8 +42,11 @@ services:
       retries: 20
       start_period: 30s
 
+    security_opt:
+      - no-new-privileges:true
+
     networks:
-      - portfolio_net
+      - db_net
 
   
   # Express Backend
@@ -53,6 +57,7 @@ services:
       dockerfile: Dockerfile
 
     restart: unless-stopped
+    init: true
 
     env_file:
       - ./server/.env
@@ -60,7 +65,8 @@ services:
     # Point the API at the local `db` service regardless of what
     # server/.env says (that file may target TiDB Cloud for local dev).
     # DB_SSL must be false because this MySQL container uses a
-    # self-signed cert.
+    # self-signed cert. The session cookie override is for local HTTP only;
+    # production (Render) must use a Secure cookie.
     environment:
       DB_HOST: db
       DB_PORT: 3306
@@ -68,6 +74,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_SSL: "false"
+      SESSION_COOKIE_SECURE: "false"
+      SESSION_COOKIE_SAMESITE: "lax"
 
     ports:
       - "5000:5000"
@@ -90,8 +98,19 @@ services:
       retries: 5
       start_period: 20s
 
+    # The app writes nothing to disk; uploads are streamed to Cloudinary and
+    # logs go to stdout. A read-only filesystem limits post-exploitation.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
     networks:
       - portfolio_net
+      - db_net
 
   
   # React + Nginx
@@ -102,14 +121,45 @@ services:
       dockerfile: Dockerfile
 
     restart: unless-stopped
+    init: true
 
     ports:
-      - "80:80"
+      # Host port 80 is unchanged for users; the container listens on the
+      # unprivileged port 8080.
+      - "80:8080"
 
     depends_on:
       server:
         condition: service_healthy
 
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    networks:
+      - portfolio_net
+
+  # Optional malware scanner. Start it with:
+  #   docker compose --profile scanning up -d clamav
+  # then set CLAMAV_HOST=clamav in server/.env and restart the API. It stays
+  # off by default because definition downloads are large and slow.
+  clamav:
+    image: clamav/clamav:stable
+    profiles:
+      - scanning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    security_opt:
+      - no-new-privileges:true
     networks:
       - portfolio_net
 
@@ -125,3 +175,9 @@ volumes:
 networks:
   portfolio_net:
     driver: bridge
+
+  # The database is reachable only by the API container. It has no route to
+  # the internet and the client container cannot resolve it.
+  db_net:
+    driver: bridge
+    internal: true

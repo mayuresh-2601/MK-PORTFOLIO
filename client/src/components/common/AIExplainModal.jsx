@@ -17,9 +17,20 @@ export default function AIExplainModal({
   endpoint,
   payload,
 }) {
-  const [loading, setLoading] = useState(false);
-  const [explanation, setExplanation] = useState("");
-  const [error, setError] = useState("");
+  // One request at a time, keyed by the content being explained:
+  // idle | loading | success | error. The key stops a response for the
+  // previous skill/certificate from rendering under the new title.
+  const [request, setRequest] = useState({
+    key: "",
+    state: "idle",
+    text: "",
+  });
+
+  const requestKey = `${endpoint}:${JSON.stringify(payload)}`;
+  const currentRequest =
+    request.key === requestKey
+      ? request
+      : { key: requestKey, state: "loading", text: "" };
 
   const cardRef = useRef(null);
   const closeButtonRef = useRef(null);
@@ -30,38 +41,46 @@ export default function AIExplainModal({
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  // Clear the result on close so reopening never flashes an old answer.
+  useEffect(() => {
+    if (!open) {
+      setRequest({ key: "", state: "idle", text: "" });
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return undefined;
 
-    let cancelled = false;
-    setLoading(true);
-    setError("");
-    setExplanation("");
+    const controller = new AbortController();
+
+    setRequest({ key: requestKey, state: "loading", text: "" });
 
     api
-      .post(endpoint, payload)
+      .post(endpoint, payload, { signal: controller.signal })
       .then((res) => {
-        if (!cancelled) {
-          setExplanation(res.data.explanation || res.data.answer || "");
-        }
+        const text = res.data.explanation || res.data.answer || "";
+
+        setRequest({
+          key: requestKey,
+          state: text ? "success" : "error",
+          text: text || "No explanation was returned. Please try again.",
+        });
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(
+        if (controller.signal.aborted || err.code === "ERR_CANCELED") return;
+
+        setRequest({
+          key: requestKey,
+          state: "error",
+          text:
             err.response?.data?.message ||
-              "Couldn't load an explanation right now. Please try again shortly."
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+            "Couldn't load an explanation right now. Please try again shortly.",
+        });
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, endpoint, JSON.stringify(payload)]);
+  }, [open, requestKey]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -165,22 +184,22 @@ export default function AIExplainModal({
         </div>
 
         <div className="modal-body" id="ai-explain-body">
-          {loading && (
+          {currentRequest.state === "loading" && (
             <div className="modal-loading">
               <Loader2 size={18} className="spin" aria-hidden="true" />
               Thinking it through...
             </div>
           )}
 
-          {!loading && error && (
+          {currentRequest.state === "error" && (
             <div className="modal-error">
               <AlertCircle size={16} aria-hidden="true" />
-              <span>{error}</span>
+              <span>{currentRequest.text}</span>
             </div>
           )}
 
-          {!loading && !error && explanation && (
-            <p className="modal-text">{explanation}</p>
+          {currentRequest.state === "success" && (
+            <p className="modal-text">{currentRequest.text}</p>
           )}
         </div>
       </div>

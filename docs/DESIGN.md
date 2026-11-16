@@ -71,9 +71,9 @@ Measured WCAG contrast ratios for the current palette:
 | Gray `#6B7280` | White `#FFFFFF` | 4.83:1 | Small supporting text, passes normal text |
 | Gray `#6B7280` | Acid `#CCFF00` | 4.11:1 | Do not use for normal-size body text |
 | White `#FFFFFF` | Pink `#FF33CC` | 3.18:1 | Large text only; prefer ink |
-| Pink `#FF33CC` | Acid `#CCFF00` | 2.71:1 | Non-text accent only; fails 3:1 UI/focus threshold |
+| Pink `#FF33CC` | Acid `#CCFF00` | 2.71:1 | Non-text accent only; fails 3:1 alone |
 
-**Known accessibility risk:** the global `:focus-visible` outline is pink on acid (2.71:1). On pink surfaces it can disappear. A future approved change should use a two-layer indicator, for example an ink outer ring plus a pink inner ring, or a white ring on dark surfaces. Until then, keyboard focus remains visible on white/ink areas but is weak on acid/pink.
+**Focus ring:** the global `:focus-visible` indicator pairs a 3 px ink inner ring (16.07:1 on acid) with a 3 px pink outer ring (5.93:1 on ink). At least one layer clears 3:1 on every surface. Form, login, chat, and admin inputs use the same ink ring instead of removing the outline.
 
 ## 3. Typography
 
@@ -358,7 +358,7 @@ Rules:
 | Decor circle/dot | Gentle pulse | 2.6 s |
 | AI modal | Overlay/card entrance; spinner while waiting | 300 ms + provider time |
 | System telemetry | Poll every 5 s; terminal scrolls internally | 5 s |
-| Focus | 3 px pink outline, 3 px offset | Immediate |
+| Focus | 3 px ink inner ring + 3 px pink outer ring, 3 px offset | Immediate |
 
 Rules:
 
@@ -402,7 +402,7 @@ Rules:
 
 ### Known gaps and approvals
 
-1. **Focus ring contrast:** pink on acid is 2.71:1. Approve a higher-contrast double ring.
+1. **Focus ring contrast:** resolved with the two-layer indicator; do not reintroduce pink-only rings.
 2. **Automated accessibility test:** no axe/Lighthouse CI gate yet. Add before claiming WCAG conformance.
 3. **White on pink:** avoid for normal text; audit any remaining instances.
 4. **Gray on acid:** avoid for body text; use ink.

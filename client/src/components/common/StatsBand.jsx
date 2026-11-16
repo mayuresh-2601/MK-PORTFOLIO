@@ -4,7 +4,7 @@ const DEFAULT_STATS = [
   { end: 12, suffix: "+", label: "Projects Shipped" },
   { end: 18, suffix: "+", label: "Technologies Used" },
   { end: 6, suffix: "+", label: "Certifications" },
-  { end: 3, suffix: "+", label: "Years Building" },
+  { end: 2024, suffix: "", label: "B.Sc. CS Graduate" },
 ];
 
 export default function StatsBand({ stats = DEFAULT_STATS }) {

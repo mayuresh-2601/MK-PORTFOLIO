@@ -311,7 +311,7 @@ MK-PORTFOLIO/
 |-- docker-compose.yml          Full local stack
 |-- render.yaml                 Render blueprint
 |-- .env.example                Docker Compose values (local only)
-|-- DEPLOYMENT.md               Step-by-step production deployment guide
+|-- docs/DEPLOYMENT.md          Step-by-step production deployment guide
 `-- README.md
 ```
 
@@ -455,7 +455,7 @@ The project uses **three separate environment files**. Keeping them separate pre
 | Gmail variables | `server/.env` | `server/.env` | Render Environment | - |
 | Cloudinary variables | `server/.env` | `server/.env` | Render Environment | - |
 | `GEMINI_API_KEY` | `server/.env` | `server/.env` | Render Environment | - |
-| `VITE_API_BASE_URL` | `client/.env` (empty) | `client/.env` (empty) | - | Vercel Environment |
+| `VITE_API_BASE_URL` | `client/.env`  | `client/.env` | - | Vercel Environment |
 
 ### Root `.env` (Docker Compose only)
 
@@ -567,7 +567,7 @@ Add these variables in **Render -> mk-portfolio-api -> Environment**:
 
 Do **not** add `EMAIL_PASS` on Render's free plan. SMTP connections will time out.
 
-The complete walkthrough, including troubleshooting for `invalid_grant`, `redirect_uri_mismatch`, and `insufficientPermissions`, is in [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md).
+The complete walkthrough is in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md#5-gmail-notifications). Troubleshooting for `invalid_grant`, `redirect_uri_mismatch`, and `insufficientPermissions` is in [docs/DEBUGGING.md](docs/DEBUGGING.md#gmail-specific-errors).
 
 ---
 
@@ -994,12 +994,11 @@ GEMINI_API_KEY is not configured - AI endpoints return 502.
 
 | Document | Contents |
 |---|---|
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Step-by-step Vercel, Render, TiDB, and GitHub Actions setup |
-| [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) | Complete Gmail API OAuth guide and email troubleshooting |
-| [docs/FIXES.md](docs/FIXES.md) | Production fixes and incident notes |
-| [docs/RESTORE_NOTES.md](docs/RESTORE_NOTES.md) | Workspace restore and removable-drive notes |
-| [docs/CHANGELOG_AI_DEVOPS_UPDATE.md](docs/CHANGELOG_AI_DEVOPS_UPDATE.md) | AI and DevOps feature changelog |
-| [PENDRIVE-README.md](PENDRIVE-README.md) | Notes for running the project from a portable drive |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step Vercel, Render, TiDB, and GitHub Actions setup |
+| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Gmail API OAuth, Cloudinary, Gemini, and deployment integrations |
+| [docs/FINAL_PRODUCTION_AUDIT.md](docs/FINAL_PRODUCTION_AUDIT.md) | Production audit evidence, fixes, and remaining warnings |
+| [docs/PROJECT_SETUP.md](docs/PROJECT_SETUP.md) | Local setup, environment files, and verification |
+| [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Delivered phases and implementation status |
 
 ---
 

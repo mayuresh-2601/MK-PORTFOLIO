@@ -67,3 +67,19 @@ CREATE TABLE IF NOT EXISTS messages (
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
+
+-- Opaque admin sessions. Only SHA-256 hashes of the cookie token are stored.
+-- Epoch milliseconds avoid MySQL/TiDB timezone differences.
+CREATE TABLE IF NOT EXISTS admin_sessions (
+    token_hash CHAR(64) NOT NULL PRIMARY KEY,
+    admin_email VARCHAR(254) NOT NULL,
+    csrf_token CHAR(64) NOT NULL,
+    created_at BIGINT NOT NULL,
+    last_seen_at BIGINT NOT NULL,
+    expires_at BIGINT NOT NULL,
+    revoked_at BIGINT NULL DEFAULT NULL,
+    INDEX idx_admin_sessions_expires (expires_at),
+    INDEX idx_admin_sessions_email (admin_email, revoked_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
