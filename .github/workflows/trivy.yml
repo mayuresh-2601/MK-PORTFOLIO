@@ -11,11 +11,6 @@ on:
     - cron: "17 4 * * 1"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  security-events: write
-  packages: read
-
 jobs:
   filesystem:
     name: Dependency & IaC Scan
