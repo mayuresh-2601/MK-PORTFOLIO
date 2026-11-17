@@ -69,7 +69,7 @@ The project is designed to demonstrate the engineering practices behind a real p
 - **Production database** on TiDB Cloud, with a MySQL-compatible schema and seed data.
 - **Docker Compose stack** that runs the entire application locally, including the database.
 - **Seven-job GitHub Actions pipeline** that lints, tests, builds, deploys, and smoke-tests the live system.
-- **Live server telemetry** on `/system` showing real CPU, memory, uptime, runtime, and environment data.
+- **Live server telemetry** on `/system` showing real CPU, memory, uptime, AI availability, and deployment state.
 - **Optional integrations** for Gmail notifications, Cloudinary uploads, and Google Gemini AI.
 
 ### At a glance
@@ -158,7 +158,7 @@ All screenshots are captured from the live production deployment at **1440 x 900
 
 ### Live System panel
 
-- **Real telemetry, not mocked values** - CPU load, memory usage, host uptime, platform, Node.js version, and Docker/bare-Node detection.
+- **Real telemetry, not mocked values** - CPU load, memory usage, API uptime, AI availability, and deployment commit when configured. The public payload is intentionally minimal: no hostnames, environment variables, stack details, or infrastructure metadata.
 - **Five-second refresh** - the page polls the live API while it is open.
 - **Terminal-style server log** - appends real metric lines as they arrive.
 - **Deployment proof** - the panel is intentionally public so recruiters can see the running backend rather than a claim on a resume.
@@ -776,7 +776,7 @@ curl -X POST https://mk-portfolio-api.onrender.com/api/auth/logout-all \
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/system` | Public | Live CPU, memory, uptime, runtime, Git, and Docker telemetry |
+| `GET` | `/api/system` | Public | Minimal live telemetry: CPU, memory, uptime, AI availability, deployment commit |
 
 ### Rate limits
 

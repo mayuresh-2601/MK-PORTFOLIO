@@ -37,9 +37,12 @@ FROM nginxinc/nginx-unprivileged:stable-alpine
 # this single layer only; the final image drops back to 101 below.
 USER root
 
-# Install timezone data and clear default nginx files in a single layer.
+# Apply Alpine security updates, install timezone data, and clear default
+# nginx files in a single layer. Upgrading in the image keeps the fixed OS
+# packages ahead of the base image's release cadence (Trivy scans the result).
 # hadolint ignore=DL3018
-RUN apk add --no-cache tzdata \
+RUN apk upgrade --no-cache \
+    && apk add --no-cache tzdata \
     && rm -rf /usr/share/nginx/html/*
 
 # Copy production build and configuration as the runtime user.

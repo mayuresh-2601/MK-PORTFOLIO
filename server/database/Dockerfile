@@ -14,3 +14,10 @@ LABEL description="Portfolio MySQL database with schema and seed data"
 # schema.sql is applied before seed.sql.
 COPY schema.sql /docker-entrypoint-initdb.d/schema.sql
 COPY seed.sql /docker-entrypoint-initdb.d/seed.sql
+
+# The official image starts as root only to chown a fresh data directory and
+# then drops to mysql. The named volume is created with mysql ownership, and
+# the entrypoint supports running unprivileged, so run as the mysql user
+# (UID/GID 999) from the start. This removes container root entirely
+# (Trivy DS-0002).
+USER 999:999

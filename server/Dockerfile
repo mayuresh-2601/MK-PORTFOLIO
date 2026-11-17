@@ -28,6 +28,16 @@ RUN if [ -f package-lock.json ]; then \
 ENV NODE_ENV=production
 ENV npm_config_update_notifier=false
 
+# Apply Alpine security updates and drop npm from the runtime image. The app
+# starts with `node server.js`, so npm/npx are not needed after the build and
+# removing them also removes npm's bundled dependencies from the attack
+# surface (and from Trivy image scans).
+RUN apk upgrade --no-cache && \
+    rm -rf /usr/local/lib/node_modules \
+           /usr/local/bin/npm \
+           /usr/local/bin/npx \
+           /usr/local/bin/corepack
+
 # Create non-root user with explicit ids so the numeric USER below always
 # resolves, no matter how the host maps uids.
 RUN addgroup -S -g 1001 nodegroup && \
