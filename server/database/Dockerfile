@@ -5,7 +5,7 @@
 # drives: they appear inside the container as empty directories, so MySQL
 # starts with no tables. A build context is transferred over the API and
 # works regardless of where the project lives.
-FROM mysql:8.0
+FROM mysql:26.10
 
 LABEL maintainer="Mayuresh Kasar"
 LABEL description="Portfolio MySQL database with schema and seed data"
