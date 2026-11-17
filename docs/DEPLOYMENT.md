@@ -19,7 +19,7 @@ GitHub main
   ├─ Vercel Git integration → builds client/ → static CDN
   └─ GitHub Actions (7 jobs)
        ├─ hygiene, server, client, Dockerfile lint, Docker stack
-       ├─ Render REST API deploy → server/ on Node 22
+       ├─ Render deploy hook → server/ on Node 22
        └─ production smoke tests → Vercel + Render
 
 Browser → Vercel (React SPA)
@@ -47,7 +47,7 @@ Deployment order for a first-time setup: **database → API → frontend → CI 
 - Cloudinary account (optional for text-only content).
 - Google AI Studio key (optional).
 - Google Cloud OAuth client (optional email).
-- GitHub repository secret `RENDER_API_KEY`.
+- GitHub repository secret `RENDER_DEPLOY_HOOK_URL`.
 
 Do not store any of these values in the repository.
 
@@ -96,8 +96,7 @@ Optional:
 
 | Name | Type | Purpose |
 |---|---|---|
-| `RENDER_API_KEY` | Secret | Trigger Render deploys |
-| `RENDER_SERVICE_ID` | Variable (optional) | Defaults to the live service |
+| `RENDER_DEPLOY_HOOK_URL` | Secret | Trigger Render deploys |
 | `PRODUCTION_API_URL` | Variable (optional) | Defaults to the live API |
 | `PRODUCTION_SITE_URL` | Variable (optional) | Defaults to the live site |
 
@@ -364,7 +363,7 @@ Expected: health/ready `200`; messages `401`; API `X-Robots-Tag` and `Cache-Cont
 | Uploads 503 | Cloudinary not configured | Add all three values |
 | AI 502 | Gemini key/quota | Check key and model availability |
 | Email not sent | Gmail not configured | Configure OAuth or accept inbox-only |
-| CI deploy job can't authenticate | `RENDER_API_KEY` missing/expired | Create a new key; update the GitHub secret |
+| CI deploy job can't authenticate | `RENDER_DEPLOY_HOOK_URL` missing/revoked | Regenerate the hook in Render and update the GitHub secret |
 | Smoke test fails on headers | Vercel/Render config regression | Diff `vercel.json`/`server.js` against the last green commit |
 | Deep link 404 | SPA rewrite removed | Restore `client/vercel.json` rewrites |
 
@@ -385,7 +384,7 @@ Expected: health/ready `200`; messages `401`; API `X-Robots-Tag` and `Cache-Cont
 - [ ] Database reachable and seeded.
 - [ ] Render env complete; `ADMIN_PASSWORD_HASH` set; no plain password.
 - [ ] Vercel env points to the Render API.
-- [ ] `RENDER_API_KEY` secret present.
+- [ ] `RENDER_DEPLOY_HOOK_URL` secret present.
 - [ ] Local server/client gates pass.
 - [ ] No secret staged.
 - [ ] Push to `main`.

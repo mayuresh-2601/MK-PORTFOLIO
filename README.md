@@ -84,7 +84,7 @@ The project is designed to demonstrate the engineering practices behind a real p
 | Email | Gmail API over HTTPS (Render-compatible) or Gmail SMTP |
 | AI | Google Gemini `gemini-3.5-flash-lite` |
 | Local stack | Docker Compose: React + Nginx, Express, MySQL |
-| Delivery | GitHub Actions -> Render REST API + Vercel Git integration |
+| Delivery | GitHub Actions -> Render deploy hook + Vercel Git integration |
 | Documentation | README, deployment guide, email setup, fixes, restore notes, SECURITY_OPERATIONS.md |
 
 ---
@@ -243,7 +243,7 @@ flowchart LR
 
     GH["GitHub push to main"] -->|"Vercel Git integration"| V
     GH --> CI["GitHub Actions<br/>7-job CI/CD"]
-    CI -->|"Render REST API"| R
+    CI -->|"Render deploy hook"| R
 
     U -->|HTTPS| V
     A -->|HTTPS| V
@@ -844,7 +844,7 @@ The pipeline runs on every push and pull request to `main`, plus manual dispatch
 | 3 | **Client Lint & Build** | ESLint and a production Vite build |
 | 4 | **Lint Dockerfiles** | All three Dockerfiles pass Hadolint |
 | 5 | **Build & Test Full Stack** | Builds the compose stack, starts MySQL/API/Nginx, verifies schema and seed data, tests API/auth/update endpoints, and serves the frontend |
-| 6 | **Deploy API to Render** | Triggers a Render deploy through the REST API and waits for it to go live |
+| 6 | **Deploy API to Render** | Triggers a Render deploy hook for the pushed commit and waits for `/api/system` to report it live |
 | 7 | **Production Smoke Tests** | Checks Render health/readiness, public endpoints, CORS, admin auth, Vercel routes, security headers, `robots.txt`, and `sitemap.xml` |
 
 The Docker job also proves the SQL files are database-name independent by applying them to a second database (`portfolio_alt`) and checking the row counts.
@@ -855,13 +855,12 @@ Add this repository secret under **Settings -> Secrets and variables -> Actions*
 
 | Name | Type | Purpose |
 |---|---|---|
-| `RENDER_API_KEY` | Secret | Render API key used to trigger deploys |
+| `RENDER_DEPLOY_HOOK_URL` | Secret | Render deploy hook used to trigger deploys |
 
 Optional repository variables (defaults are already set in the workflow):
 
 | Name | Default |
 |---|---|
-| `RENDER_SERVICE_ID` | `srv-dbpcjf6gekts73aoovng` |
 | `PRODUCTION_API_URL` | `https://mk-portfolio-api.onrender.com` |
 | `PRODUCTION_SITE_URL` | `https://mk-portfolio-phi-silk.vercel.app` |
 

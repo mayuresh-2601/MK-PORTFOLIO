@@ -23,8 +23,8 @@ services:
     healthCheckPath: /api/health
 
     # Deployments are triggered by .github/workflows/docker-ci.yml through
-    # Render's REST API after CI passes on main. Render's native GitHub App is
-    # not installed on this repository, so autoDeploy stays off to avoid
+    # the service's deploy hook after CI passes on main. Render's native GitHub
+    # App is not installed on this repository, so autoDeploy stays off to avoid
     # deploying commits that failed CI.
     autoDeploy: false
 

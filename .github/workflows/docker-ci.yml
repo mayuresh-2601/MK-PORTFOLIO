@@ -9,14 +9,15 @@ name: CI/CD Pipeline
 #   manual        → workflow_dispatch (same as a main push)
 #
 # The frontend deploys itself through Vercel's native Git integration.
-# The API deploy uses the Render REST API because Render's GitHub App is
-# not installed on this repository.
+# The API deploy uses the service's Render deploy hook because Render's
+# GitHub App is not installed on this repository, and this workspace cannot
+# issue scoped API keys. After triggering the hook, the job polls the public
+# /api/system endpoint until it reports the pushed commit.
 #
 # Required repository configuration:
-#   secret   RENDER_API_KEY      Render API key (Account Settings → API Keys)
-#   variable RENDER_SERVICE_ID   optional, defaults to the live service below
-#   variable PRODUCTION_API_URL  optional, defaults to the live API below
-#   variable PRODUCTION_SITE_URL optional, defaults to the live site below
+#   secret   RENDER_DEPLOY_HOOK_URL  Render deploy hook (Service → Settings)
+#   variable PRODUCTION_API_URL      optional, defaults to the live API below
+#   variable PRODUCTION_SITE_URL     optional, defaults to the live site below
 # ─────────────────────────────────────────────────────────────
 
 on:
@@ -42,7 +43,8 @@ env:
   NODE_VERSION: "22"
   PRODUCTION_API_URL: ${{ vars.PRODUCTION_API_URL || 'https://mk-portfolio-api.onrender.com' }}
   PRODUCTION_SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://mk-portfolio-phi-silk.vercel.app' }}
-  RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID || 'srv-dbpcjf6gekts73aoovng' }}
+  # Render exports the deployed commit as RENDER_GIT_COMMIT; /api/system
+  # reports it as a 7-character SHA, which the deploy job polls for.
 
 jobs:
   repo-hygiene:
@@ -819,30 +821,39 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v7
 
-      - name: Validate Render Credentials
+      - name: Validate Render Deploy Hook
         env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          if [ -z "${RENDER_API_KEY}" ]; then
-            echo "::error::RENDER_API_KEY is not configured. Add it under Settings → Secrets and variables → Actions."
+          if [ -z "${RENDER_DEPLOY_HOOK_URL}" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL is not configured. Add it under Settings → Secrets and variables → Actions."
             exit 1
           fi
 
-          if [ -z "${RENDER_SERVICE_ID}" ]; then
-            echo "::error::RENDER_SERVICE_ID is empty."
-            exit 1
-          fi
+          case "${RENDER_DEPLOY_HOOK_URL}" in
+            https://api.render.com/deploy/*) ;;
+            *)
+              echo "::error::RENDER_DEPLOY_HOOK_URL does not look like a Render deploy hook URL."
+              exit 1
+              ;;
+          esac
 
       - name: Trigger Render Deploy
         id: trigger
         env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
           set -euo pipefail
 
-          # Do not use curl -f here: the error body explains whether the key
-          # was rejected, the service id is wrong, or the account is rate
-          # limited, and that detail is what makes the failure actionable.
+          # Ask Render to build this exact commit, not whatever main points
+          # at by the time the build starts.
+          case "${RENDER_DEPLOY_HOOK_URL}" in
+            *\?*) SEPARATOR='&' ;;
+            *) SEPARATOR='?' ;;
+          esac
+
+          # Do not use curl -f here: the response body says whether the hook
+          # was revoked, the commit is unknown, or the service is suspended.
           BODY_FILE=$(mktemp)
 
           STATUS=$(curl --silent --show-error \
@@ -850,94 +861,78 @@ jobs:
             --output "${BODY_FILE}" \
             --write-out "%{http_code}" \
             --request POST \
-            --header "Authorization: Bearer ${RENDER_API_KEY}" \
-            --header "Content-Type: application/json" \
-            --data "{\"clearCache\":\"do_not_clear\",\"commitId\":\"${GITHUB_SHA}\"}" \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys") || true
+            "${RENDER_DEPLOY_HOOK_URL}${SEPARATOR}ref=${GITHUB_SHA}") || true
 
           BODY=$(cat "${BODY_FILE}")
-          echo "Render API responded with HTTP ${STATUS}."
+          echo "Render deploy hook responded with HTTP ${STATUS}."
 
-          if [ "${STATUS}" -lt 200 ] || [ "${STATUS}" -ge 300 ]; then
-            case "${STATUS}" in
-              401|403)
-                echo "::error::Render rejected RENDER_API_KEY (HTTP ${STATUS}). The key is invalid, expired, or revoked. Create a new key under Render Dashboard -> Account Settings -> API Keys and update the RENDER_API_KEY repository secret."
-                ;;
-              404)
-                echo "::error::Render returned HTTP 404 for service ${RENDER_SERVICE_ID}. Check the RENDER_SERVICE_ID repository variable."
-                ;;
-              429)
-                echo "::error::Render API rate limit reached (HTTP 429). Re-run this job later."
-                ;;
-              *)
-                echo "::error::Render deploy request failed with HTTP ${STATUS}."
-                ;;
-            esac
-            echo "${BODY}"
-            exit 1
+          case "${STATUS}" in
+            200)
+              ;;
+            202)
+              # Overlapping deploys are set to "Wait": this build starts after
+              # the one in progress finishes, and the response has no id.
+              echo "Render queued this deploy behind one already in progress."
+              ;;
+            400)
+              echo "::error::Render rejected the ref ${GITHUB_SHA:0:7} (HTTP 400). The commit may not exist in the linked repository."
+              echo "${BODY}"
+              exit 1
+              ;;
+            401|404)
+              echo "::error::Render rejected the deploy hook (HTTP ${STATUS}). Regenerate it under Render Dashboard -> mk-portfolio-api -> Settings -> Deploy Hook and update the RENDER_DEPLOY_HOOK_URL secret."
+              echo "${BODY}"
+              exit 1
+              ;;
+            *)
+              echo "::error::Render deploy hook failed with HTTP ${STATUS}."
+              echo "${BODY}"
+              exit 1
+              ;;
+          esac
+
+          DEPLOY_ID=$(printf '%s' "${BODY}" | jq -r '.deploy.id // empty' 2>/dev/null || true)
+
+          if [ -n "${DEPLOY_ID}" ]; then
+            echo "deploy_id=${DEPLOY_ID}" >> "$GITHUB_OUTPUT"
+            echo "Triggered Render deploy ${DEPLOY_ID} for ${GITHUB_SHA:0:7}."
+          else
+            echo "Triggered Render deploy for ${GITHUB_SHA:0:7}."
           fi
 
-          DEPLOY_ID=$(echo "$BODY" | jq -r '.id // empty')
-
-          if [ -z "$DEPLOY_ID" ]; then
-            echo "::error::Render did not return a deploy id."
-            echo "${BODY}"
-            exit 1
-          fi
-
-          echo "deploy_id=${DEPLOY_ID}" >> "$GITHUB_OUTPUT"
-          echo "Triggered Render deploy ${DEPLOY_ID} for ${GITHUB_SHA}."
-
-      - name: Wait for Render Deploy
+      - name: Wait for Production Deploy
         env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           DEPLOY_ID: ${{ steps.trigger.outputs.deploy_id }}
         run: |
           set -euo pipefail
 
+          # This workspace cannot issue Render API keys, so instead of polling
+          # the Render API this reads the commit Render exposes on the public
+          # /api/system endpoint. A build plus a free-tier restart can take a
+          # few minutes; 80 attempts at 15s covers 20 minutes.
           for i in $(seq 1 80); do
-            RESPONSE=$(curl -fsS \
-              --header "Authorization: Bearer ${RENDER_API_KEY}" \
-              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${DEPLOY_ID}")
+            SYSTEM=$(curl -fsS --max-time 60 "${PRODUCTION_API_URL}/api/system" || true)
+            COMMIT=$(printf '%s' "${SYSTEM}" | jq -r '.data.deployment.commit // empty' 2>/dev/null || true)
 
-            STATUS=$(echo "$RESPONSE" | jq -r '.status')
-            echo "Render deploy status: ${STATUS} (${i}/80)"
+            echo "Deployed commit: ${COMMIT:-unknown} (${i}/80)"
 
-            case "$STATUS" in
-              live)
-                DEPLOYED_SHA=$(echo "$RESPONSE" | jq -r '.commit.id // empty')
+            if [ "${COMMIT}" = "${GITHUB_SHA:0:7}" ] || [ "${COMMIT}" = "${GITHUB_SHA}" ]; then
+              echo "Deployed commit ${COMMIT} matches the pushed commit."
 
-                if [ -z "$DEPLOYED_SHA" ]; then
-                  echo "::error::Render reported the deploy as live without a commit id."
-                  exit 1
-                fi
-
-                if [ "$DEPLOYED_SHA" != "$GITHUB_SHA" ]; then
-                  echo "::error::Render deployed ${DEPLOYED_SHA:0:7}, expected ${GITHUB_SHA:0:7}."
-                  exit 1
-                fi
-
-                echo "Deployed commit ${DEPLOYED_SHA:0:7} matches the pushed commit."
-
-                echo "### API deployed" >> "$GITHUB_STEP_SUMMARY"
-                echo "- Commit: \`${DEPLOYED_SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
+              echo "### API deployed" >> "$GITHUB_STEP_SUMMARY"
+              echo "- Commit: \`${COMMIT}\`" >> "$GITHUB_STEP_SUMMARY"
+              if [ -n "${DEPLOY_ID}" ]; then
                 echo "- Deploy: \`${DEPLOY_ID}\`" >> "$GITHUB_STEP_SUMMARY"
-                echo "- URL: ${PRODUCTION_API_URL}" >> "$GITHUB_STEP_SUMMARY"
+              fi
+              echo "- URL: ${PRODUCTION_API_URL}" >> "$GITHUB_STEP_SUMMARY"
 
-                exit 0
-                ;;
-
-              build_failed|pre_deploy_failed|update_failed|canceled|deactivated)
-                echo "::error::Render deploy ended with status ${STATUS}."
-                echo "$RESPONSE" | jq .
-                exit 1
-                ;;
-            esac
+              exit 0
+            fi
 
             sleep 15
           done
 
-          echo "::error::Timed out waiting for Render deploy ${DEPLOY_ID}."
+          echo "::error::Production API did not report commit ${GITHUB_SHA:0:7} within 20 minutes."
           exit 1
 
   production-smoke:

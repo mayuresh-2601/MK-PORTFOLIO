@@ -319,7 +319,7 @@ Open the failed job and read the first error, not the last.
 | Client Lint & Build | Lint error, import error, missing SEO marker |
 | Lint Dockerfiles | Hadolint warning |
 | Build & Test Full Stack | Compose config, service health, SQL, auth, or header test |
-| Deploy API to Render | Missing/invalid `RENDER_API_KEY`, service ID, API failure |
+| Deploy API to Render | Missing/invalid `RENDER_DEPLOY_HOOK_URL`, deploy hook failure, or production never reports the pushed commit |
 | Production Smoke Tests | Live content/header/route/auth mismatch |
 
 Use the uploaded Docker logs artifact when the stack job fails. Do not re-run blindly; fix the cause.

@@ -64,7 +64,7 @@ Assume the secret is public the moment it left private storage.
 | `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` | Revoke the OAuth grant, run `npm run gmail:auth` again |
 | `EMAIL_PASS` | Revoke the Gmail app password and create a new one |
 | DB password | Change the DB user password, update Render, restart, verify readiness |
-| `RENDER_API_KEY` | Revoke in Render, create a new key, update the GitHub secret |
+| `RENDER_DEPLOY_HOOK_URL` | Regenerate the hook in Render, update the GitHub secret |
 | GitHub token | Revoke, reissue, update repository secrets |
 
 After rotation, run the production smoke checks and confirm no old credential

@@ -336,7 +336,7 @@ Environment variables are managed in the Render dashboard. `render.yaml` documen
 
 ### Deployment behavior
 
-- GitHub Actions triggers a deploy through the Render REST API only after CI passes.
+- GitHub Actions triggers a deploy through the service's Render deploy hook only after CI passes.
 - Render restarts the service on a failed health check.
 - Free tier idles; first request can take 30–60 seconds.
 
@@ -363,8 +363,8 @@ CI/CD control plane: hygiene, server checks, client checks, Dockerfile lint, ful
 | Workflow | `.github/workflows/docker-ci.yml` |
 | Triggers | Push/PR to `main`, manual dispatch |
 | Node | 22 |
-| Secret | `RENDER_API_KEY` |
-| Variables | `RENDER_SERVICE_ID`, `PRODUCTION_API_URL`, `PRODUCTION_SITE_URL` (optional, defaults in workflow) |
+| Secret | `RENDER_DEPLOY_HOOK_URL` |
+| Variables | `PRODUCTION_API_URL`, `PRODUCTION_SITE_URL` (optional, defaults in workflow) |
 
 ### Job sequence
 
