@@ -330,7 +330,9 @@ jobs:
           echo "SQL files are database-name independent."
 
       - name: Verify Database Schema
-        run: docker compose exec -T server npm run db:check
+        # The runtime image intentionally has no npm; invoke the script with
+        # node directly so the production image stays lean.
+        run: docker compose exec -T server node scripts/database.js check
 
       - name: Test Backend API
         run: |
