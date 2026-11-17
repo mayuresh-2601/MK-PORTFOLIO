@@ -13,6 +13,7 @@ export const HONEYPOT_FIELD = "website";
 export const MIN_FORM_TIME_MS = 2500;
 export const MAX_LINKS = 4;
 export const MAX_EMAILS = 5;
+export const MAX_SCANNED_MESSAGE_LENGTH = 5000;
 
 const URL_PATTERN = /\bhttps?:\/\/|\bwww\./gi;
 const EMAIL_PATTERN = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
@@ -44,7 +45,12 @@ export const checkContactSpam = (body = {}) => {
     }
   }
 
-  const message = String(body?.message || "");
+  // Field validation caps messages at 5000 characters before this heuristic
+  // runs. Bound the scan anyway so the patterns never see an unbounded string.
+  const message = String(body?.message || "").slice(
+    0,
+    MAX_SCANNED_MESSAGE_LENGTH
+  );
 
   const links = (message.match(URL_PATTERN) || []).length;
   const emails = (message.match(EMAIL_PATTERN) || []).length;

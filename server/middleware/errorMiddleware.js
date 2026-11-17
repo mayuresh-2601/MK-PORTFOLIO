@@ -7,6 +7,17 @@
 /**
  * Handles all application errors.
  */
+
+const MAX_LOG_VALUE_LENGTH = 500;
+
+// Request paths and error messages can contain attacker-controlled control
+// characters, including newlines. Strip them before writing to the log so a
+// crafted URL cannot forge extra log lines.
+const sanitizeForLog = (value) =>
+  String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .slice(0, MAX_LOG_VALUE_LENGTH);
+
 export const errorHandler = (err, req, res, next) => {
   // If headers are already sent, let Express handle it.
   if (res.headersSent) {
@@ -36,13 +47,13 @@ export const errorHandler = (err, req, res, next) => {
   // Log detailed information during development
   if (process.env.NODE_ENV !== "production") {
     console.error("========================================");
-    console.error("Error:", err.message);
-    console.error("Method:", req.method);
-    console.error("URL:", req.originalUrl);
-    console.error(err.stack);
+    console.error("Error:", sanitizeForLog(err.message));
+    console.error("Method:", sanitizeForLog(req.method));
+    console.error("URL:", sanitizeForLog(req.originalUrl));
+    console.error(sanitizeForLog(err.stack));
     console.error("========================================");
   } else {
-    console.error(err.message);
+    console.error(sanitizeForLog(err.message));
   }
 
   // Do not leak internal details (SQL errors, file paths, stack
