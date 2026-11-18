@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Download } from "lucide-react";
 import SEO from "../../components/common/SEO";
+import { CONTACT_EMAIL } from "../../config/site";
 
 export default function About() {
   return (
@@ -79,7 +80,7 @@ export default function About() {
               <div className="about-fact">
                 <span className="about-fact__label">Email</span>
                 <span className="about-fact__value">
-                  kasarmayuresh99@gmail.com
+                  {CONTACT_EMAIL}
                 </span>
               </div>
               <div className="about-fact">

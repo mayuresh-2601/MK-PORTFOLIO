@@ -4,12 +4,13 @@ import api from "../../api/axios";
 import GithubIcon from "../../assets/GithubIcon";
 import LinkedinIcon from "../../assets/LinkedinIcon";
 import SEO from "../../components/common/SEO";
+import { CONTACT_EMAIL, CONTACT_EMAIL_LINK } from "../../config/site";
 
 const contactRows = [
   {
     label: "Email",
-    value: "kasarmayuresh99@gmail.com",
-    href: "mailto:kasarmayuresh99@gmail.com",
+    value: CONTACT_EMAIL,
+    href: CONTACT_EMAIL_LINK,
     icon: Mail,
   },
   {

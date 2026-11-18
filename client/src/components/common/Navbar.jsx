@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
+import { CONTACT_EMAIL, CONTACT_EMAIL_LINK } from "../../config/site";
 
 const navLinks = [
   { name: "Home", path: "/" },
@@ -236,8 +237,8 @@ export default function Navbar() {
 
           <div className="site-nav__overlay-meta">
             <span className="meta">Maharashtra, India</span>
-            <a className="meta" href="mailto:kasarmayuresh99@gmail.com">
-              kasarmayuresh99@gmail.com
+            <a className="meta" href={CONTACT_EMAIL_LINK}>
+              {CONTACT_EMAIL}
             </a>
           </div>
         </div>

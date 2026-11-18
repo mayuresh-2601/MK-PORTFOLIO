@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Mail, ArrowUpRight } from "lucide-react";
 import GithubIcon from "../../assets/GithubIcon";
 import LinkedinIcon from "../../assets/LinkedinIcon";
+import { CONTACT_EMAIL_LINK } from "../../config/site";
 
 const primaryLinks = [
   { label: "Home", to: "/" },
@@ -54,7 +55,7 @@ export default function Footer() {
                 <LinkedinIcon size={16} />
               </a>
               <a
-                href="mailto:kasarmayuresh99@gmail.com"
+                href={CONTACT_EMAIL_LINK}
                 aria-label="Send email"
                 className="btn btn--sm site-footer__social"
               >
@@ -84,7 +85,7 @@ export default function Footer() {
           <div>
             <p className="site-footer__heading">Get in touch</p>
             <a
-              href="mailto:kasarmayuresh99@gmail.com"
+              href={CONTACT_EMAIL_LINK}
               className="site-footer__link"
             >
               Email <ArrowUpRight size={12} aria-hidden="true" />
