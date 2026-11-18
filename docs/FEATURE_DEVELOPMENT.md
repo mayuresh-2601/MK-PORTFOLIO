@@ -236,8 +236,8 @@ Then run the Docker stack if the schema changed.
 6. Decide what happens when Cloudinary is absent:
    - required image → `503`;
    - optional image → allow the row without an image.
-7. Store only the secure URL (and optionally the public ID if cleanup will be implemented).
-8. Document that deleting a row does not delete the Cloudinary asset.
+7. Store only the secure URL; cleanup derives the public ID from it. Store the public ID separately only if a future upload type cannot be parsed from its URL.
+8. Reuse `deleteCloudinaryAsset` when a row is deleted or its image is replaced; the upload middleware removes assets from rejected requests.
 9. Do not add malware scanning claims unless a scanner is actually implemented.
 
 ## 9. Recipe: add a third-party integration

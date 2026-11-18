@@ -103,6 +103,9 @@ Implementation:
 - Public ID: `<timestamp>-<sanitized-base-name>`, max 80 characters.
 - `allowed_formats` enforced by Cloudinary as a second layer.
 - The secure URL is stored in the database.
+- Deleting a project or certificate removes its Cloudinary asset, and replacing an image removes the previous one.
+- An upload attached to a rejected request is removed after the error response.
+- Contact attachments are delivered with the email and then removed; only the message text is stored.
 
 ### Failure modes
 
@@ -116,7 +119,6 @@ Implementation:
 
 ### Known limitations
 
-- Deleting a project/certificate/message does not delete the Cloudinary asset.
 - No malware scanning.
 - No automatic transforms beyond Cloudinary defaults.
 - No quota alerting.
@@ -239,7 +241,8 @@ Never set `EMAIL_PASS` on Render's free tier.
 3. Insert the message.
 4. Build a MIME message with sanitized headers and escaped HTML.
 5. Send with a 15-second timeout.
-6. Log success/failure; do not change the `201` response.
+6. Remove the temporary Cloudinary attachment (best effort).
+7. Log success/failure; do not change the `201` response.
 
 ### Current status
 

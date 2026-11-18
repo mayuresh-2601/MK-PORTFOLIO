@@ -340,7 +340,7 @@ Admin. Success `200`:
 }
 ```
 
-`400` for a non-positive/non-integer ID; `404` if missing. The Cloudinary asset is not automatically deleted.
+`400` for a non-positive/non-integer ID; `404` if missing. A Cloudinary image is removed automatically; repository-hosted image paths are left untouched.
 
 ## 7. Skills
 
@@ -432,7 +432,7 @@ Admin. `multipart/form-data`. Partial update; a new image replaces the current o
 
 ### `DELETE /api/certificates/:id`
 
-Admin. Success `200`; unknown ID `404`. Cloudinary assets are not deleted automatically.
+Admin. Success `200`; unknown ID `404`. A Cloudinary image is removed automatically; issuer-hosted URLs are left untouched.
 
 ## 9. Contact messages
 
@@ -678,7 +678,7 @@ Security notes:
 - Cloudinary `allowed_formats` is enforced in addition to MIME checks.
 - Uploads return `503` when Cloudinary is not configured and `502` when the provider fails.
 - Uploaded files are not malware-scanned. Do not accept untrusted executables.
-- Deleting a database row does not delete the Cloudinary asset.
+- Deleting or replacing a project/certificate removes its Cloudinary asset (best effort). Rejected uploads and contact attachments are also cleaned up.
 
 ## 14. CORS
 

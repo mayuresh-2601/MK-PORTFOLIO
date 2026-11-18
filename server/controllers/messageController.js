@@ -6,6 +6,7 @@ import {
 
 import sendEmail from "../utils/sendEmail.js";
 import { validateMessagePayload } from "../utils/messageValidation.js";
+import { deleteCloudinaryAsset } from "../utils/cloudinaryAsset.js";
 
 /*
    Create Contact Message
@@ -47,6 +48,15 @@ export const createMessage = async (req, res, next) => {
         "Email notification failed:",
         emailError.message
       );
+    } finally {
+      // The attachment is delivered with the email and is not stored in the
+      // database, so keeping the Cloudinary copy would only leak storage.
+      if (req.file) {
+        await deleteCloudinaryAsset({
+          publicId: req.file.cloudinaryPublicId,
+          resourceType: req.file.resourceType,
+        });
+      }
     }
 
     return res.status(201).json({

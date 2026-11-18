@@ -19,6 +19,8 @@ import {
   parsePagination,
 } from "../utils/pagination.js";
 
+import { deleteCloudinaryAsset } from "../utils/cloudinaryAsset.js";
+
 const MAX_TITLE_LENGTH = 255;
 const MAX_ISSUER_LENGTH = 255;
 const MAX_URL_LENGTH = 512;
@@ -246,6 +248,11 @@ export const updateCertificateById = async (req, res, next) => {
       });
     }
 
+    // The replacement is stored; drop the previous Cloudinary artwork.
+    if (req.file && existingCertificate.image !== certificate.image) {
+      await deleteCloudinaryAsset(existingCertificate.image);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Certificate updated successfully.",
@@ -270,6 +277,15 @@ export const removeCertificate = async (req, res, next) => {
       });
     }
 
+    const existingCertificate = await getCertificateById(id);
+
+    if (!existingCertificate) {
+      return res.status(404).json({
+        success: false,
+        message: "Certificate not found.",
+      });
+    }
+
     const result = await deleteCertificate(id);
 
     if (!result.affectedRows) {
@@ -278,6 +294,9 @@ export const removeCertificate = async (req, res, next) => {
         message: "Certificate not found.",
       });
     }
+
+    // Only Cloudinary URLs are removed; issuer-hosted URLs are untouched.
+    await deleteCloudinaryAsset(existingCertificate.image);
 
     return res.status(200).json({
       success: true,

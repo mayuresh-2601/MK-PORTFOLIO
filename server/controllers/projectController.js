@@ -19,6 +19,8 @@ import {
   parsePagination,
 } from "../utils/pagination.js";
 
+import { deleteCloudinaryAsset } from "../utils/cloudinaryAsset.js";
+
 const MAX_TITLE_LENGTH = 255;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_URL_LENGTH = 512;
@@ -290,6 +292,12 @@ export const updateProjectById = async (req, res, next) => {
       });
     }
 
+    // A replaced upload would otherwise stay public forever. The new image
+    // is already stored, so removing the old one cannot affect the record.
+    if (req.file && existingProject.image !== project.image) {
+      await deleteCloudinaryAsset(existingProject.image);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Project updated successfully.",
@@ -314,6 +322,15 @@ export const removeProject = async (req, res, next) => {
       });
     }
 
+    const existingProject = await getProjectById(id);
+
+    if (!existingProject) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found.",
+      });
+    }
+
     const result = await deleteProject(id);
 
     if (!result.affectedRows) {
@@ -322,6 +339,10 @@ export const removeProject = async (req, res, next) => {
         message: "Project not found.",
       });
     }
+
+    // Uploaded images are not repository assets; remove them from Cloudinary
+    // so a deleted project does not leave a publicly reachable file behind.
+    await deleteCloudinaryAsset(existingProject.image);
 
     return res.status(200).json({
       success: true,

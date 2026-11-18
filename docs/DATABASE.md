@@ -153,7 +153,7 @@ There is no read/unread flag, attachment path, status, or ownership column. The 
 | Certificate → image | One optional image URL | URL stored as text |
 | Message → attachment | Zero or one transient attachment | Forwarded to email; not stored with the row |
 
-No cascading deletes. Deleting a row never deletes a Cloudinary asset automatically.
+No cascading database deletes. Deleting a project/certificate also removes its Cloudinary image best effort; external image URLs are untouched.
 
 ## 5. Constraints and validation
 
@@ -329,7 +329,7 @@ As of 2026-11-14:
 | Create | Admin form + image upload | Public form |
 | Read | Public API/page | Admin only |
 | Update | Admin dashboard | Not supported |
-| Delete | Admin dashboard; Cloudinary asset is not automatically deleted | Admin dashboard; email copy may remain |
+| Delete | Admin dashboard; Cloudinary asset removed best effort | Admin dashboard; email copy may remain |
 | Retention | Until removed | Owner-defined; not yet formalized |
 | Backup | Provider backup + recommended dumps | Same; contains personal data |
 
@@ -337,10 +337,9 @@ As of 2026-11-14:
 
 1. **No automated backup/restore drill** — highest data-risk gap.
 2. **No message retention policy** — privacy and storage risk.
-3. **No Cloudinary cleanup on delete** — orphan assets and quota growth.
-4. **No pagination** — the inbox returns all messages; acceptable at current volume, not at scale.
-5. **No attachment metadata** — cannot audit or re-download an attachment from the inbox.
-6. **No soft delete/audit trail** — deletions are permanent.
+3. **No pagination in the inbox** — the inbox returns all messages; acceptable at current volume, not at scale.
+4. **No attachment metadata** — cannot audit or re-download an attachment from the inbox.
+5. **No soft delete/audit trail** — deletions are permanent.
 7. **Low-value indexes** — review `created_at`/`name` indexes against real query plans.
 8. **Database user grants** — confirm the production user is not over-privileged.
 9. **No foreign keys** — intentional, but future relational features need explicit design.

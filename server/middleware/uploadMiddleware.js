@@ -14,6 +14,7 @@ import {
   securityEvent,
 } from "../utils/securityLog.js";
 import { getClientIp } from "../utils/clientIp.js";
+import { deleteCloudinaryAsset } from "../utils/cloudinaryAsset.js";
 
 /* 
    Allowed File Types
@@ -243,6 +244,20 @@ export const uploadSingle = (
         req.file.filename = result.public_id;
         req.file.cloudinaryPublicId = result.public_id;
         req.file.resourceType = result.resource_type;
+
+        // A request rejected after the upload (validation, missing record,
+        // database error) would otherwise leave an orphaned public asset.
+        // Successful responses keep the upload for the controller to persist.
+        const uploadedAsset = {
+          publicId: result.public_id,
+          resourceType: result.resource_type,
+        };
+
+        res.on("finish", () => {
+          if (res.statusCode >= 400) {
+            void deleteCloudinaryAsset(uploadedAsset);
+          }
+        });
 
         return next();
       } catch (error) {
