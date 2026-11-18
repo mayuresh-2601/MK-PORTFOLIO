@@ -124,6 +124,10 @@ const openBrowser = (url) => {
     const child = spawn(command, args, {
       stdio: "ignore",
       detached: true,
+      // Node would otherwise strip the quotes around the URL, and cmd.exe
+      // treats `&` in the OAuth query string as a command separator, which
+      // truncates the URL before `response_type`.
+      windowsVerbatimArguments: platform === "win32",
     });
 
     child.unref();
