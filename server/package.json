@@ -32,7 +32,7 @@
   },
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js",
+    "start": "node scripts/database.js migrate && node server.js",
     "check": "node scripts/checkSyntax.js",
     "test": "node --test \"tests/*.test.js\"",
     "db:setup": "node scripts/database.js setup",

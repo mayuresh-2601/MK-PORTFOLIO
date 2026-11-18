@@ -52,10 +52,6 @@ services:
       #   npm run hash-password -- "your-strong-password"
       # ADMIN_PASSWORD remains supported for local development; if both are
       # set, the hash wins.
-      - key: JWT_SECRET
-        sync: false
-      - key: JWT_EXPIRES_IN
-        value: 12h
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD_HASH
@@ -87,7 +83,7 @@ services:
       - key: GMAIL_REFRESH_TOKEN
         sync: false
       - key: EMAIL_TRANSPORT
-        value: auto
+        value: gmail-api
 
       # Gmail SMTP App Password — not used on the free tier. Add EMAIL_PASS
       # manually in the Render dashboard if you upgrade to a paid instance.
