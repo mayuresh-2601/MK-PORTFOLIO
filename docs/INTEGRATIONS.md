@@ -222,7 +222,9 @@ OAuth scopes:
 - `email`
 - `https://www.googleapis.com/auth/gmail.send`
 
-The one-time flow is `npm run gmail:auth`; it writes `GMAIL_REFRESH_TOKEN` to `server/.env` without printing it. Use a Desktop OAuth client and publish the consent screen to production so refresh tokens do not expire after seven days.
+The flow is `npm run gmail:auth`; it writes `GMAIL_REFRESH_TOKEN` to `server/.env` without printing it. Use a Desktop OAuth client.
+
+`gmail.send` is a restricted scope. Keeping the OAuth app in **Testing** avoids Google verification, but Google expires refresh tokens issued in Testing after seven days (`invalid_grant`). Re-run `npm run gmail:auth` weekly and update `GMAIL_REFRESH_TOKEN` on Render. Publishing the app removes the weekly expiry only after Google completes verification of the restricted scope.
 
 ### SMTP configuration (local)
 
@@ -246,7 +248,9 @@ Never set `EMAIL_PASS` on Render's free tier.
 
 ### Current status
 
-Email is **not configured in production**. Messages are saved and visible in the admin inbox. Startup logs a warning. No placeholder credentials were added.
+Locally verified end to end: credentials check, standalone test send, and contact-form notifications all succeed through the Gmail API. Email is **not configured in production** until the OAuth values are added to Render; messages are saved and visible in the admin inbox, and startup logs a warning. No placeholder credentials were added.
+
+Testing-mode refresh tokens expire after seven days, so production needs a fresh token weekly until the app is verified.
 
 ### Failure modes
 
@@ -268,14 +272,14 @@ Email is **not configured in production**. Messages are saved and visible in the
 
 ### Completion checklist
 
-- [ ] Create/confirm the Google Cloud project and Gmail API.
-- [ ] Configure the OAuth consent screen and scopes.
-- [ ] Create a Desktop OAuth client.
-- [ ] Run `npm run gmail:auth` locally.
+- [x] Create/confirm the Google Cloud project and Gmail API.
+- [x] Configure the OAuth consent screen and scopes.
+- [x] Create a Desktop OAuth client.
+- [x] Run `npm run gmail:auth` locally.
 - [ ] Add the five variables to Render.
-- [ ] Run `npm run email:check`.
-- [ ] Send a test contact message and confirm delivery.
-- [ ] Confirm the message is still saved if email fails.
+- [x] Run `npm run email:check`.
+- [ ] Send a test contact message in production and confirm delivery.
+- [x] Confirm the message is still saved if email fails.
 - [ ] Record completion in [SECURITY_AUDIT.md](./SECURITY_AUDIT.md).
 
 ## 6. Vercel
