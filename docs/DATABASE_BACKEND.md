@@ -102,9 +102,9 @@ export const testDatabaseConnection = async () => {
 
 | Model | Functions |
 |---|---|
-| `projectModel.js` | `getAllProjects`, `getProjectById`, `addProject`, `updateProject`, `deleteProject` |
-| `skillModel.js` | `getSkills`, `getSkillById`, `addSkill`, `updateSkill`, `deleteSkill` |
-| `certificateModel.js` | `getAllCertificates`, `getCertificateById`, `addCertificate`, `updateCertificate`, `deleteCertificate` |
+| `projectModel.js` | `getAllProjects`, `getProjectsPage`, `countProjects`, `getProjectById`, `addProject`, `updateProject`, `deleteProject` |
+| `skillModel.js` | `getSkills`, `getSkillsPage`, `countSkills`, `getSkillById`, `addSkill`, `updateSkill`, `deleteSkill` |
+| `certificateModel.js` | `getCertificates`, `getCertificatesPage`, `countCertificates`, `getCertificateById`, `addCertificate`, `updateCertificate`, `deleteCertificate` |
 | `messageModel.js` | `addMessage`, `getMessages`, `deleteMessage` |
 
 Models do not validate business rules. They accept already-normalized values and return plain rows or affected-row counts.

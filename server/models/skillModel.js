@@ -19,6 +19,36 @@ export const getSkills = async () => {
   return rows;
 };
 
+/**
+ * Fetch one page of skills.
+ *
+ * `db.query` is required for `LIMIT ? OFFSET ?`; see projectModel.js.
+ */
+export const getSkillsPage = async (limit, offset) => {
+  const [rows] = await db.query(
+    `
+      SELECT id, name, level, created_at
+      FROM skills
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    `,
+    [Number(limit), Number(offset)]
+  );
+
+  return rows;
+};
+
+/**
+ * Count skills for pagination metadata.
+ */
+export const countSkills = async () => {
+  const [rows] = await db.execute(
+    "SELECT COUNT(*) AS total FROM skills"
+  );
+
+  return Number(rows[0]?.total || 0);
+};
+
 /* 
    Get Skill By ID
  */

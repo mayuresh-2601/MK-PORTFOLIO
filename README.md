@@ -141,6 +141,7 @@ All screenshots are captured from the live production deployment at **1440 x 900
 
 - **Seven routes** - Home, About, Skills, Projects, Certificates, System, and Contact.
 - **Database-driven content** - project cards, skill levels, certificate artwork, and the contact form all use the API, not hardcoded arrays.
+- **Shareable pagination** - projects, skills, and certificates page through the API nine items at a time; the current page lives in `?page=` so links and browser history work.
 - **Kinetic Brutalism design** - acid/ink/pink palette, hard borders, offset shadows, marquee, count-up statistics, and scroll reveals.
 - **Responsive layout** - desktop, tablet, and mobile navigation with a full-screen menu.
 - **Accessibility-minded UI** - skip-to-content link, semantic headings, keyboard-trapped dialogs, visible focus states, and `prefers-reduced-motion` support.

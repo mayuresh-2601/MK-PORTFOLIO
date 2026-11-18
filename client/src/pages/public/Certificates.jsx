@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   ExternalLink,
   Award,
@@ -7,49 +6,28 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import api from "../../api/axios";
 import AIExplainModal from "../../components/common/AIExplainModal";
 import SEO from "../../components/common/SEO";
+import Pagination from "../../components/common/Pagination";
+import usePaginatedList from "../../hooks/usePaginatedList";
 import { safeExternalUrl } from "../../utils/safeUrl";
+import { useState } from "react";
+
+const PAGE_SIZE = 9;
 
 export default function Certificates() {
-  const [certificates, setCertificates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const {
+    items: certificates,
+    loading,
+    error,
+    page,
+    totalPages,
+    total,
+    setPage,
+    retry,
+  } = usePaginatedList("/certificates", { limit: PAGE_SIZE });
+
   const [activeCert, setActiveCert] = useState(null);
-
-  useEffect(() => {
-    fetchCertificates();
-  }, []);
-
-  const fetchCertificates = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await api.get("/certificates");
-
-      // Supports both:
-      // [{...}]
-      // { success:true, data:[...] }
-      const certificatesData = Array.isArray(response.data)
-        ? response.data
-        : Array.isArray(response.data.data)
-        ? response.data.data
-        : [];
-
-      setCertificates(certificatesData);
-    } catch (err) {
-      console.error("Failed to fetch certificates:", err);
-      setCertificates([]);
-      setError(
-        err.response?.data?.message ||
-          "Unable to load certificates. Please try again later."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <section className="page page-section certificates-section grid-pink">
@@ -79,6 +57,8 @@ export default function Certificates() {
           checkpoint on the way to better software.
         </p>
 
+        <div id="pagination-anchor" aria-hidden="true" />
+
         {loading && (
           <div className="state-panel reveal">
             <Loader2
@@ -106,7 +86,7 @@ export default function Certificates() {
             <p className="state-panel__text">{error}</p>
             <button
               type="button"
-              onClick={fetchCertificates}
+              onClick={retry}
               className="btn btn--black btn--pill"
               style={{ marginTop: "1.5rem" }}
             >
@@ -132,63 +112,71 @@ export default function Certificates() {
         )}
 
         {!loading && !error && certificates.length > 0 && (
-          <div className="cert-grid">
-            {certificates.map((cert, index) => {
-              // Credential links come from the database; only render absolute
-              // HTTP(S) URLs so a bad row cannot become a script link.
-              const certificateUrl = safeExternalUrl(cert.link);
-              return (
-                <article
-                  key={cert.id}
-                  className="cert-card reveal"
-                  style={{ "--delay": `${Math.min(index, 8) * 80}ms` }}
-                >
-                  {cert.image && (
-                    <div className="cert-card__media">
-                      <img
-                        src={cert.image}
-                        alt={cert.title}
-                        loading="lazy"
-                        onError={(event) => {
-                          event.currentTarget.src =
-                            "/placeholder-project.png";
-                        }}
-                      />
-                    </div>
-                  )}
+          <>
+            <div className="cert-grid">
+              {certificates.map((cert) => {
+                // Credential links come from the database; only render absolute
+                // HTTP(S) URLs so a bad row cannot become a script link.
+                const certificateUrl = safeExternalUrl(cert.link);
 
-                  <div className="cert-card__body">
-                    <p className="cert-card__issuer">
-                      <Award size={14} aria-hidden="true" />
-                      {cert.issuer}
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveCert(cert)}
-                      className="cert-card__title"
-                      title="Ask AI to explain this certificate"
-                    >
-                      {cert.title}
-                      <Sparkles size={14} aria-hidden="true" />
-                    </button>
-
-                    {certificateUrl && (
-                      <a
-                        href={certificateUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="cert-card__link"
-                      >
-                        View credential
-                        <ExternalLink size={14} aria-hidden="true" />
-                      </a>
+                return (
+                  <article key={cert.id} className="cert-card reveal">
+                    {cert.image && (
+                      <div className="cert-card__media">
+                        <img
+                          src={cert.image}
+                          alt={cert.title}
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.src =
+                              "/placeholder-project.png";
+                          }}
+                        />
+                      </div>
                     )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+
+                    <div className="cert-card__body">
+                      <p className="cert-card__issuer">
+                        <Award size={14} aria-hidden="true" />
+                        {cert.issuer}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveCert(cert)}
+                        className="cert-card__title"
+                        title="Ask AI to explain this certificate"
+                      >
+                        {cert.title}
+                        <Sparkles size={14} aria-hidden="true" />
+                      </button>
+
+                      {certificateUrl && (
+                        <a
+                          href={certificateUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="cert-card__link"
+                        >
+                          View credential
+                          <ExternalLink size={14} aria-hidden="true" />
+                        </a>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onChange={setPage}
+              label="Certificates pagination"
+            />
+          </>
         )}
       </div>
 

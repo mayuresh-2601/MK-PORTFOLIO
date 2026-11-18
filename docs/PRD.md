@@ -84,7 +84,7 @@ Each assumption is explicit and should be validated before it becomes a hard req
 | ID | Assumption | Impact if wrong |
 |---|---|---|
 | A1 | One owner/admin is sufficient; no visitor accounts are needed | A multi-user model would require a `users` table, roles, password reset, and audit logging |
-| A2 | Content volume is small (tens of projects/skills/certificates, hundreds of messages) | Pagination and search would move from future work to MVP |
+| A2 | Content volume is small (tens of projects/skills/certificates, hundreds of messages) | Pagination is already implemented; search would move from future work to MVP |
 | A3 | A single API instance is sufficient for current traffic | In-memory rate limits and telemetry polling assumptions change under horizontal scaling |
 | A4 | Public telemetry is acceptable and does not reveal secrets | The System page would need authentication or reduced fields |
 | A5 | Cloudinary is the approved media host | Local or S3 storage would require new upload and cleanup paths |
@@ -205,7 +205,7 @@ These are product or operational decisions, not implementation details.
 | FR-P-01 | Home page presents identity, role, location, summary, portrait, resume, projects CTA, and contact CTA | Must |
 | FR-P-02 | About page presents biography, facts, availability, resume, and project CTA | Must |
 | FR-P-03 | Skills page lists database-driven skills with level and AI explainer | Must |
-| FR-P-04 | Projects page lists database-driven projects with safe GitHub/demo links and image fallback | Must |
+| FR-P-04 | Projects page lists database-driven projects with safe GitHub/demo links, image fallback, and URL-backed pagination | Must |
 | FR-P-05 | Certificates page lists database-driven certificates with optional image and safe credential link | Must |
 | FR-P-06 | Contact page provides direct email/GitHub/LinkedIn links and a validated message form | Must |
 | FR-P-07 | System page shows CPU, memory, uptime, environment, Node version, git commit, and AI assistant | Should |
@@ -414,7 +414,7 @@ No inbound webhooks are used. Integration details and failure behavior are in [I
 | Criterion | Target | Current evidence |
 |---|---|---|
 | All public routes render | 100% of defined routes | Live browser audit of all routes: 0 console errors, 0 failed requests, 0 broken images |
-| Public content available | Projects ≥ 4, skills ≥ 16, certificates ≥ 16 | Production API counts verified |
+| Public content available | Projects ≥ 14, skills ≥ 16, certificates ≥ 16 | Production API counts verified |
 | Admin mutation path works | Login + protected CRUD + inbox | CI Docker integration tests and production auth smoke tests pass |
 | Contact journey works | Valid message returns `201` and persists | API validation tests and Docker stack checks pass |
 | Security scans | No real secrets in tree, history, build, or live assets | Secret scans clean except documented placeholders/test fixtures |

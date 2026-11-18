@@ -182,11 +182,11 @@ Database-level constraints are intentionally minimal because TiDB compatibility 
 
 | Query | Table | Predicate/order | Index used |
 |---|---|---|---|
-| List projects | `projects` | `ORDER BY id DESC` | Primary key |
+| List projects | `projects` | `ORDER BY id DESC [LIMIT ? OFFSET ?]` | Primary key |
 | Get project by ID | `projects` | `WHERE id = ?` | Primary key |
-| List skills | `skills` | `ORDER BY id DESC` | Primary key |
+| List skills | `skills` | `ORDER BY id DESC [LIMIT ? OFFSET ?]` | Primary key |
 | Get skill by ID | `skills` | `WHERE id = ?` | Primary key |
-| List certificates | `certificates` | `ORDER BY id DESC` | Primary key |
+| List certificates | `certificates` | `ORDER BY id DESC [LIMIT ? OFFSET ?]` | Primary key |
 | Get certificate by ID | `certificates` | `WHERE id = ?` | Primary key |
 | List messages | `messages` | `ORDER BY id DESC` | Primary key |
 | Insert/update/delete | All | Primary key for update/delete | Primary key |
@@ -255,7 +255,7 @@ Schema/migration commands may use a separate migration credential with DDL right
 | File | Purpose |
 |---|---|
 | `schema.sql` | Creates the four tables if missing; no `USE` statement; database-name independent |
-| `seed.sql` | Idempotent baseline content: 4 projects, 16 skills, 16 certificates |
+| `seed.sql` | Idempotent baseline content: 14 projects, 16 skills, 16 certificates |
 | `scripts/database.js` | `setup`, `migrate`, `seed`, `check` commands |
 | `database/Dockerfile` | Bakes schema/seed into the local MySQL image for Docker initialization |
 
@@ -265,7 +265,7 @@ Schema/migration commands may use a separate migration credential with DDL right
 |---|---|---|
 | `npm run db:setup` | Creates the database if permitted and applies `schema.sql` | Yes; `CREATE TABLE IF NOT EXISTS` |
 | `npm run db:migrate` | Adds `messages.subject`, makes `certificates.image` nullable, normalizes link defaults, converts tables to utf8mb4, drops legacy `users` | Yes; idempotent checks |
-| `npm run db:seed` | Inserts/refreshes the 4/16/16 baseline by primary key | Yes; does not delete rows added later |
+| `npm run db:seed` | Inserts/refreshes the 14/16/16 baseline by primary key | Yes; does not delete rows added later |
 | `npm run db:check` | Verifies tables, columns, nullable image, charsets, and prints counts | Read-only |
 
 ### Rules

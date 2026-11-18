@@ -1,7 +1,7 @@
 import CountUp from "./CountUp";
 
 const DEFAULT_STATS = [
-  { end: 12, suffix: "+", label: "Projects Shipped" },
+  { end: 14, suffix: "+", label: "Projects Shipped" },
   { end: 18, suffix: "+", label: "Technologies Used" },
   { end: 6, suffix: "+", label: "Certifications" },
   { end: 2024, suffix: "", label: "B.Sc. CS Graduate" },

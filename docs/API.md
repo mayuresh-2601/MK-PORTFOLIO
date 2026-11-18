@@ -249,25 +249,40 @@ Failure `503`:
 
 ### `GET /api/projects`
 
-Public. Returns all projects, newest ID first.
+Public. Returns projects newest ID first.
+
+Without query parameters the response is unpaginated and returns every project. Pass `page` and/or `limit` to paginate:
+
+| Parameter | Default | Rules |
+|---|---|---|
+| `page` | 1 | Positive integer; pages past the end clamp to the last page |
+| `limit` | 9 | Positive integer, maximum 48 |
 
 ```json
 {
   "success": true,
-  "count": 4,
+  "count": 9,
+  "total": 14,
+  "page": 1,
+  "limit": 9,
+  "totalPages": 2,
+  "hasNextPage": true,
+  "hasPreviousPage": false,
   "data": [
     {
-      "id": 4,
+      "id": 14,
       "title": "Project title",
       "description": "Short description shown on the card.",
       "github": "https://github.com/example/repo",
       "demo": "https://example.com",
-      "image": "https://res.cloudinary.com/.../image.webp",
-      "created_at": "2026-11-09T10:00:00.000Z"
+      "image": "/projects/example.png",
+      "created_at": "2026-11-17T10:45:00.000Z"
     }
   ]
 }
 ```
+
+`count` is the number of rows in this page; `total` is the full collection size. Invalid, fractional, zero, or oversized values return `400`.
 
 `github` and `demo` may be `null`. The client hides unsafe/absent links and falls back to a placeholder image if the media fails.
 
@@ -331,7 +346,7 @@ Admin. Success `200`:
 
 ### `GET /api/skills`
 
-Public.
+Public. Supports the same optional `page`/`limit` pagination and flat metadata as `GET /api/projects`. Without those parameters the response returns every skill.
 
 ```json
 {
@@ -377,7 +392,7 @@ Admin. Success `200`; `404` if missing.
 
 ### `GET /api/certificates`
 
-Public.
+Public. Supports the same optional `page`/`limit` pagination and flat metadata as `GET /api/projects`. Without those parameters the response returns every certificate.
 
 ```json
 {

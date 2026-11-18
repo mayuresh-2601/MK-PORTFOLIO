@@ -156,7 +156,7 @@ client/
 
 | State | Owner | Pattern |
 |---|---|---|
-| Projects/skills/certificates lists | Page component | Mutually exclusive `loading` / `error` / empty / data render gates; one request per mount |
+| Projects/skills/certificates lists | `usePaginatedList` hook | Mutually exclusive `loading` / `error` / empty / data render gates; the URL `?page=` is the source of truth; each page change requests one page and renders the shared `Pagination` control |
 | Contact submission | Contact page | Single `status.state`: `idle`, `loading`, `success`, or `error`; typing resets a finished result to idle |
 | AI explanation | Reusable modal | Keyed request state: `idle`, `loading`, `success`, or `error`; an `AbortController` cancels the previous payload |
 | System snapshot | System page | Snapshot + `lastUpdatedAt` + inline error; the next 5-second poll starts only after the previous one ends, so cold starts cannot stack requests |
@@ -258,7 +258,7 @@ Notes:
 - Pool defaults: connection limit 10 (capped 1–20), wait queue enabled, idle timeout 60 s, keep-alive enabled, named placeholders enabled.
 - TLS defaults to enabled in production; local MySQL/Docker sets `DB_SSL=false`. TLS 1.2+ with certificate verification for TiDB.
 - `charset: utf8mb4`, 20-second connect timeout.
-- Models expose small functions (`getAllProjects`, `getProjectById`, `addProject`, `updateProject`, `deleteProject`, and equivalents for skills, certificates, messages).
+- Models expose small functions (`getAllProjects`, `getProjectsPage`, `countProjects`, `getProjectById`, `addProject`, `updateProject`, `deleteProject`, and equivalents for skills, certificates, messages).
 - Each mutation is a single SQL statement. No multi-step transaction is required at current scope.
 - Updates use partial-field logic in controllers: omitted fields keep existing values; explicit empty optional fields clear links; `COALESCE` preserves an existing image when no replacement is uploaded.
 - Readiness is proven by `SELECT 1`; there is no separate migration service at runtime.

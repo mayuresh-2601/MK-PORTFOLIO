@@ -19,6 +19,38 @@ export const getAllProjects = async () => {
   return rows;
 };
 
+/**
+ * Fetch one page of projects.
+ *
+ * `db.query` (not `execute`) is used deliberately: MySQL prepared statements
+ * reject `LIMIT ? OFFSET ?` when the driver sends numbers as DOUBLE. Both
+ * values are already sanitized integers from `buildPagination`.
+ */
+export const getProjectsPage = async (limit, offset) => {
+  const [rows] = await db.query(
+    `
+      SELECT id, title, description, github, demo, image, created_at
+      FROM projects
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    `,
+    [Number(limit), Number(offset)]
+  );
+
+  return rows;
+};
+
+/**
+ * Count projects for pagination metadata.
+ */
+export const countProjects = async () => {
+  const [rows] = await db.execute(
+    "SELECT COUNT(*) AS total FROM projects"
+  );
+
+  return Number(rows[0]?.total || 0);
+};
+
 /* 
    Get Project By ID
  */

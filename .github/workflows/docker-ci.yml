@@ -324,8 +324,8 @@ jobs:
           PROJECTS=$(docker compose exec -T -e MYSQL_PWD=ci_test_password db \
             mysql -uroot -N -B -e "SELECT COUNT(*) FROM portfolio_alt.projects;" | tr -d '\r')
 
-          if [ "$PROJECTS" -lt 4 ]; then
-            echo "::error::Expected at least 4 seeded projects, found ${PROJECTS}."
+          if [ "$PROJECTS" -lt 14 ]; then
+            echo "::error::Expected at least 14 seeded projects, found ${PROJECTS}."
             exit 1
           fi
 
@@ -357,7 +357,7 @@ jobs:
           done
 
           # Seed data must be visible through the API, not just present in SQL.
-          for PAIR in projects:4 skills:16 certificates:16; do
+          for PAIR in projects:14 skills:16 certificates:16; do
             RESOURCE=${PAIR%%:*}
             MINIMUM=${PAIR##*:}
             COUNT=$(curl -fsS "http://localhost:5000/api/${RESOURCE}" | jq -r '.count')
@@ -369,6 +369,33 @@ jobs:
 
             echo "/api/${RESOURCE} returned ${COUNT} rows."
           done
+
+          # Paginated requests expose flat metadata and honor the page size.
+          PAGED=$(curl -fsS "http://localhost:5000/api/projects?page=1&limit=9")
+          PAGED_COUNT=$(echo "$PAGED" | jq -r '.count')
+          PAGED_TOTAL=$(echo "$PAGED" | jq -r '.total')
+          PAGED_PAGES=$(echo "$PAGED" | jq -r '.totalPages')
+
+          if [ "$PAGED_COUNT" != "9" ] || [ "$PAGED_TOTAL" -lt 14 ] \
+            || [ "$PAGED_PAGES" -lt 2 ]; then
+            echo "::error::Project pagination metadata is invalid."
+            echo "$PAGED" | jq .
+            exit 1
+          fi
+
+          # Invalid page values are rejected, not silently ignored.
+          BAD_PAGE_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            "http://localhost:5000/api/projects?page=0")
+
+          if [ "$BAD_PAGE_STATUS" != "400" ]; then
+            echo "::error::Invalid page returned ${BAD_PAGE_STATUS}, expected 400"
+            exit 1
+          fi
+
+          echo "Project pagination: ${PAGED_COUNT}/${PAGED_TOTAL} rows, ${PAGED_PAGES} pages."
 
           # Malformed JSON must return 400 (not 500) from the error middleware.
           MALFORMED_STATUS=$(curl \
@@ -988,6 +1015,28 @@ jobs:
 
             echo "/api/${RESOURCE}: ${COUNT} rows, all named."
           done
+
+          # Public lists paginate on the server. Validate the contract without
+          # assuming the production row count has been refreshed yet.
+          PAGE=$(curl -fsS --max-time 60 "${PRODUCTION_API_URL}/api/projects?page=1&limit=9")
+          TOTAL=$(echo "$PAGE" | jq -r '.total')
+          PAGE_COUNT=$(echo "$PAGE" | jq -r '.count')
+          PAGE_NUMBER=$(echo "$PAGE" | jq -r '.page')
+          PAGE_LIMIT=$(echo "$PAGE" | jq -r '.limit')
+          TOTAL_PAGES=$(echo "$PAGE" | jq -r '.totalPages')
+          EXPECTED_COUNT=$(( TOTAL < 9 ? TOTAL : 9 ))
+          EXPECTED_PAGES=$(( (TOTAL + 8) / 9 ))
+
+          if [ "$TOTAL" -lt 4 ] || [ "$PAGE_NUMBER" != "1" ] \
+            || [ "$PAGE_LIMIT" != "9" ] \
+            || [ "$PAGE_COUNT" != "$EXPECTED_COUNT" ] \
+            || [ "$TOTAL_PAGES" != "$EXPECTED_PAGES" ]; then
+            echo "::error::Production project pagination metadata is invalid."
+            echo "$PAGE" | jq .
+            exit 1
+          fi
+
+          echo "Production project pagination OK (${PAGE_COUNT}/${TOTAL}, page ${PAGE_NUMBER}/${TOTAL_PAGES})."
 
           SYSTEM=$(curl -fsS --max-time 60 "${PRODUCTION_API_URL}/api/system")
 

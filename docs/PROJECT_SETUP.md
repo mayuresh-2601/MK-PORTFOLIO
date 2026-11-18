@@ -211,12 +211,12 @@ npm run db:check
 |---|---|
 | `db:setup` | Creates the database if permitted and applies `schema.sql` with `CREATE TABLE IF NOT EXISTS` |
 | `db:migrate` | Idempotent upgrade for existing databases (`messages.subject`, nullable certificate image, utf8mb4, legacy cleanup) |
-| `db:seed` | Inserts/refreshes 4 projects, 16 skills, 16 certificates |
+| `db:seed` | Inserts/refreshes 14 projects, 16 skills, 16 certificates |
 | `db:check` | Verifies tables, columns, charset, and prints row counts |
 
 `db:setup` does not seed. Run `db:seed` after it on a fresh database.
 
-Expected baseline counts: projects 4, skills 16, certificates 16.
+Expected baseline counts: projects 14, skills 16, certificates 16.
 
 Do not run `db:setup` or `db:seed` against a production database without a backup and owner approval.
 
@@ -275,9 +275,9 @@ The Vite proxy forwards `/api` to `http://localhost:5000`, so the browser stays 
 ### Public pages
 
 - `/` renders hero, stats, and capability cards.
-- `/projects` shows 4 seeded projects.
-- `/skills` shows 16 seeded skills.
-- `/certificates` shows 16 seeded certificates.
+- `/projects` shows 9 projects per page across 14 seeded projects.
+- `/skills` shows 9 skills per page across 16 seeded skills.
+- `/certificates` shows 9 certificates per page across 16 seeded certificates.
 - `/system` loads telemetry (CPU values may be 0 on Windows; expected).
 - `/contact` submits a message.
 - An unknown path renders the branded 404.

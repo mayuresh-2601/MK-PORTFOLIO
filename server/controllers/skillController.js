@@ -1,5 +1,7 @@
 import {
   getSkills,
+  getSkillsPage,
+  countSkills,
   getSkillById,
   addSkill,
   updateSkill,
@@ -8,7 +10,13 @@ import {
 
 import { normalizeRequiredText } from "../utils/validation.js";
 
+import {
+  buildPagination,
+  parsePagination,
+} from "../utils/pagination.js";
+
 const MAX_NAME_LENGTH = 100;
+const PAGE_SIZE = 9;
 
 /*
    Get All Skills
@@ -16,11 +24,50 @@ const MAX_NAME_LENGTH = 100;
 
 export const fetchSkills = async (req, res, next) => {
   try {
-    const skills = await getSkills();
+    const pagination = parsePagination(req.query, {
+      defaultLimit: PAGE_SIZE,
+    });
+
+    if (pagination.error) {
+      return res.status(400).json({
+        success: false,
+        message: pagination.error,
+      });
+    }
+
+    if (!pagination.paginated) {
+      const skills = await getSkills();
+
+      return res.status(200).json({
+        success: true,
+        count: skills.length,
+        total: skills.length,
+        page: 1,
+        limit: skills.length || PAGE_SIZE,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        data: skills,
+      });
+    }
+
+    const total = await countSkills();
+    const meta = buildPagination(
+      total,
+      pagination.page,
+      pagination.limit
+    );
+    const skills = await getSkillsPage(meta.limit, meta.offset);
 
     return res.status(200).json({
       success: true,
       count: skills.length,
+      total: meta.total,
+      page: meta.page,
+      limit: meta.limit,
+      totalPages: meta.totalPages,
+      hasNextPage: meta.hasNextPage,
+      hasPreviousPage: meta.hasPreviousPage,
       data: skills,
     });
   } catch (error) {

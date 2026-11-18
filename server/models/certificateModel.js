@@ -19,6 +19,36 @@ export const getCertificates = async () => {
   return rows;
 };
 
+/**
+ * Fetch one page of certificates.
+ *
+ * `db.query` is required for `LIMIT ? OFFSET ?`; see projectModel.js.
+ */
+export const getCertificatesPage = async (limit, offset) => {
+  const [rows] = await db.query(
+    `
+      SELECT id, title, issuer, image, link, created_at
+      FROM certificates
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    `,
+    [Number(limit), Number(offset)]
+  );
+
+  return rows;
+};
+
+/**
+ * Count certificates for pagination metadata.
+ */
+export const countCertificates = async () => {
+  const [rows] = await db.execute(
+    "SELECT COUNT(*) AS total FROM certificates"
+  );
+
+  return Number(rows[0]?.total || 0);
+};
+
 /* 
    Get Certificate By ID
  */

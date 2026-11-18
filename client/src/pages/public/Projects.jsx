@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   ExternalLink,
   FolderOpen,
@@ -7,48 +6,25 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import api from "../../api/axios";
 import GithubIcon from "../../assets/GithubIcon";
 import SEO from "../../components/common/SEO";
+import Pagination from "../../components/common/Pagination";
+import usePaginatedList from "../../hooks/usePaginatedList";
 import { safeExternalUrl } from "../../utils/safeUrl";
 
+const PAGE_SIZE = 9;
+
 export default function Projects() {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await api.get("/projects");
-
-      // Supports both:
-      // [{...}]
-      // { success: true, data: [...] }
-      const projectsData = Array.isArray(response.data)
-        ? response.data
-        : Array.isArray(response.data.data)
-        ? response.data.data
-        : [];
-
-      setProjects(projectsData);
-    } catch (err) {
-      console.error("Failed to fetch projects:", err);
-      setProjects([]);
-      setError(
-        err.response?.data?.message ||
-          "Unable to load projects. Please try again later."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    items: projects,
+    loading,
+    error,
+    page,
+    totalPages,
+    total,
+    setPage,
+    retry,
+  } = usePaginatedList("/projects", { limit: PAGE_SIZE });
 
   return (
     <section className="page page-section work-section grid-acid">
@@ -80,6 +56,8 @@ export default function Projects() {
           experience.
         </p>
 
+        <div id="pagination-anchor" aria-hidden="true" />
+
         {loading && (
           <div className="state-panel reveal">
             <Loader2
@@ -105,7 +83,7 @@ export default function Projects() {
             <p className="state-panel__text">{error}</p>
             <button
               type="button"
-              onClick={fetchProjects}
+              onClick={retry}
               className="btn btn--black btn--pill"
               style={{ marginTop: "1.5rem" }}
             >
@@ -131,81 +109,95 @@ export default function Projects() {
         )}
 
         {!loading && !error && projects.length > 0 && (
-          <div className="work-grid">
-            {projects.map((project, index) => {
-              // Database content is editable from the admin dashboard. Only
-              // render links that are absolute HTTP(S) URLs.
-              const githubUrl = safeExternalUrl(project.github);
-              const demoUrl = safeExternalUrl(project.demo);
-              const primaryLink = demoUrl || githubUrl;
-              return (
-                <article
-                  key={project.id}
-                  className="work-card reveal"
-                  style={{ "--delay": `${Math.min(index, 8) * 80}ms` }}
-                >
-                  <div className="work-card__media">
-                    <div className="work-card__img">
-                      <img
-                        src={project.image || "/placeholder-project.png"}
-                        alt={project.title}
-                        loading="lazy"
-                        onError={(event) => {
-                          event.currentTarget.src = "/placeholder-project.png";
-                        }}
-                      />
-                    </div>
+          <>
+            <div className="work-grid">
+              {projects.map((project, index) => {
+                // Database content is editable from the admin dashboard. Only
+                // render links that are absolute HTTP(S) URLs.
+                const githubUrl = safeExternalUrl(project.github);
+                const demoUrl = safeExternalUrl(project.demo);
+                const primaryLink = demoUrl || githubUrl;
+                const number = (page - 1) * PAGE_SIZE + index + 1;
 
-                    {primaryLink && (
-                      <a
-                        href={primaryLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="work-card__badge"
-                        aria-label={`Open ${project.title}`}
-                      >
-                        <ArrowUpRight size={22} aria-hidden="true" />
-                      </a>
-                    )}
-                  </div>
+                return (
+                  <article
+                    key={project.id}
+                    className="work-card reveal"
+                    style={{ "--delay": `${Math.min(index, 8) * 80}ms` }}
+                  >
+                    <div className="work-card__media">
+                      <div className="work-card__img">
+                        <img
+                          src={project.image || "/placeholder-project.png"}
+                          alt={project.title}
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.src =
+                              "/placeholder-project.png";
+                          }}
+                        />
+                      </div>
 
-                  <div className="work-card__body">
-                    <p className="meta text-pink">
-                      {String(index + 1).padStart(2, "0")} / Project
-                    </p>
-                    <h3 className="work-card__title">{project.title}</h3>
-                    <p className="work-card__desc">{project.description}</p>
-
-                    <div className="work-card__links">
-                      {githubUrl && (
+                      {primaryLink && (
                         <a
-                          href={githubUrl}
+                          href={primaryLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="work-card__link"
+                          className="work-card__badge"
+                          aria-label={`Open ${project.title}`}
                         >
-                          <GithubIcon size={14} />
-                          Source
-                        </a>
-                      )}
-
-                      {demoUrl && (
-                        <a
-                          href={demoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="work-card__link"
-                        >
-                          <ExternalLink size={14} aria-hidden="true" />
-                          Live demo
+                          <ArrowUpRight size={22} aria-hidden="true" />
                         </a>
                       )}
                     </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+
+                    <div className="work-card__body">
+                      <p className="meta text-pink">
+                        {String(number).padStart(2, "0")} / Project
+                      </p>
+                      <h3 className="work-card__title">{project.title}</h3>
+                      <p className="work-card__desc">{project.description}</p>
+
+                      <div className="work-card__links">
+                        {githubUrl && (
+                          <a
+                            href={githubUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="work-card__link"
+                          >
+                            <GithubIcon size={14} />
+                            Source
+                          </a>
+                        )}
+
+                        {demoUrl && (
+                          <a
+                            href={demoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="work-card__link"
+                          >
+                            <ExternalLink size={14} aria-hidden="true" />
+                            Live demo
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onChange={setPage}
+              label="Projects pagination"
+            />
+          </>
         )}
       </div>
     </section>

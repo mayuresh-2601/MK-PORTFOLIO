@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   Code2,
   Sparkles,
@@ -6,48 +5,27 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import api from "../../api/axios";
 import AIExplainModal from "../../components/common/AIExplainModal";
 import SEO from "../../components/common/SEO";
+import Pagination from "../../components/common/Pagination";
+import usePaginatedList from "../../hooks/usePaginatedList";
+import { useState } from "react";
+
+const PAGE_SIZE = 9;
 
 export default function Skills() {
-  const [skills, setSkills] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const {
+    items: skills,
+    loading,
+    error,
+    page,
+    totalPages,
+    total,
+    setPage,
+    retry,
+  } = usePaginatedList("/skills", { limit: PAGE_SIZE });
+
   const [activeSkill, setActiveSkill] = useState(null);
-
-  useEffect(() => {
-    fetchSkills();
-  }, []);
-
-  const fetchSkills = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await api.get("/skills");
-
-      // Supports both:
-      // [{...}]
-      // { success:true, data:[...] }
-      const skillsData = Array.isArray(response.data)
-        ? response.data
-        : Array.isArray(response.data.data)
-        ? response.data.data
-        : [];
-
-      setSkills(skillsData);
-    } catch (err) {
-      console.error("Failed to fetch skills:", err);
-      setSkills([]);
-      setError(
-        err.response?.data?.message ||
-          "Unable to load skills. Please try again later."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <section className="page page-section skills-section grid-acid">
@@ -78,6 +56,8 @@ export default function Skills() {
           modern web applications.
         </p>
 
+        <div id="pagination-anchor" aria-hidden="true" />
+
         {loading && (
           <div className="state-panel reveal">
             <Loader2
@@ -103,7 +83,7 @@ export default function Skills() {
             <p className="state-panel__text">{error}</p>
             <button
               type="button"
-              onClick={fetchSkills}
+              onClick={retry}
               className="btn btn--black btn--pill"
               style={{ marginTop: "1.5rem" }}
             >
@@ -129,53 +109,66 @@ export default function Skills() {
         )}
 
         {!loading && !error && skills.length > 0 && (
-          <div className="skill-grid">
-            {skills.map((skill, index) => {
-              const level = skill.level ?? 80;
-              return (
-                <article
-                  key={skill.id}
-                  className="skill-card reveal"
-                  style={{ "--delay": `${Math.min(index, 8) * 70}ms` }}
-                >
-                  <div className="skill-card__top">
-                    <span className="skill-card__index">
-                      {String(index + 1).padStart(2, "0")} /
-                    </span>
-                    <span className="skill-card__level">{level}%</span>
-                  </div>
+          <>
+            <div className="skill-grid">
+              {skills.map((skill, index) => {
+                const level = skill.level ?? 80;
+                const number = (page - 1) * PAGE_SIZE + index + 1;
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveSkill(skill)}
-                    className="skill-card__name"
-                    title="Ask AI to explain this skill"
+                return (
+                  <article
+                    key={skill.id}
+                    className="skill-card reveal"
+                    style={{ "--delay": `${Math.min(index, 8) * 70}ms` }}
                   >
-                    {skill.name}
-                    <Sparkles size={16} aria-hidden="true" />
-                  </button>
+                    <div className="skill-card__top">
+                      <span className="skill-card__index">
+                        {String(number).padStart(2, "0")} /
+                      </span>
+                      <span className="skill-card__level">{level}%</span>
+                    </div>
 
-                  <div
-                    className="skill-bar"
-                    role="progressbar"
-                    aria-label={skill.name}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={level}
-                  >
+                    <button
+                      type="button"
+                      onClick={() => setActiveSkill(skill)}
+                      className="skill-card__name"
+                      title="Ask AI to explain this skill"
+                    >
+                      {skill.name}
+                      <Sparkles size={16} aria-hidden="true" />
+                    </button>
+
                     <div
-                      className="skill-bar__fill"
-                      style={{ width: `${Math.min(100, level)}%` }}
-                    />
-                  </div>
+                      className="skill-bar"
+                      role="progressbar"
+                      aria-label={skill.name}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={level}
+                    >
+                      <div
+                        className="skill-bar__fill"
+                        style={{ width: `${Math.min(100, level)}%` }}
+                      />
+                    </div>
 
-                  <p className="skill-card__hint">
-                    Click name for an AI explainer
-                  </p>
-                </article>
-              );
-            })}
-          </div>
+                    <p className="skill-card__hint">
+                      Click name for an AI explainer
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onChange={setPage}
+              label="Skills pagination"
+            />
+          </>
         )}
       </div>
 

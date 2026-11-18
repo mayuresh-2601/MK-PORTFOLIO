@@ -1,5 +1,7 @@
 import {
   getAllProjects,
+  getProjectsPage,
+  countProjects,
   getProjectById,
   addProject,
   updateProject,
@@ -12,9 +14,15 @@ import {
   normalizeRequiredText,
 } from "../utils/validation.js";
 
+import {
+  buildPagination,
+  parsePagination,
+} from "../utils/pagination.js";
+
 const MAX_TITLE_LENGTH = 255;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_URL_LENGTH = 512;
+const PAGE_SIZE = 9;
 
 /*
    Get All Projects
@@ -22,11 +30,50 @@ const MAX_URL_LENGTH = 512;
 
 export const fetchProjects = async (req, res, next) => {
   try {
-    const projects = await getAllProjects();
+    const pagination = parsePagination(req.query, {
+      defaultLimit: PAGE_SIZE,
+    });
+
+    if (pagination.error) {
+      return res.status(400).json({
+        success: false,
+        message: pagination.error,
+      });
+    }
+
+    if (!pagination.paginated) {
+      const projects = await getAllProjects();
+
+      return res.status(200).json({
+        success: true,
+        count: projects.length,
+        total: projects.length,
+        page: 1,
+        limit: projects.length || PAGE_SIZE,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        data: projects,
+      });
+    }
+
+    const total = await countProjects();
+    const meta = buildPagination(
+      total,
+      pagination.page,
+      pagination.limit
+    );
+    const projects = await getProjectsPage(meta.limit, meta.offset);
 
     return res.status(200).json({
       success: true,
       count: projects.length,
+      total: meta.total,
+      page: meta.page,
+      limit: meta.limit,
+      totalPages: meta.totalPages,
+      hasNextPage: meta.hasNextPage,
+      hasPreviousPage: meta.hasPreviousPage,
       data: projects,
     });
   } catch (error) {

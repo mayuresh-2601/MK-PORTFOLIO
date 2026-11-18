@@ -1,5 +1,7 @@
 import {
   getCertificates,
+  getCertificatesPage,
+  countCertificates,
   getCertificateById,
   addCertificate,
   updateCertificate,
@@ -12,9 +14,15 @@ import {
   normalizeRequiredText,
 } from "../utils/validation.js";
 
+import {
+  buildPagination,
+  parsePagination,
+} from "../utils/pagination.js";
+
 const MAX_TITLE_LENGTH = 255;
 const MAX_ISSUER_LENGTH = 255;
 const MAX_URL_LENGTH = 512;
+const PAGE_SIZE = 9;
 
 /*
    Get All Certificates
@@ -22,11 +30,53 @@ const MAX_URL_LENGTH = 512;
 
 export const fetchCertificates = async (req, res, next) => {
   try {
-    const certificates = await getCertificates();
+    const pagination = parsePagination(req.query, {
+      defaultLimit: PAGE_SIZE,
+    });
+
+    if (pagination.error) {
+      return res.status(400).json({
+        success: false,
+        message: pagination.error,
+      });
+    }
+
+    if (!pagination.paginated) {
+      const certificates = await getCertificates();
+
+      return res.status(200).json({
+        success: true,
+        count: certificates.length,
+        total: certificates.length,
+        page: 1,
+        limit: certificates.length || PAGE_SIZE,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        data: certificates,
+      });
+    }
+
+    const total = await countCertificates();
+    const meta = buildPagination(
+      total,
+      pagination.page,
+      pagination.limit
+    );
+    const certificates = await getCertificatesPage(
+      meta.limit,
+      meta.offset
+    );
 
     return res.status(200).json({
       success: true,
       count: certificates.length,
+      total: meta.total,
+      page: meta.page,
+      limit: meta.limit,
+      totalPages: meta.totalPages,
+      hasNextPage: meta.hasNextPage,
+      hasPreviousPage: meta.hasPreviousPage,
       data: certificates,
     });
   } catch (error) {
