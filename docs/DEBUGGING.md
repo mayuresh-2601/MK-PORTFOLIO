@@ -61,7 +61,6 @@ Look for messages such as:
 Missing database environment variables: DB_HOST, DB_USER.
 ADMIN_EMAIL is required.
 ADMIN_PASSWORD_HASH is not a valid bcrypt hash.
-JWT_SECRET must be at least 32 characters in production.
 CLIENT_URL is required in production.
 ```
 
@@ -195,9 +194,9 @@ A disallowed origin intentionally receives no CORS headers, not a `500`.
 | `401 Invalid email or password.` | Exact email/hash or password; email is lowercased; password is not trimmed |
 | `400 Email and password are required.` | Empty field or wrong JSON type |
 | `429` | Auth limiter; wait 15 minutes or use a different network |
-| `500 Server configuration error.` | `JWT_SECRET` or `ADMIN_EMAIL` missing at runtime |
-| Login succeeds but dashboard redirects | Token not stored, or first API call returned `401` |
-| Old token stops working | `JWT_SECRET` or `ADMIN_EMAIL` changed; sign in again |
+| `500 Server configuration error.` | `ADMIN_EMAIL` or password configuration missing at runtime |
+| Login succeeds but dashboard redirects | Session cookie not stored, or first API call returned `401` |
+| Old session stops working | Session revoked, expired, idle-timed out, or `ADMIN_EMAIL` changed; sign in again |
 | Startup warns both password forms set | Remove `ADMIN_PASSWORD`; hash wins |
 
 Verify hash mode in logs:

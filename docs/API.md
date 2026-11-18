@@ -22,7 +22,7 @@
 | Format | JSON (`application/json`) except multipart uploads |
 | Base path | `/api` for application endpoints; `/` and `/api/health*` are operational |
 | Versioning | None; client and API are deployed together |
-| Auth | `Authorization: Bearer <JWT>` on protected routes |
+| Auth | HttpOnly session cookie + `X-CSRF-Token` on mutations; see [AUTHENTICATION.md](./AUTHENTICATION.md) |
 | Success envelope | `{ "success": true, ... }` |
 | Error envelope | `{ "success": false, "statusCode": <number>, "message": "...", "timestamp": "..." }` |
 | Dates | ISO 8601 strings in JSON |
@@ -46,6 +46,11 @@
 
 ## 2. Authentication
 
+Admin authentication uses an opaque, server-side session in an HttpOnly
+cookie. The response body never contains a bearer token, and the browser
+stores no credential. See [AUTHENTICATION.md](./AUTHENTICATION.md) for the
+full model and environment variables.
+
 ### Admin login
 
 `POST /api/auth/login`
@@ -54,25 +59,28 @@
 |---|---|
 | Auth | Public |
 | Rate limit | 10 failed attempts per 15 minutes per IP; successful requests are skipped |
-| Body | JSON `{ "email": string, "password": string }` |
+| Body | JSON `{ "email": string, "password": string, "totp"?: string }` |
 
 Request:
 
 ```json
 {
   "email": "admin@example.com",
-  "password": "<admin-password>"
+  "password": "<admin-password>",
+  "totp": "<6-digit code, only when MFA is enabled>"
 }
 ```
 
-Success `200`:
+Success `200` sets the session cookie (`__Host-portfolio_session` in
+production, `portfolio_session` over local HTTP) and returns:
 
 ```json
 {
   "success": true,
   "message": "Login successful.",
-  "token": "<jwt>",
-  "expiresIn": "12h",
+  "csrfToken": "<64 hex chars>",
+  "expiresAt": 1760000000000,
+  "mfaEnabled": false,
   "user": {
     "email": "admin@example.com",
     "role": "admin"
@@ -94,45 +102,41 @@ Notes:
 - The email is trimmed and lowercased; the password is not trimmed.
 - Types and lengths are validated before credential comparison.
 - Both email and password are always checked to reduce timing leakage.
-- The token is HS256, issuer `portfolio-api`, audience `portfolio-admin`, with `sub`, `email`, and `role: "admin"` claims.
-- Expiry comes from `JWT_EXPIRES_IN` (default `12h`).
-- There is no logout, refresh, or `me` endpoint. Logout is client-side token removal.
+- Sessions last 120 minutes absolute / 30 minutes idle by default.
+- `POST /api/auth/logout` revokes the current session; `POST /api/auth/logout-all` revokes every session.
 - There is no signup or password reset.
 
-### Protected request
+### Authenticated request
+
+The browser sends the session cookie automatically. State-changing requests
+(`POST`, `PUT`, `PATCH`, `DELETE`) must also send the session's CSRF token:
 
 ```http
-Authorization: Bearer <jwt>
+X-CSRF-Token: <csrfToken from login or GET /api/auth/session>
 ```
 
-Missing/invalid/expired token returns `401`:
+`GET /api/auth/session` returns the current `csrfToken` and `expiresAt`.
+A missing, expired, revoked, or idle session returns `401`:
 
 ```json
 {
   "success": false,
-  "message": "Authorization token is required."
+  "message": "Session expired. Please sign in again."
 }
 ```
 
-or
+A missing or mismatched CSRF token returns `403`:
 
 ```json
 {
   "success": false,
-  "message": "Invalid authentication token."
+  "code": "CSRF_TOKEN_INVALID",
+  "message": "Request verification failed. Refresh the page and try again."
 }
 ```
 
-or
-
-```json
-{
-  "success": false,
-  "message": "Authentication token has expired."
-}
-```
-
-A server misconfiguration (`JWT_SECRET` or `ADMIN_EMAIL` missing) returns `500` with a generic configuration error, never the missing value.
+A server misconfiguration (`ADMIN_EMAIL` or password configuration missing)
+returns `500` with a generic configuration error, never the missing value.
 
 ## 3. Rate limits
 
@@ -500,7 +504,7 @@ Admin. Returns all messages newest first.
 }
 ```
 
-Without a token: `401`. There is no pagination.
+Without a session: `401`. There is no pagination.
 
 ### `DELETE /api/messages/:id`
 
@@ -628,7 +632,7 @@ Security notes:
 | `200` | Success | Reads, updates, deletes, login, AI |
 | `201` | Created | Project/skill/certificate/message creation |
 | `400` | Bad request | Missing/invalid field, bad ID, unsupported file type, malformed JSON |
-| `401` | Unauthorized | Missing/invalid/expired token, bad credentials |
+| `401` | Unauthorized | Missing/invalid/expired session, bad credentials |
 | `404` | Not found | Unknown ID or route |
 | `413` | Payload too large | JSON body or upload exceeds limit |
 | `429` | Too many requests | Rate limit |
@@ -725,8 +729,7 @@ No inbound webhooks are implemented or required.
 | `ALLOW_VERCEL_PREVIEWS` | No | Allow preview origins |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Yes | Database connection |
 | `DB_SSL`, `DB_CONNECTION_LIMIT` | No | TLS/pool tuning |
-| `JWT_SECRET` | Yes | Token signing; ≥ 32 chars in production |
-| `JWT_EXPIRES_IN` | No | Session duration (default `12h`) |
+| `JWT_SECRET`, `JWT_EXPIRES_IN` | Retired | Ignored; startup warns if `JWT_SECRET` is still set |
 | `ADMIN_EMAIL` | Yes | Admin identity |
 | `ADMIN_PASSWORD_HASH` | Recommended | bcrypt hash |
 | `ADMIN_PASSWORD` | Local fallback | Plain secret; ≥ 12 chars; hash wins if both set |

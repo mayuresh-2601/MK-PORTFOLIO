@@ -110,8 +110,6 @@ DB_NAME=portfolio
 DB_SSL=false
 DB_CONNECTION_LIMIT=10
 
-JWT_SECRET=replace-with-a-long-random-string
-JWT_EXPIRES_IN=12h
 ADMIN_EMAIL=your-admin@example.com
 ADMIN_PASSWORD=replace-with-a-strong-password
 ```
@@ -337,7 +335,7 @@ Copy-Item .env.example .env
 Copy-Item server/.env.example server/.env
 ```
 
-3. Set `JWT_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` in `server/.env`. Compose overrides `DB_*`, so those values do not need to match the container.
+3. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `server/.env`. Compose overrides `DB_*`, so those values do not need to match the container.
 
 4. Build and start:
 

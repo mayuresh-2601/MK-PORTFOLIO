@@ -294,14 +294,12 @@ sequenceDiagram
     end
 ```
 
-### Token
+### Session
 
-- HS256 only.
-- Claims: `sub` = admin email, `email` = admin email, `role` = `admin`.
-- Issuer: `portfolio-api`; audience: `portfolio-admin`.
-- Expiry: `JWT_EXPIRES_IN`, default `12h`.
-- Verification re-checks algorithm, issuer, audience, role, email, and subject against the current environment.
-- Rotating `JWT_SECRET` or `ADMIN_EMAIL` invalidates existing tokens.
+- Opaque 32-byte random token in an HttpOnly cookie; only its SHA-256 hash is stored in `admin_sessions`.
+- Absolute lifetime 120 minutes, idle timeout 30 minutes (configurable).
+- State-changing requests require the session's CSRF token in `X-CSRF-Token`.
+- Logout, logout-all, expiry, idle timeout, and admin-email changes revoke immediately.
 
 ### Authorization boundaries
 
@@ -363,7 +361,7 @@ The context is a few paragraphs about one person. A vector database, embeddings 
 | Runtime | `NODE_ENV`, `PORT`, `HOST` | Production sets `NODE_ENV`; Render injects `PORT` |
 | CORS | `CLIENT_URL`, `ALLOW_VERCEL_PREVIEWS` | `CLIENT_URL` required in production |
 | Database | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL`, `DB_CONNECTION_LIMIT` | Required |
-| Auth | `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` (preferred) or `ADMIN_PASSWORD` | Required |
+| Auth | `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` (preferred) or `ADMIN_PASSWORD` | Required |
 | Cloudinary | `CLOUD_NAME`, `CLOUD_API_KEY`, `CLOUD_API_SECRET` | Optional |
 | Email | `EMAIL_USER`, `EMAIL_TRANSPORT`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `EMAIL_PASS` | Optional |
 | AI | `GEMINI_API_KEY` | Optional |
@@ -434,10 +432,10 @@ Principles:
 
 ### Accepted risks
 
-- JWT in `localStorage` (XSS impact) — accepted for now; HttpOnly cookie is an approval item.
+- Browser token storage — resolved: sessions use HttpOnly cookies; no token is kept in `localStorage`.
 - In-memory rate limiting — acceptable on one Render instance; not distributed.
 - Public telemetry — platform/node/commit/CPU/memory are intentionally exposed; hostname is not.
-- No MFA — single admin with a strong bcrypt hash and rate limiting; MFA is future work.
+- MFA — supported via optional TOTP; not enabled in the current deployment.
 - Cloudinary credential rotation — operational item tracked in [SECURITY_AUDIT.md](./SECURITY_AUDIT.md).
 
 ## 13. Testing approach

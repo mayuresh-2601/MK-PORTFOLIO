@@ -89,7 +89,7 @@ Approval is per server and per capability set. Adding a new tool to an approved 
 
 - Store secrets in the MCP client's secret mechanism or the OS credential store, not in a committed config file.
 - Use short-lived, scoped tokens where the provider supports them.
-- Never reuse the production `JWT_SECRET`, database password, Cloudinary secret, Gemini key, or Render API key.
+- Never reuse the production database password, Cloudinary secret, Gemini key, or Render API key.
 - Treat any secret printed in tool output as exposed and rotate it.
 
 ### 6.3 Network and supply chain

@@ -67,8 +67,6 @@ Required:
 | `DB_PASSWORD` | Secret |
 | `DB_NAME=portfolio` | Database name |
 | `DB_SSL=true` | TLS required |
-| `JWT_SECRET` | Long random string |
-| `JWT_EXPIRES_IN=12h` | Optional |
 | `ADMIN_EMAIL` | Real admin email |
 | `ADMIN_PASSWORD_HASH` | bcrypt hash (preferred) |
 
