@@ -103,7 +103,7 @@ The project is designed to demonstrate the engineering practices behind a real p
 
 > **Free-tier note:** the Render API may take 30-60 seconds to wake after a period of inactivity. The frontend uses a 60-second request timeout and shows a clear loading state while the API starts.
 >
-> **Last verified:** 18 November 2026 - seven CI jobs green, Render and Vercel healthy, all public pages and assets returning `200`, admin cookie-session login working, and a Gmail API notification confirmed in production.
+> **Last verified:** 19 November 2026 - seven CI jobs green, Render and Vercel healthy, all public pages and assets returning `200`, admin cookie-session login working, and a Gmail API notification confirmed in production.
 
 ---
 
@@ -149,7 +149,7 @@ All screenshots are captured from the live production deployment at **1440 x 900
 - **Accessibility-minded UI** - skip-to-content link, semantic headings, keyboard-trapped dialogs, visible focus states, and `prefers-reduced-motion` support.
 - **SEO and sharing** - per-route metadata, Open Graph tags, `robots.txt`, and `sitemap.xml`.
 - **Self-hosted fonts** - Inter and Space Mono are served from the bundle, so the site does not depend on Google Fonts at runtime.
-- **Resume download** - the public resume PDF is served from `client/public/`.
+- **Resume download** - `client/public/Mayuresh_Kasar_Resume.pdf` is served at `/Mayuresh_Kasar_Resume.pdf` (one page, 5.4 KB).
 
 ### AI-powered explanations
 
