@@ -1,7 +1,7 @@
 
 # Stage 1 - Build React Application
 
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 
 LABEL maintainer="Mayuresh Kasar"
 LABEL description="Portfolio App - React + Vite Frontend"
