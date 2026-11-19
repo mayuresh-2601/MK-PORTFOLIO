@@ -40,10 +40,12 @@ USER root
 # Apply Alpine security updates, install timezone data, and clear default
 # nginx files in a single layer. Upgrading in the image keeps the fixed OS
 # packages ahead of the base image's release cadence (Trivy scans the result).
-# The base image pins nginx, so request the patched package explicitly;
-# this fails the build rather than silently shipping the vulnerable version.
+# The base image pins nginx and four unused modules to the same patch level,
+# so drop the modules first and then request the patched nginx explicitly.
+# This fails the build rather than silently shipping the vulnerable version.
 # hadolint ignore=DL3018
 RUN apk upgrade --no-cache \
+    && apk del nginx-module-geoip nginx-module-image-filter nginx-module-njs nginx-module-xslt \
     && apk add --no-cache "nginx>=1.30.7-r0" tzdata \
     && rm -rf /usr/share/nginx/html/*
 
