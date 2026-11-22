@@ -14,11 +14,16 @@ import Projects from "./pages/public/Projects";
 import Certificates from "./pages/public/Certificates";
 import Contact from "./pages/public/Contact";
 import System from "./pages/public/System";
+import Blog from "./pages/public/Blog";
+import BlogPost from "./pages/public/BlogPost";
+import BlogTaxonomy from "./pages/public/BlogTaxonomy";
+import Tools from "./pages/tools/Tools";
 
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 
 import ProtectedRoute from "./components/protected/ProtectedRoute";
+import { trackPage } from "./lib/analytics";
 
 function NotFound() {
   return (
@@ -65,6 +70,10 @@ export default function App() {
     root.style.scrollBehavior = "auto";
     window.scrollTo(0, 0);
     root.style.scrollBehavior = previousBehavior;
+
+    // Route measurement for production: page paths only, never search
+    // strings or form fields.
+    trackPage(location.pathname);
   }, [location.pathname]);
 
   return (
@@ -86,6 +95,13 @@ export default function App() {
             <Route path="/certificates" element={<Certificates />} />
             <Route path="/system" element={<System />} />
             <Route path="/contact" element={<Contact />} />
+
+            {/* Growth: blog, developer tools */}
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPost />} />
+            <Route path="/blog/tag/:tag" element={<BlogTaxonomy />} />
+            <Route path="/blog/category/:category" element={<BlogTaxonomy />} />
+            <Route path="/tools" element={<Tools />} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminLogin />} />

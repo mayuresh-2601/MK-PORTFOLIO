@@ -12,6 +12,7 @@ import "@fontsource/space-mono/latin-700.css";
 
 import App from "./App";
 import "./index.css";
+import "./index.content.css";
 
 // Get the root element
 const rootElement = document.getElementById("root");

@@ -4,6 +4,7 @@ import api from "../../api/axios";
 import GithubIcon from "../../assets/GithubIcon";
 import LinkedinIcon from "../../assets/LinkedinIcon";
 import SEO from "../../components/common/SEO";
+import { trackEvent } from "../../lib/analytics";
 import { CONTACT_EMAIL, CONTACT_EMAIL_LINK } from "../../config/site";
 
 const contactRows = [
@@ -105,6 +106,8 @@ export default function Contact() {
           data?.message || "Your message has been sent successfully!",
       });
 
+      // Event only — the form contents are never sent.
+      trackEvent("contact_form_submitted", { status: "sent" });
       resetForm();
     } catch (error) {
       setStatus({

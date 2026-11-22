@@ -55,6 +55,7 @@ export default function SEO({
   image = DEFAULT_IMAGE,
   type = "website",
   noIndex = false,
+  jsonLd = null,
 }) {
   useEffect(() => {
     const url = `${SITE_URL}${path === "/" ? "" : path}`;
@@ -77,7 +78,20 @@ export default function SEO({
     upsertMeta("name", "twitter:image", { content: image });
 
     upsertCanonical(url);
-  }, [title, description, path, image, type, noIndex]);
+
+    // Structured data for articles. A single dynamic script is reused across
+    // route changes; the static homepage graph lives in index.html.
+    if (jsonLd) {
+      let element = document.head.querySelector('script[data-ld="dynamic"]');
+      if (!element) {
+        element = document.createElement("script");
+        element.type = "application/ld+json";
+        element.dataset.ld = "dynamic";
+        document.head.appendChild(element);
+      }
+      element.textContent = JSON.stringify(jsonLd);
+    }
+  }, [title, description, path, image, type, noIndex, jsonLd]);
 
   return null;
 }
