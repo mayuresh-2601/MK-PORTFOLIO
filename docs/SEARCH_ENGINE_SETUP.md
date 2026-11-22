@@ -98,3 +98,17 @@ description.
 After verifying in GSC and Bing, copy the evidence into
 `docs/SEARCH_ENGINE_SETUP.md` under "Verification evidence" (see the
 template in §5).
+
+# Verification evidence
+
+(Fill in after verifying in your accounts. No fabricated numbers.)
+
+## GSC
+- Sitemap submitted: ... date
+- Indexed pages (Coverage tab): ... pages
+- Manual indexing requests: [dates]
+
+## Bing Webmaster Tools
+- Sitemap submitted: ... date
+- RSS submitted: ... date
+

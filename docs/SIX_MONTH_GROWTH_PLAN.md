@@ -223,9 +223,9 @@ Reports are stored in `AUDIT/GROWTH_JOURNAL.md`.
 | Item | Status | Owner decision required |
 | --- | --- | --- |
 | GA4 enabling | Code ready, not enabled | Yes (see `docs/ANALYTICS_SETUP.md`) |
-| Blog drafts | 2 published | Yes — review |
-| `/tools` | Implemented, not yet linked in nav? (yes, linked) | No — should be linked |
-| Growth journal template | `AUDIT/GROWTH_JOURNAL.md` — to create | Yes — create file |
+| Blog drafts | 2 published (`how-i-built-my-full-stack-developer-portfolio`, `react-and-vite-architecture-for-a-portfolio-spa`) | Yes — review |
+| `/tools` | Implemented; linked in Navbar (`Navbar.jsx`) | Owner — can unlink if undesired |
+| Growth journal template | `AUDIT/GROWTH_JOURNAL.md` created | Yes — fill monthly |
 | Review cadence | Monthly growth journal + data update | Yes |
 
 ## 9. Next steps
