@@ -292,8 +292,10 @@ export const validateEnvironment = ({
     );
   }
 
-  const effectiveSameSite =
-    sameSite || (production ? "none" : "lax");
+  // The session cookie is first-party because the browser reaches the API
+  // through the site's own /api proxy. Match sessionConfig.js: Lax is the
+  // default in every environment, and `none` is an explicit opt-in.
+  const effectiveSameSite = sameSite || "lax";
 
   if (effectiveSameSite === "none" && !secureCookie) {
     errors.push(

@@ -189,6 +189,14 @@ test("SameSite=None without a Secure cookie is fatal", () => {
   );
 });
 
+test("production defaults to SameSite=Lax without requiring Secure", () => {
+  setEnv({ SESSION_COOKIE_SECURE: "false" });
+
+  const result = validateEnvironment({ production: true });
+
+  assert.deepEqual(result.errors, []);
+});
+
 test("the retired JWT secret only warns", () => {
   setEnv({
     JWT_SECRET:
