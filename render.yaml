@@ -48,10 +48,10 @@ services:
       - key: DB_CONNECTION_LIMIT
         value: "10"
 
-      # Auth — production uses a bcrypt hash, generated locally with:
+      # Auth — production requires a bcrypt hash, generated locally with:
       #   npm run hash-password -- "your-strong-password"
-      # ADMIN_PASSWORD remains supported for local development; if both are
-      # set, the hash wins.
+      # A plain ADMIN_PASSWORD is rejected when NODE_ENV=production. If both
+      # forms are present outside production, the hash wins.
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD_HASH

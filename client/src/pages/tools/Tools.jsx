@@ -52,7 +52,9 @@ export default function Tools() {
       <div className="section__inner">
         <div className="tool-head">
           <div className="reveal">
-            <p className="meta text-ink">Tools / 12</p>
+            <p className="meta text-ink">
+              Tools / {String(TOOL_DEFINITIONS.length).padStart(2, "0")}
+            </p>
             <h1 className="display section-title">Developer toolkit</h1>
           </div>
           <p className="meta text-ink reveal" style={{ "--delay": "100ms" }}>

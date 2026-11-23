@@ -117,11 +117,11 @@ export async function answerAboutMe(question) {
   const prompt = `A visitor on Mayuresh Kasar's portfolio asked: "${question}"
 
 Context about Mayuresh: He is a Full-Stack Developer skilled in React.js, Node.js, Express.js,
-JavaScript (ES6+), and MySQL/TiDB. He builds RESTful APIs with JWT authentication and MVC
-architecture, integrates Cloudinary and Nodemailer, and follows security best practices
-(bcrypt, Helmet, CORS). He is also developing DevOps skills — Linux (Ubuntu), Docker,
-Bash/shell scripting, and CI/CD with GitHub Actions. He holds a B.Sc. in Computer Science
-from the University of Mumbai (2024).
+JavaScript (ES6+), and MySQL/TiDB. He builds RESTful APIs with revocable HttpOnly cookie
+sessions, CSRF protection and MVC architecture, integrates Cloudinary and Nodemailer, and
+follows security best practices (bcrypt, Helmet, CORS, rate limiting). He is also developing
+DevOps skills — Linux (Ubuntu), Docker, Bash/shell scripting, and CI/CD with GitHub Actions.
+He holds a B.Sc. in Computer Science from the University of Mumbai (2024).
 
 Answer the visitor's question using only this context. If the question asks something not
 covered here (e.g. personal life, salary expectations, availability), politely say that's

@@ -70,6 +70,8 @@ The project is designed to demonstrate the engineering practices behind a real p
 - **Docker Compose stack** that runs the entire application locally, including the database.
 - **Seven-job GitHub Actions pipeline** that lints, tests, builds, deploys, and smoke-tests the live system.
 - **Live server telemetry** on `/system` showing real CPU, memory, uptime, AI availability, and deployment state.
+- **Technical blog and browser tools** - dependency-free articles, tag/category pages, and eight developer tools that run locally in the browser.
+- **Crawlable route documents** - every public route has its own title, description, canonical URL, JSON-LD and `<noscript>` summary at build time.
 - **Optional integrations** for Gmail notifications, Cloudinary uploads, and Google Gemini AI.
 
 ### At a glance
@@ -79,13 +81,13 @@ The project is designed to demonstrate the engineering practices behind a real p
 | Frontend | React 18, Vite 6, React Router 7, Tailwind CSS 4, Axios, Lucide |
 | Backend | Node.js 22, Express 5, MySQL2, bcryptjs, Helmet, CORS |
 | Database | TiDB Cloud / MySQL 8, `utf8mb4`, five relational tables |
-| Auth | Single admin identity, bcrypt password, HttpOnly cookie session, CSRF protection, optional TOTP MFA |
+| Auth | Single admin identity, bcrypt hash required in production, HttpOnly cookie session, CSRF protection, optional TOTP MFA |
 | Uploads | Cloudinary, in-memory Multer buffer, 5 MB image limit |
 | Email | Gmail API over HTTPS (Render-compatible) or Gmail SMTP |
 | AI | Google Gemini `gemini-3.5-flash-lite` |
 | Local stack | Docker Compose: React + Nginx, Express, MySQL |
 | Delivery | GitHub Actions -> Render deploy hook + Vercel Git integration |
-| Documentation | README, deployment guide, email setup, fixes, restore notes, SECURITY_OPERATIONS.md |
+| Documentation | README, deployment, authentication, SEO, threat model, scale, resilience, compliance, and operations guides |
 
 ---
 
@@ -103,7 +105,9 @@ The project is designed to demonstrate the engineering practices behind a real p
 
 > **Free-tier note:** the Render API may take 30-60 seconds to wake after a period of inactivity. The frontend uses a 60-second request timeout and shows a clear loading state while the API starts.
 >
-> **Last verified:** 19 November 2026 - seven CI jobs green, Render and Vercel healthy, all public pages and assets returning `200`, admin cookie-session login working, and a Gmail API notification confirmed in production.
+> **Last production verification:** 19 November 2026 - seven CI jobs green, Render and Vercel healthy, all public pages and assets returning `200`, admin cookie-session login working, and a Gmail API notification confirmed in production.
+>
+> **Repository checks:** 23 November 2026 - 119 server tests, 29 client tests, lint, production build, 22 sitemap URLs, and local clean-URL/404 checks passed. See [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md) for the labelled evidence.
 
 ---
 
@@ -141,15 +145,25 @@ All screenshots are captured from the live production deployment at **1440 x 900
 
 ### Public portfolio
 
-- **Seven routes** - Home, About, Skills, Projects, Certificates, System, and Contact.
+- **Public routes** - Home, About, Skills, Projects, Certificates, System, Contact, Blog, Tools, Privacy, Terms, and Accessibility.
 - **Database-driven content** - project cards, skill levels, certificate artwork, and the contact form all use the API, not hardcoded arrays.
 - **Shareable pagination** - projects, skills, and certificates page through the API nine items at a time; the current page lives in `?page=` so links and browser history work.
 - **Kinetic Brutalism design** - acid/ink/pink palette, hard borders, offset shadows, marquee, count-up statistics, and scroll reveals.
 - **Responsive layout** - desktop, tablet, and mobile navigation with a full-screen menu.
 - **Accessibility-minded UI** - skip-to-content link, semantic headings, keyboard-trapped dialogs, visible focus states, and `prefers-reduced-motion` support.
-- **SEO and sharing** - per-route metadata, Open Graph tags, `robots.txt`, and `sitemap.xml`.
+- **SEO and sharing** - build-time route documents with per-route title, description, canonical, Open Graph, Twitter and JSON-LD metadata; `sitemap.xml`, `rss.xml`, `llms.txt`, `robots.txt`, `manifest.json` and `/.well-known/security.txt`.
+- **Real 404s** - Vercel `cleanUrls` serves directory indexes and an unknown path returns `404.html` with HTTP 404, not a soft 404.
 - **Self-hosted fonts** - Inter and Space Mono are served from the bundle, so the site does not depend on Google Fonts at runtime.
 - **Resume download** - `client/public/Mayuresh_Kasar_Resume.pdf` is served at `/Mayuresh_Kasar_Resume.pdf` (one page, 5.4 KB).
+
+### Technical blog and developer tools
+
+- **Dependency-free blog** - structured JavaScript content blocks rendered to safe React elements; no Markdown parser and no `dangerouslySetInnerHTML`.
+- **Two published articles** - a full-stack architecture walkthrough and a React/Vite SPA architecture article, both grounded in this repository.
+- **Taxonomy and search** - tag and category pages use slug matching, and search is scoped to the current taxonomy.
+- **Eight browser tools** - JSON formatter/validator, Base64, URL and HTML codecs, regex tester, JWT decoder, CSS gradient builder, and HTTP status reference.
+- **Local-only JWT decoding** - the tool never transmits or stores a token and clearly states that it does not verify the signature.
+- **Tested pure logic** - `client/tests/devtools.test.js`, `taxonomy.test.js`, and `seo-build.test.js` run with Node's built-in test runner.
 
 ### AI-powered explanations
 
@@ -227,7 +241,7 @@ flowchart LR
     end
 
     subgraph Frontend["Vercel"]
-        V["React 18 + Vite 6<br/>Static build + SPA rewrites"]
+        V["React 18 + Vite 6<br/>Route documents + clean URLs"]
     end
 
     subgraph Backend["Render"]
@@ -258,15 +272,15 @@ flowchart LR
     R -->|"HTTPS"| AI
 ```
 
-The browser loads the static bundle from Vercel and calls the Render API directly via same-origin `/api`. Cookies are set with `HttpOnly`, `Secure` (production), and `SameSite` attributes; state-changing requests require a matching `X-CSRF-Token`.
+The browser loads the static bundle from Vercel and calls the Render API through same-origin `/api`. Cookies are `HttpOnly`, `Secure` in production and `SameSite=Lax` because the API is first-party; state-changing requests require a matching `X-CSRF-Token`.
 
 ### Request flow
 
-1. Vercel serves the static React bundle and rewrites every SPA route to `index.html`.
-2. The browser calls the same-origin `/api` endpoint (or `VITE_API_BASE_URL` in the split Vercel/Render deployment).
+1. Vercel serves a route-specific static document (for example `about/index.html` for `/about`) with clean URLs. Unknown paths get `404.html`.
+2. The browser hydrates the React app and calls the same-origin `/api` endpoint (or `VITE_API_BASE_URL` in the split Vercel/Render deployment).
 3. Express applies CORS, Helmet, JSON parsing, rate limiting, and route handlers. Every state-changing request requires `X-CSRF-Token` matching the session value; Origin/Referer are enforced for production calls.
 4. Public reads come from TiDB; admin writes use the cookie-based session (no Bearer token in the Authorization header).
-5. Contact messages are inserted first, then a Gmail notification is attempted.
+5. Contact messages are inserted first, then a Gmail notification is attempted. An optional attachment passes through Cloudinary temporarily and is deleted after the send attempt.
 6. `/api/system` reads live process and host metrics directly from Node.js.
 
 ### Local Docker architecture
@@ -287,17 +301,22 @@ flowchart LR
 ```text
 MK-PORTFOLIO/
 |-- client/                     React + Vite frontend
-|   |-- public/                 Resume, profile image, robots.txt, sitemap.xml
+|   |-- public/                 Resume, profile images, robots.txt, manifest, security.txt
+|   |-- scripts/build-seo.mjs   Route documents, sitemap, RSS, llms.txt, 404
 |   |-- src/
 |   |   |-- api/                Axios instance and API helpers
-|   |   |-- components/         Navbar, footer, SEO, AI modal, stats, reveal hooks
+|   |   |-- components/         Navbar, footer, SEO, legal layout, AI modal, stats
+|   |   |-- content/posts/      Structured blog content blocks
 |   |   |-- hooks/              Scroll-reveal and shared UI hooks
-|   |   |-- pages/public/       Home, About, Skills, Projects, Certificates, System, Contact
+|   |   |-- lib/                Blog, taxonomy, analytics and developer-tool logic
+|   |   |-- pages/public/       Public pages, blog, policies
+|   |   |-- pages/tools/        Browser-based developer tools
 |   |   |-- pages/admin/        AdminLogin, AdminDashboard
 |   |   `-- index.css           Design system and Kinetic Brutalism styles
+|   |-- tests/                  Node test suites for pure client logic
 |   |-- Dockerfile              Multi-stage Node build -> Nginx
 |   |-- nginx.conf              SPA routing, CSP, gzip, /api proxy
-|   |-- vercel.json             Security headers, caching, SPA rewrites
+|   |-- vercel.json             Clean URLs, security headers, caching, /api rewrite
 |   `-- vite.config.js          Dev/preview proxy configuration
 |-- server/                     Express API
 |   |-- config/                 Database, Cloudinary, email, environment validation
@@ -308,9 +327,11 @@ MK-PORTFOLIO/
 |   |-- scripts/                DB lifecycle, password hash, Gmail auth, email tests
 |   |-- services/               Gemini integration
 |   |-- tests/                  Node test runner suites
+|   |-- utils/sessionState.js   Pure session allow/reject/revoke decision
 |   |-- Dockerfile              Production API image
 |   `-- server.js               Express bootstrap and graceful shutdown
 |-- docs/                       Screenshots and operational documentation
+|-- AUDIT/                      Growth, security and run reports
 |-- .github/workflows/          Seven-job CI/CD pipeline
 |-- docker-compose.yml          Full local stack
 |-- render.yaml                 Render blueprint
@@ -370,10 +391,11 @@ DB_NAME=portfolio
 DB_SSL=true
 
 ADMIN_EMAIL=your-admin@example.com
+# Local development only. Production rejects this variable.
 ADMIN_PASSWORD='replace-with-a-long-unique-password'
-# Preferred in production: generate a bcrypt hash with
+# Production requires a bcrypt hash:
 #   npm run hash-password -- "your-password"
-# and set ADMIN_PASSWORD_HASH instead of ADMIN_PASSWORD.
+# then set ADMIN_PASSWORD_HASH and remove ADMIN_PASSWORD.
 ```
 
 Create the schema and load the baseline content:
@@ -424,6 +446,7 @@ Open <http://localhost:5173>. The admin portal is at <http://localhost:5173/admi
 ```bash
 # Frontend
 cd client
+npm test
 npm run lint
 npm run build
 
@@ -497,14 +520,14 @@ Only `VITE_*` variables are public. Vite embeds them in the browser bundle, so t
 | `DB_SSL` | Yes | `true` for TiDB Cloud, `false` for the local Docker MySQL container. |
 | `DB_CONNECTION_LIMIT` | No | Pool size. Defaults to `10`; capped at `20`. |
 | `ADMIN_EMAIL` | Yes | The single admin email allowed to log in. |
-| `ADMIN_PASSWORD_HASH` | Preferred | bcrypt hash generated with `npm run hash-password`. Wins when both password options are set. |
-| `ADMIN_PASSWORD` | Fallback | Plain-text admin password, 12+ characters. Use only when a hash is not available. |
+| `ADMIN_PASSWORD_HASH` | Yes in production | bcrypt hash generated with `npm run hash-password`. Required in production. |
+| `ADMIN_PASSWORD` | Local development only | Plain-text password, 12+ characters. Rejected at startup and at login when `NODE_ENV=production`. |
 | `ADMIN_TOTP_SECRET` | No | Base32 secret; when set, password alone cannot create a session. Generated with `npm run mfa:setup`. |
 | `SESSION_TTL_MINUTES` | No | Absolute session lifetime, 5-1440 minutes. Defaults to `120`. |
 | `SESSION_IDLE_MINUTES` | No | Idle timeout, 5-1440 minutes and no longer than the absolute lifetime. Defaults to `30`. |
 | `SESSION_RETENTION_DAYS` | No | Days to keep expired/revoked session rows before cleanup. Defaults to `7`. |
 | `SESSION_COOKIE_SECURE` | No | Defaults to `true` in production. Secure cookies require HTTPS. |
-| `SESSION_COOKIE_SAMESITE` | No | Defaults to `none` in production; `lax` is safe when cookies are first-party. |
+| `SESSION_COOKIE_SAMESITE` | No | Defaults to `lax` in every environment because `/api` is same-origin. `none` is an explicit opt-in for a cross-site API. |
 | `EMAIL_USER` | No | Gmail account that sends notifications. |
 | `GMAIL_CLIENT_ID` | No | Google OAuth Desktop client ID. |
 | `GMAIL_CLIENT_SECRET` | No | Google OAuth Desktop client secret. |
@@ -514,6 +537,7 @@ Only `VITE_*` variables are public. Vite embeds them in the browser bundle, so t
 | `CLOUD_NAME` | No | Cloudinary cloud name. Uploads return `503` until configured. |
 | `CLOUD_API_KEY` | No | Cloudinary API key. |
 | `CLOUD_API_SECRET` | No | Cloudinary API secret. |
+| `UPLOAD_TIMEOUT_MS` | No | Abort a stalled Cloudinary upload after this many milliseconds. Defaults to `30000`; returns `504`. |
 | `GEMINI_API_KEY` | No | Google Gemini API key. AI endpoints return `502` until configured. |
 | `AI_ENABLED` | No | Set `false` to disable the AI endpoints. Defaults to `true`. |
 | `AI_DAILY_LIMIT` | No | Per-IP daily AI budget. Defaults to `50`; counters are in-memory and reset on restart. |
@@ -521,7 +545,7 @@ Only `VITE_*` variables are public. Vite embeds them in the browser bundle, so t
 | `CLAMAV_HOST` | No | Optional ClamAV host. When set, uploads fail closed if the scanner is unreachable. |
 | `CLAMAV_PORT` | No | ClamAV port. Defaults to `3310`. |
 
-\* `ADMIN_PASSWORD_HASH` is preferred. Set `ADMIN_PASSWORD` only as a fallback; at least one is required.
+\* Production requires `ADMIN_PASSWORD_HASH`. `ADMIN_PASSWORD` is a local-development fallback only and is fatal in production.
 
 ---
 
@@ -859,11 +883,11 @@ The pipeline runs on every push and pull request to `main`, plus manual dispatch
 |---|---|---|
 | 1 | **Repository Hygiene** | No `.env` files, secrets, `node_modules`, `dist`, or build output are tracked |
 | 2 | **Server Syntax & Tests** | Node syntax checks and the server test suite |
-| 3 | **Client Lint & Build** | ESLint and a production Vite build |
+| 3 | **Client Tests, Lint & Build** | Node tests, ESLint, and a production build that emits route documents and 22 sitemap URLs |
 | 4 | **Lint Dockerfiles** | All three Dockerfiles pass Hadolint |
 | 5 | **Build & Test Full Stack** | Builds the compose stack, starts MySQL/API/Nginx, verifies schema and seed data, tests API/auth/update endpoints, and serves the frontend |
 | 6 | **Deploy API to Render** | Triggers a Render deploy hook for the pushed commit and waits for `/api/system` to report it live |
-| 7 | **Production Smoke Tests** | Checks Render health/readiness, public endpoints, CORS, admin auth, Vercel routes, security headers, `robots.txt`, and `sitemap.xml` |
+| 7 | **Production Smoke Tests** | Checks Render health/readiness, public endpoints, CORS, admin auth, Vercel routes, security headers, `robots.txt`, `sitemap.xml`, `rss.xml`, `llms.txt`, and a real 404 |
 
 The Docker job also proves the SQL files are database-name independent by applying them to a second database (`portfolio_alt`) and checking the row counts.
 
@@ -901,7 +925,7 @@ Render's native GitHub integration is intentionally disabled (`autoDeploy: false
 VITE_API_BASE_URL=https://mk-portfolio-api.onrender.com
 ```
 
-7. Deploy. The `client/vercel.json` file supplies SPA rewrites, security headers, and asset caching rules.
+7. Deploy. `client/vercel.json` supplies clean URLs, security headers, asset caching and the `/api` rewrite. `client/scripts/build-seo.mjs` generates the route documents, sitemap, RSS, `llms.txt` and 404 page.
 
 ### API -> Render
 
@@ -912,7 +936,7 @@ VITE_API_BASE_URL=https://mk-portfolio-api.onrender.com
 5. Health check path: `/api/health`.
 6. Add the variables from `server/.env.example` in the Render dashboard. At minimum:
    - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL`
-   - `ADMIN_PASSWORD_HASH` (or leave `ADMIN_PASSWORD` as fallback)
+   - `ADMIN_PASSWORD_HASH` (required; a plain `ADMIN_PASSWORD` stops startup)
    - `ADMIN_EMAIL`
    - `CLIENT_URL`
    - `ALLOW_VERCEL_PREVIEWS` (optional)
@@ -942,8 +966,8 @@ Configure the database first, then the API, then point the frontend at the API. 
 
 ## Security
 
-- **One admin identity** - only the exact `ADMIN_EMAIL` plus `ADMIN_PASSWORD_HASH` (or `ADMIN_PASSWORD` as fallback) from the server environment can log in.
-- **Timing-safe credential checks** - the plain-text path hashes both values with SHA-256 and uses `crypto.timingSafeEqual`; the bcrypt path uses `bcrypt.compare`.
+- **One admin identity** - only the exact `ADMIN_EMAIL` plus `ADMIN_PASSWORD_HASH` from the server environment can log in in production. A plain `ADMIN_PASSWORD` is rejected at startup and at login.
+- **Timing-safe credential checks** - bcrypt is used in production; the local plain-text fallback hashes both values with SHA-256 and uses `crypto.timingSafeEqual`.
 - **Cookie-session auth** - sessions are opaque random tokens in HttpOnly cookies; only SHA-256 hashes are stored in DB. Optional TOTP MFA via `ADMIN_TOTP_SECRET` requires a code at login.
 - **Login throttling** - 10 failed attempts per 15 minutes per resolved client IP.
 - **CORS allowlist** - `CLIENT_URL` contains exact production origins. Vercel previews are opt-in through `ALLOW_VERCEL_PREVIEWS`.
@@ -969,7 +993,8 @@ If you find a security issue, please open a private report through GitHub or con
 | Contact message saved but no email | Gmail variables are missing or invalid | Follow [Email Notifications](#email-notifications) and check Render logs |
 | `Email is not configured` in Render logs | Expected until the five Gmail variables are present | Configure Gmail API; messages are still saved |
 | API cannot connect to TiDB | Wrong port, SSL, or credentials | Use port `4000`, `DB_SSL=true`, and verify the TiDB user |
-| Admin login returns `401` | Email/password mismatch | Check `ADMIN_EMAIL` and `ADMIN_PASSWORD` or the bcrypt hash |
+| Admin login returns `401` | Email/password mismatch | Check `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH`; plain `ADMIN_PASSWORD` is rejected in production |
+| API refuses to start: plain admin password | `ADMIN_PASSWORD` set in production | Generate a hash, set `ADMIN_PASSWORD_HASH`, remove `ADMIN_PASSWORD` |
 | Local site calls the Render API | `client/.env` still contains a production URL | Set `VITE_API_BASE_URL=` empty and rebuild |
 | Docker MySQL starts without tables | Old image or existing volume | `docker compose build --no-cache db` then `docker compose down -v` |
 | Docker cannot find the daemon | Docker Desktop is stopped | Start Docker Desktop and wait for the engine |
@@ -1002,8 +1027,10 @@ GEMINI_API_KEY is not configured - AI endpoints return 502.
 | Command | Location | Purpose |
 |---|---|---|
 | `npm run dev` | `client/` | Start the Vite dev server |
-| `npm run build` | `client/` | Production build |
+| `npm run build` | `client/` | Production build plus route documents, sitemap, RSS and llms.txt |
 | `npm run lint` | `client/` | ESLint |
+| `npm test` | `client/` | Client unit tests |
+| `npm run seo:build` | `client/` | Regenerate SEO artefacts from an existing `dist` |
 | `npm run dev` | `server/` | Start the API with file watching |
 | `npm test` | `server/` | Run server tests |
 | `npm run check` | `server/` | Syntax check |
@@ -1027,14 +1054,22 @@ GEMINI_API_KEY is not configured - AI endpoints return 502.
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, request flow, and module boundaries |
 | [docs/API.md](docs/API.md) | Full endpoint reference and response shapes |
-| [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) | Cookie sessions, CSRF, MFA, and session lifecycle |
+| [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) | Cookie sessions, CSRF, MFA, production hash requirement, and session lifecycle |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step Vercel, Render, TiDB, and GitHub Actions setup |
+| [docs/SEO_SETUP.md](docs/SEO_SETUP.md) | Route documents, sitemap, RSS, llms.txt, robots, clean URLs and 404s |
+| [docs/TESTING.md](docs/TESTING.md) | Server/client test layers, build proof, manual and production checks |
+| [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Assets, actors, threats, controls and residual risks |
+| [docs/SCALE.md](docs/SCALE.md) | Capacity model, bottlenecks, measurement plan and action thresholds |
+| [docs/RESILIENCE.md](docs/RESILIENCE.md) | Failure matrix, graceful degradation, recovery and known gaps |
+| [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy, cookies, accessibility and AI disclosure notes |
+| [docs/DATA_RETENTION.md](docs/DATA_RETENTION.md) | What is stored, retention schedule and deletion requests |
 | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Gmail API OAuth, Cloudinary, Gemini, and deployment integrations |
 | [docs/SECURITY_OPERATIONS.md](docs/SECURITY_OPERATIONS.md) | Secret rotation, incident response, and operational checks |
 | [docs/DEBUGGING.md](docs/DEBUGGING.md) | Common failures, logs, and Gmail-specific errors |
 | [docs/FINAL_PRODUCTION_AUDIT.md](docs/FINAL_PRODUCTION_AUDIT.md) | Production audit evidence, fixes, and remaining warnings |
 | [docs/PROJECT_SETUP.md](docs/PROJECT_SETUP.md) | Local setup, environment files, and verification |
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Delivered phases and implementation status |
+| [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md) | Final run evidence, FAIL/BLOCKED items and owner actions |
 
 ---
 
@@ -1052,7 +1087,7 @@ git checkout -b feature/your-feature
 3. Make your changes and run the checks:
 
 ```bash
-cd client && npm run lint && npm run build
+cd client && npm test && npm run lint && npm run build
 cd ../server && npm run check && npm test
 ```
 

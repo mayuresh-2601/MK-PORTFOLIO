@@ -2,10 +2,20 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import SEO from "../../components/common/SEO";
 import BlogCard from "../../components/blog/BlogCard";
-import { allCategories, postsByCategory, postsByTag, searchPosts, tagSlug } from "../../lib/blog";
+import {
+  allCategories,
+  postsByCategory,
+  postsByTag,
+  searchPosts,
+  tagSlug,
+} from "../../lib/blog";
+import {
+  categoryNameForSlug,
+  tagNameForSlug,
+} from "../../lib/taxonomy";
 
 export default function BlogTaxonomy() {
-  const { tag, category, slug } = useParams();
+  const { tag, category } = useParams();
   const [query, setQuery] = useState("");
 
   const mode = category ? "category" : "tag";
@@ -16,21 +26,29 @@ export default function BlogTaxonomy() {
     [mode, category, tag]
   );
 
-  const results = useMemo(() => searchPosts(query), [query]);
-  const visible = query ? results : allPosts;
+  const displayName =
+    mode === "category"
+      ? categoryNameForSlug(allPosts, category || "")
+      : tagNameForSlug(allPosts, tag || "");
+
+  // The search box filters within the current taxonomy, not the whole blog.
+  const visible = useMemo(
+    () => (query ? searchPosts(query, allPosts) : allPosts),
+    [query, allPosts]
+  );
 
   return (
     <section className="page page-section grid-acid">
       <SEO
         title={
           mode === "category"
-            ? `${category} Articles | Mayuresh Kasar — Full Stack Developer`
-            : `${tag || slug} Tag | Mayuresh Kasar — Full Stack Developer`
+            ? `${displayName} Articles | Mayuresh Kasar — Full Stack Developer`
+            : `${displayName} Tag | Mayuresh Kasar — Full Stack Developer`
         }
         description={
           mode === "category"
-            ? `Technical articles about ${category || ""} development.`
-            : `Technical articles tagged "${tag || slug}".`
+            ? `Technical articles about ${displayName} development.`
+            : `Technical articles tagged "${displayName}".`
         }
         path={
           mode === "category" ? `/blog/category/${category}` : `/blog/tag/${tag}`
@@ -42,7 +60,7 @@ export default function BlogTaxonomy() {
           <div className="reveal">
             <p className="meta text-ink">Blog / 04</p>
             <h1 className="display section-title">
-              {mode === "category" ? category : `#${tag}`}
+              {mode === "category" ? displayName : `#${displayName}`}
             </h1>
           </div>
           <p className="meta text-ink reveal" style={{ "--delay": "100ms" }}>
@@ -60,7 +78,7 @@ export default function BlogTaxonomy() {
               <li key={name}>
                 <Link
                   to={`/blog/category/${tagSlug(name)}`}
-                  className={`blog-taxonomy-crumb${name === category ? " is-active" : ""}`}
+                  className={`blog-taxonomy-crumb${tagSlug(name) === category ? " is-active" : ""}`}
                 >
                   {name} <span>({count})</span>
                 </Link>

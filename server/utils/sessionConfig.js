@@ -55,17 +55,19 @@ export const getSessionConfig = () => {
     production
   );
 
+  // The browser always talks to the API through the site's own origin
+  // (`/api` is proxied by Vercel, Nginx, or Vite), so the session cookie is
+  // first-party. SameSite=Lax is therefore the safe default in every
+  // environment. A cross-site API deployment must opt in to `none` explicitly.
   const requestedSameSite = String(
-    process.env.SESSION_COOKIE_SAMESITE || (production ? "none" : "lax")
+    process.env.SESSION_COOKIE_SAMESITE || "lax"
   )
     .trim()
     .toLowerCase();
 
   const sameSite = VALID_SAME_SITE.has(requestedSameSite)
     ? requestedSameSite
-    : production
-      ? "none"
-      : "lax";
+    : "lax";
 
   // A SameSite=None cookie without Secure is rejected by browsers. Failing
   // loudly here is safer than issuing a cookie that silently never persists.

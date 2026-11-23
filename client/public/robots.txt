@@ -1,8 +1,21 @@
 User-agent: *
 Allow: /
-
-# Private admin area — keep it out of search results.
 Disallow: /admin
 Disallow: /admin/
+Disallow: /api/
+
+# AI and answer-engine crawlers may read public content so the owner's work
+# can be summarised and cited. The private admin area and API stay excluded.
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: PerplexityBot
+User-agent: Google-Extended
+User-agent: CCBot
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
 
 Sitemap: https://mk-portfolio-phi-silk.vercel.app/sitemap.xml
+# Structured site summary for language models: https://mk-portfolio-phi-silk.vercel.app/llms.txt

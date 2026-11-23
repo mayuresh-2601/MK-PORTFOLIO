@@ -53,7 +53,7 @@ test("defaults are short-lived and suitable for local HTTP", () => {
   assert.equal(config.cookieName, "portfolio_session");
 });
 
-test("production defaults to Secure, SameSite=None, __Host- cookie", () => {
+test("production defaults to Secure, SameSite=Lax, __Host- cookie", () => {
   const config = getSessionConfig();
 
   process.env.NODE_ENV = "production";
@@ -61,9 +61,16 @@ test("production defaults to Secure, SameSite=None, __Host- cookie", () => {
   const production = getSessionConfig();
 
   assert.equal(production.secure, true);
-  assert.equal(production.sameSite, "none");
+  assert.equal(production.sameSite, "lax");
   assert.equal(production.cookieName, "__Host-portfolio_session");
   assert.notEqual(config.cookieName, production.cookieName);
+});
+
+test("SameSite=None requires an explicit opt-in and Secure", () => {
+  process.env.NODE_ENV = "production";
+  process.env.SESSION_COOKIE_SAMESITE = "none";
+
+  assert.equal(getSessionConfig().sameSite, "none");
 });
 
 test("custom lifetimes are applied", () => {
@@ -125,7 +132,7 @@ test("an unknown SameSite value falls back safely", () => {
 
   process.env.NODE_ENV = "production";
 
-  assert.equal(getSessionConfig().sameSite, "none");
+  assert.equal(getSessionConfig().sameSite, "lax");
 });
 
 test("the secure cookie flag can be explicitly disabled for CI", () => {

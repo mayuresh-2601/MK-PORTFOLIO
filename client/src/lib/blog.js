@@ -7,19 +7,16 @@
  * no extra dependency). `import.meta.glob` is provided by Vite.
  */
 
+import {
+  matchesCategory,
+  matchesTag,
+  slugify,
+} from "./taxonomy.js";
+
 const postModules = import.meta.glob("../content/posts/*.js", {
   eager: true,
   import: "default",
 });
-
-const slugify = (value) =>
-  String(value)
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
 
 const blockText = (block) => {
   switch (block.type) {
@@ -108,10 +105,10 @@ export const allCategories = () => {
 };
 
 export const postsByTag = (tag) =>
-  POSTS.filter((post) => post.tags.includes(tag));
+  POSTS.filter((post) => matchesTag(post, tag));
 
 export const postsByCategory = (category) =>
-  POSTS.filter((post) => post.category === category);
+  POSTS.filter((post) => matchesCategory(post, category));
 
 export const relatedPosts = (post, limit = 2) =>
   POSTS.filter((candidate) => candidate.slug !== post.slug)
@@ -137,10 +134,10 @@ export const extractHeadings = (blocks = []) =>
       level: block.type === "h2" ? 2 : 3,
     }));
 
-export const searchPosts = (query) => {
+export const searchPosts = (query, posts = POSTS) => {
   const needle = String(query || "").trim().toLowerCase();
-  if (!needle) return POSTS;
-  return POSTS.filter((post) => {
+  if (!needle) return posts;
+  return posts.filter((post) => {
     const haystack = [
       post.title,
       post.description,

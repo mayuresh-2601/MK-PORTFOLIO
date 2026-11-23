@@ -80,16 +80,19 @@ export default function SEO({
     upsertCanonical(url);
 
     // Structured data for articles. A single dynamic script is reused across
-    // route changes; the static homepage graph lives in index.html.
+    // route changes; the static homepage graph lives in index.html. When a
+    // route has no JSON-LD, remove the previous route's script so an article
+    // graph cannot linger on an unrelated page.
+    const existing = document.head.querySelector('script[data-ld="dynamic"]');
+
     if (jsonLd) {
-      let element = document.head.querySelector('script[data-ld="dynamic"]');
-      if (!element) {
-        element = document.createElement("script");
-        element.type = "application/ld+json";
-        element.dataset.ld = "dynamic";
-        document.head.appendChild(element);
-      }
+      const element = existing || document.createElement("script");
+      element.type = "application/ld+json";
+      element.dataset.ld = "dynamic";
       element.textContent = JSON.stringify(jsonLd);
+      if (!existing) document.head.appendChild(element);
+    } else if (existing) {
+      existing.remove();
     }
   }, [title, description, path, image, type, noIndex, jsonLd]);
 

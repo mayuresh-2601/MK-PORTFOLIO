@@ -9,10 +9,12 @@ import {
   getSessionConfig,
   readSessionCookie,
 } from "../utils/sessionConfig.js";
+import { sha256 } from "../utils/security.js";
 import {
-  safeEqual,
-  sha256,
-} from "../utils/security.js";
+  SESSION_ACTIONS,
+  SESSION_STATES,
+  evaluateSession,
+} from "../utils/sessionState.js";
 import {
   requestContext,
   securityError,
@@ -32,7 +34,6 @@ import { getClientIp } from "../utils/clientIp.js";
    header is the second.
 */
 
-const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const TOUCH_INTERVAL_MS = 60 * 1000;
 
 const rejectSession = (res, config, reason, req) => {
@@ -63,67 +64,45 @@ export const protect = async (req, res, next) => {
 
     const tokenHash = sha256(token);
     const session = await findSessionByToken(tokenHash);
-
-    if (!session) {
-      return rejectSession(res, config, "not_found", req);
-    }
-
     const now = Date.now();
-    const expiresAt = Number(session.expires_at);
-    const lastSeenAt = Number(session.last_seen_at);
-
-    if (session.revoked_at) {
-      return rejectSession(res, config, "revoked", req);
-    }
-
-    if (!Number.isFinite(expiresAt) || now >= expiresAt) {
-      await revokeSession(tokenHash, now);
-      return rejectSession(res, config, "expired", req);
-    }
-
-    if (
-      !Number.isFinite(lastSeenAt) ||
-      now - lastSeenAt > config.idleMs
-    ) {
-      await revokeSession(tokenHash, now);
-      return rejectSession(res, config, "idle_timeout", req);
-    }
-
     const adminConfig = getAdminAuthConfig();
 
-    if (!adminConfig.email || session.admin_email !== adminConfig.email) {
+    const decision = evaluateSession({
+      session,
+      now,
+      idleMs: config.idleMs,
+      adminEmail: adminConfig.email,
+      method: req.method,
+      submittedCsrf: String(req.get("x-csrf-token") || "").trim(),
+    });
+
+    if (decision.action === SESSION_ACTIONS.REVOKE_AND_REJECT) {
       await revokeSession(tokenHash, now);
-      return rejectSession(res, config, "admin_changed", req);
     }
 
-    if (!SAFE_METHODS.has(String(req.method || "").toUpperCase())) {
-      const submittedCsrf = String(
-        req.get("x-csrf-token") || ""
-      ).trim();
+    if (decision.state === SESSION_STATES.CSRF_INVALID) {
+      securityEvent(
+        "auth.csrf.rejected",
+        requestContext(req, {
+          ip: getClientIp(req),
+          method: req.method,
+          path: req.originalUrl?.split("?")[0],
+        })
+      );
 
-      if (
-        !submittedCsrf ||
-        !safeEqual(submittedCsrf, session.csrf_token)
-      ) {
-        securityEvent(
-          "auth.csrf.rejected",
-          requestContext(req, {
-            ip: getClientIp(req),
-            method: req.method,
-            path: req.originalUrl?.split("?")[0],
-          })
-        );
-
-        return res.status(403).json({
-          success: false,
-          code: "CSRF_TOKEN_INVALID",
-          message:
-            "Request verification failed. Refresh the page and try again.",
-        });
-      }
+      return res.status(403).json({
+        success: false,
+        code: "CSRF_TOKEN_INVALID",
+        message:
+          "Request verification failed. Refresh the page and try again.",
+      });
     }
 
-    if (now - lastSeenAt > TOUCH_INTERVAL_MS) {
+    if (decision.action !== SESSION_ACTIONS.ALLOW) {
+      return rejectSession(res, config, decision.reason, req);
+    }
+
+    if (now - decision.lastSeenAt > TOUCH_INTERVAL_MS) {
       await touchSession(tokenHash, now);
     }
 
@@ -135,8 +114,8 @@ export const protect = async (req, res, next) => {
     req.session = {
       tokenHash,
       csrfToken: session.csrf_token,
-      expiresAt,
-      lastSeenAt,
+      expiresAt: decision.expiresAt,
+      lastSeenAt: decision.lastSeenAt,
     };
 
     return next();

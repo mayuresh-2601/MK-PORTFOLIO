@@ -17,6 +17,9 @@ import System from "./pages/public/System";
 import Blog from "./pages/public/Blog";
 import BlogPost from "./pages/public/BlogPost";
 import BlogTaxonomy from "./pages/public/BlogTaxonomy";
+import Privacy from "./pages/public/Privacy";
+import Terms from "./pages/public/Terms";
+import Accessibility from "./pages/public/Accessibility";
 import Tools from "./pages/tools/Tools";
 
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -102,6 +105,11 @@ export default function App() {
             <Route path="/blog/tag/:tag" element={<BlogTaxonomy />} />
             <Route path="/blog/category/:category" element={<BlogTaxonomy />} />
             <Route path="/tools" element={<Tools />} />
+
+            {/* Policies */}
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/accessibility" element={<Accessibility />} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminLogin />} />

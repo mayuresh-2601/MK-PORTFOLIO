@@ -206,7 +206,7 @@ test("validation rejects a placeholder admin email", () => {
   );
 });
 
-test("validation accepts a strong plain password and warns in production", () => {
+test("validation rejects a plain password in production", () => {
   setAdminEnv({
     ADMIN_EMAIL: "owner@gmail.com",
     ADMIN_PASSWORD: "A-very-long-test-password-2026!",
@@ -214,12 +214,65 @@ test("validation accepts a strong plain password and warns in production", () =>
 
   const result = validateAdminAuthConfig({ production: true });
 
-  assert.equal(result.errors.length, 0);
   assert.ok(
-    result.warnings.some((warning) =>
-      warning.includes("plain text")
+    result.errors.some((error) =>
+      error.includes("ADMIN_PASSWORD is not allowed in production")
     )
   );
+});
+
+test("plain password verification fails closed in production", async () => {
+  setAdminEnv({
+    ADMIN_EMAIL: "owner@gmail.com",
+    ADMIN_PASSWORD: "A-very-long-test-password-2026!",
+  });
+
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  try {
+    process.env.NODE_ENV = "production";
+
+    assert.equal(
+      await verifyAdminCredentials(
+        "owner@gmail.com",
+        "A-very-long-test-password-2026!"
+      ),
+      false
+    );
+  } finally {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
+});
+
+test("a bcrypt hash is still accepted in production", async () => {
+  const hash = await bcrypt.hash("A-very-long-test-password-2026!", 4);
+
+  setAdminEnv({
+    ADMIN_EMAIL: "owner@gmail.com",
+    ADMIN_PASSWORD_HASH: hash,
+  });
+
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  try {
+    process.env.NODE_ENV = "production";
+
+    assert.equal(
+      validateAdminAuthConfig({ production: true }).errors.length,
+      0
+    );
+    assert.equal(
+      await verifyAdminCredentials(
+        "owner@gmail.com",
+        "A-very-long-test-password-2026!"
+      ),
+      true
+    );
+  } finally {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
 });
 
 test("validation rejects an invalid bcrypt hash", () => {

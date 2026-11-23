@@ -21,6 +21,12 @@ const secondaryLinks = [
   { label: "Admin", to: "/admin" },
 ];
 
+const legalLinks = [
+  { label: "Privacy", to: "/privacy" },
+  { label: "Terms", to: "/terms" },
+  { label: "Accessibility", to: "/accessibility" },
+];
+
 export default function Footer() {
   return (
     <footer className="site-footer grid-dark">
@@ -128,6 +134,13 @@ export default function Footer() {
 
         <div className="site-footer__bottom">
           <span>© {new Date().getFullYear()} Mayuresh Kasar.</span>
+          <nav className="site-footer__legal" aria-label="Legal">
+            {legalLinks.map((link) => (
+              <Link key={link.to} to={link.to} className="site-footer__link">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
           <span>Designed with Kinetic Brutalism</span>
         </div>
       </div>

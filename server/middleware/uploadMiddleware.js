@@ -35,6 +35,11 @@ const documentFormats = [...imageFormats, "pdf", "doc", "docx"];
 const IMAGE_SIZE_LIMIT = 5 * 1024 * 1024; // 5 MB
 const DOCUMENT_SIZE_LIMIT = 10 * 1024 * 1024; // 10 MB
 
+// A stalled Cloudinary connection must not hold a request open indefinitely.
+export const UPLOAD_TIMEOUT_MS = Number(
+  process.env.UPLOAD_TIMEOUT_MS || 30_000
+);
+
 /* 
    Multer
  */
@@ -88,6 +93,28 @@ const safePublicId = (originalName) => {
 const uploadToCloudinary = (file, allowDocuments) =>
   new Promise((resolve, reject) => {
     const now = new Date();
+    const timeoutMs =
+      Number.isFinite(UPLOAD_TIMEOUT_MS) && UPLOAD_TIMEOUT_MS > 0
+        ? UPLOAD_TIMEOUT_MS
+        : 30_000;
+
+    let settled = false;
+    let timer;
+
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      callback(value);
+    };
+
+    timer = setTimeout(() => {
+      const error = new Error("Cloudinary upload timed out.");
+      error.code = "UPLOAD_TIMEOUT";
+      finish(reject, error);
+    }, timeoutMs);
+
+    timer.unref?.();
 
     const stream = cloudinary.uploader.upload_stream(
       {
@@ -99,8 +126,21 @@ const uploadToCloudinary = (file, allowDocuments) =>
           : imageFormats,
       },
       (error, result) => {
-        if (error) return reject(error);
-        return resolve(result);
+        if (error) return finish(reject, error);
+
+        // The request already timed out. If Cloudinary still finished the
+        // upload, remove the orphan instead of leaving quota behind.
+        if (settled) {
+          if (result?.public_id) {
+            void deleteCloudinaryAsset({
+              publicId: result.public_id,
+              resourceType: result.resource_type,
+            });
+          }
+          return;
+        }
+
+        return finish(resolve, result);
       }
     );
 
@@ -263,9 +303,12 @@ export const uploadSingle = (
       } catch (error) {
         console.error("Cloudinary upload failed:", error.message);
 
-        return res.status(502).json({
+        return res.status(error.code === "UPLOAD_TIMEOUT" ? 504 : 502).json({
           success: false,
-          message: "File upload failed. Please try again.",
+          message:
+            error.code === "UPLOAD_TIMEOUT"
+              ? "The upload took too long. Please try again."
+              : "File upload failed. Please try again.",
         });
       }
     });
