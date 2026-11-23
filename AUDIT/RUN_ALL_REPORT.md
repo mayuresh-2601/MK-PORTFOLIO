@@ -223,15 +223,112 @@ and contents were not established. They are not project data created by this wor
 
 ---
 
-## 7. BLOCKED and UNVERIFIED
+## 7. Post-push verification
+
+`[VERIFIED]` The feature branch was pushed successfully:
+
+```text
+90f824f..6204f2b  feature/100k-organic-growth -> feature/100k-organic-growth
+```
+
+`[VERIFIED]` Vercel created a preview deployment for commit `6204f2b`:
+
+| Field | Value |
+|-------|-------|
+| Deployment | `dpl_HJC1EQwfLcxVYDpaaV4JkR3eXQon` |
+| URL | `https://mk-portfolio-6wtnglt1q-kasarmayuresh0-8579s-projects.vercel.app` |
+| Branch alias | `https://mk-portfolio-git-feature-1-340ae3-kasarmayuresh0-8579s-projects.vercel.app` |
+| Target | `preview` |
+| State | `READY` |
+| GitHub commit status | `success` — "Deployment has completed" |
+| Build duration | about 12.5 seconds |
+
+`[VERIFIED]` The Vercel build log shows the exact commit and the expected build:
+
+```text
+Cloning github.com/mayuresh-2601/MK-PORTFOLIO
+  (Branch: feature/100k-organic-growth, Commit: 6204f2b)
+✓ 1924 modules transformed.
+✓ built in 4.40s
+build-seo: 2 blog posts, 22 sitemap URLs, 25 route documents
+Deployment completed
+status  ● Ready
+```
+
+`[BLOCKED]` The preview pages themselves return `302` to
+`https://vercel.com/sso-api?...` because Vercel Deployment Protection is enabled. Without
+an SSO bypass token, the preview's HTML, headers, sitemap and 404 cannot be fetched
+anonymously. The build log and deployment state are verified; the rendered preview content
+is not.
+
+`[VERIFIED]` GitHub Actions has **no run** for `feature/100k-organic-growth` or commit
+`6204f2b`:
+
+```text
+actions/runs?branch=feature/100k-organic-growth -> TOTAL=0
+actions/runs?head_sha=6204f2b                    -> TOTAL=0
+```
+
+`[VERIFIED]` This is expected from the workflow configuration. `docker-ci.yml`, `codeql.yml`,
+`trivy.yml` and `gitleaks.yml` trigger on pushes or pull requests to `main`, schedules, or
+manual dispatch. `zap-baseline.yml` triggers only on a schedule or manual dispatch. No pull
+request exists for this branch, so no pull-request workflow ran.
+
+`[VERIFIED]` The latest `main` CI/CD run on `c5ac4a9` (19 November 2026) is green:
+
+```text
+Repository Hygiene          success
+Server Syntax & Tests       success
+Client Lint & Build         success
+Build & Test Full Stack     success
+Deploy API to Render        success
+Production Smoke Tests      success
+CodeQL                      success
+Container & Dependency Scan success
+Gitleaks                    success
+```
+
+`[VERIFIED]` Dependabot pull-request runs on 23 November 2026 also completed successfully
+for CodeQL, CI/CD, Trivy and Gitleaks. Those runs cover dependency branches, not this
+feature branch.
+
+`[VERIFIED]` Render's public API is healthy but still runs the old main commit:
+
+```json
+{
+  "success": true,
+  "status": "healthy",
+  "uptime": 580
+}
+```
+
+```json
+{
+  "deployment": { "commit": "c5ac4a9" }
+}
+```
+
+`[BLOCKED]` Render deploy logs cannot be read: the Render CLI is not installed, no
+`RENDER_API_KEY` is available, and `https://dashboard.render.com/` redirects to a login
+page in the browser. `render.yaml` has `autoDeploy: false`, so the push did not trigger a
+Render deploy.
+
+`[VERIFIED]` Vercel production is still the 19 November build
+(`dpl_2mvEUueLW6CEwExm4bbUC1UoueU1`, `1906` modules, `330.35 kB` JS). The production URL
+`https://mk-portfolio-phi-silk.vercel.app/` returns `200`. The new preview is not promoted
+to production.
+
+---
+
+## 8. BLOCKED and UNVERIFIED
 
 | Item | Status | Reason |
 |------|--------|--------|
-| Feature-branch GitHub Actions run | `[BLOCKED]` | `.github/workflows/docker-ci.yml` triggers on pushes and pull requests to `main`. A push to `feature/100k-organic-growth` may not start CI. Checked after push with available `gh` access. |
-| Vercel deployment log and preview inspection | `[BLOCKED]` | Requires authenticated Vercel CLI or dashboard access. Not available in this session. |
-| Render deploy log inspection | `[BLOCKED]` | Requires authenticated Render dashboard/API access. `render.yaml` has `autoDeploy: false`. |
+| CI run for commit `6204f2b` | `[BLOCKED]` | No pull request exists, and all workflows are limited to `main`, pull requests, schedules, or manual dispatch. Open a PR to trigger CI. |
+| Vercel preview page content and headers | `[BLOCKED]` | Deployment Protection redirects every preview request to Vercel SSO (`302`). No bypass token is available. |
+| Render deploy log inspection | `[BLOCKED]` | Requires Render dashboard login or an API token. Neither is available. |
 | Merge to `main` and production deployment | `[BLOCKED]` | Requires explicit owner authorization. No merge or deploy was performed. |
-| Production security-header verification | `[UNVERIFIED]` | Requires a deployed build and live HTTP inspection. |
+| Production security-header verification for the new build | `[UNVERIFIED]` | The new build is only a protected preview; it is not deployed to production. |
 | Production load test | `[UNVERIFIED]` | Requires a staging/production target and a load-testing tool. No new dependency was added. |
 | Backup restore drill | `[UNVERIFIED]` | Requires database access and a disposable restore target. |
 | Playwright, axe, or k6 suites | `[BLOCKED]` | Would add new dependencies. Owner approval required before adding them. |
@@ -239,28 +336,32 @@ and contents were not established. They are not project data created by this wor
 | Production `ADMIN_PASSWORD_HASH` | `[UNVERIFIED]` | The current Render environment may still contain only plaintext `ADMIN_PASSWORD`. The next deploy will fail startup until the owner sets a bcrypt hash. |
 | Cloudinary key rotation | `[BLOCKED]` | Owner action; previously paused at email verification. |
 | Gmail OAuth re-authorization | `[BLOCKED]` | Owner action; the OAuth app is in Testing mode and refresh tokens expire after about seven days. |
-| Live production version | `[UNVERIFIED]` | Production still runs the previously deployed version. `90f824f` and later commits are not deployed. |
+| Live production version | `[VERIFIED]` | Production runs API commit `c5ac4a9` and the 19 November Vercel build. `6204f2b` is not deployed. |
 
 ---
 
-## 8. Owner actions
+## 9. Owner actions
 
-1. **Set `ADMIN_PASSWORD_HASH` in Render** and remove plaintext `ADMIN_PASSWORD` before
+1. **Open a pull request** from `feature/100k-organic-growth` to `main` if CI should run
+   for commit `6204f2b`. This is the only way the current workflow triggers for a feature
+   branch.
+2. **Set `ADMIN_PASSWORD_HASH` in Render** and remove plaintext `ADMIN_PASSWORD` before
    the next production deploy. Generate the hash with
    `npm run hash-password -- "your-password"` in `server/`.
-2. **Authorize the merge/deploy** when ready. Nothing was merged to `main` or deployed.
-3. **Rotate the Cloudinary API key** and complete the provider's email verification.
-4. **Re-authorize Gmail OAuth** or move the OAuth app out of Testing mode so refresh
+3. **Authorize the merge/deploy** when ready. Nothing was merged to `main` or deployed.
+4. **Provide Render dashboard or API access** if the deploy logs must be inspected.
+5. **Rotate the Cloudinary API key** and complete the provider's email verification.
+6. **Re-authorize Gmail OAuth** or move the OAuth app out of Testing mode so refresh
    tokens do not expire every seven days.
-5. **Approve GA4 enablement** and the CSP change if analytics is wanted.
-6. **Approve new test dependencies** (Playwright/axe/k6) if browser, accessibility, or
+7. **Approve GA4 enablement** and the CSP change if analytics is wanted.
+8. **Approve new test dependencies** (Playwright/axe/k6) if browser, accessibility, or
    load tests should run in CI.
-7. **Review the two published blog posts** and approve any first-person claims before
+9. **Review the two published blog posts** and approve any first-person claims before
    publishing additional experience-based articles.
 
 ---
 
-## 9. Commands run
+## 10. Commands run
 
 ```powershell
 # Source mirror
@@ -282,13 +383,25 @@ npm audit
 
 # Clean-URL and artifact checks
 node C:\Users\Dell\AppData\Local\Temp\opencode\static-check.mjs
+
+# Push
+git push -u origin feature/100k-organic-growth
+
+# Vercel inspection
+vercel project ls
+vercel ls
+vercel inspect HJC1EQwfLcxVYDpaaV4JkR3eXQon --json
+vercel inspect HJC1EQwfLcxVYDpaaV4JkR3eXQon --logs
+vercel inspect https://mk-portfolio-phi-silk.vercel.app --logs
 ```
 
-`[VERIFIED]` All commands above exited `0`.
+`[VERIFIED]` All local gates, the push, and the Vercel build inspection exited `0`.
+`[BLOCKED]` The preview route fetches returned `302` because of Vercel SSO, and the Render
+dashboard returned a login page. Those are access limits, not code failures.
 
 ---
 
-## 10. Summary
+## 11. Summary
 
 `[VERIFIED]` The repository passes every gate that can be executed locally without new
 dependencies or production credentials:
@@ -301,6 +414,13 @@ dependencies or production credentials:
   `llms.txt`, `robots.txt`, the manifest, and `security.txt`.
 - `npm audit` reports zero vulnerabilities in both packages.
 - 22/22 clean-URL, route, and 404 checks pass.
+- Commit `6204f2b` is pushed to `origin/feature/100k-organic-growth`.
+- Vercel built and marked the preview deployment `READY` for commit `6204f2b`.
 
-`[UNVERIFIED]` CI, Vercel, Render, and production behaviour were not verified in this
-session because the required access was unavailable. No production change was made.
+`[BLOCKED]` No GitHub Actions run exists for `6204f2b` because no pull request exists and
+the workflows do not trigger on a feature-branch push. The Vercel preview is behind SSO, so
+its rendered pages and headers could not be fetched. Render logs require a dashboard login
+or API token.
+
+`[VERIFIED]` Production is unchanged: the API reports commit `c5ac4a9`, and Vercel
+production still serves the 19 November build. No merge or deployment was performed.
