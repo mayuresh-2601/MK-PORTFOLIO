@@ -3,9 +3,9 @@
 **Product:** Mayuresh Kasar Portfolio ("MAYURESH.DEV")
 **Document owner:** Mayuresh Kasar
 **Status:** Source of truth for admin authentication
-**Version:** 2.0
-**Last updated:** 2026-11-16
-**Code:** `server/utils/adminAuth.js`, `server/utils/sessionConfig.js`, `server/utils/totp.js`, `server/controllers/authController.js`, `server/middleware/authMiddleware.js`, `server/models/sessionModel.js`, `client/src/components/protected/ProtectedRoute.jsx`, `client/src/api/axios.js`
+**Version:** 2.1
+**Last updated:** 2026-11-22
+**Code:** `server/utils/adminAuth.js`, `server/utils/sessionConfig.js`, `server/utils/sessionState.js`, `server/utils/totp.js`, `server/controllers/authController.js`, `server/middleware/authMiddleware.js`, `server/models/sessionModel.js`, `client/src/components/protected/ProtectedRoute.jsx`, `client/src/api/axios.js`
 **Related:** [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) · [SECURITY_OPERATIONS.md](./SECURITY_OPERATIONS.md) · [API.md](./API.md) · [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
@@ -19,9 +19,9 @@ per-resource ownership.
 
 | Property | Value |
 |---|---|
-| Identity source | `ADMIN_EMAIL` + `ADMIN_PASSWORD_HASH` or `ADMIN_PASSWORD` |
+| Identity source | `ADMIN_EMAIL` + `ADMIN_PASSWORD_HASH`; `ADMIN_PASSWORD` is local-development only |
 | Storage | Server environment only; never the database or browser |
-| Password algorithm | bcrypt (preferred) or constant-time SHA-256 comparison for the plain fallback |
+| Password algorithm | bcrypt in production; constant-time SHA-256 comparison only for the local plain fallback |
 | Session | Opaque random token in an HttpOnly cookie |
 | Session storage | `admin_sessions` table; only a SHA-256 hash of the token is stored |
 | Session lifetime | 120 minutes absolute / 30 minutes idle by default |
@@ -42,11 +42,13 @@ manual credential rotation.
 | Variable | Required | Rules |
 |---|---|---|
 | `ADMIN_EMAIL` | Yes | Valid email; trimmed/lowercased; must not be `@example.com` or a placeholder |
-| `ADMIN_PASSWORD_HASH` | Preferred | Valid bcrypt `$2a$/$2b$/$2y$` hash |
-| `ADMIN_PASSWORD` | Fallback | At least 12 characters; not a placeholder/common password; not equal to the email; ≤ 1,024 characters |
+| `ADMIN_PASSWORD_HASH` | Yes in production | Valid bcrypt `$2a$/$2b$/$2y$` hash |
+| `ADMIN_PASSWORD` | Local development only | At least 12 characters; not a placeholder/common password; not equal to the email; ≤ 1,024 characters. Fatal in production. |
 
-If both password forms are set, **the hash wins**. Startup emits a warning
-telling the operator to remove the plain value.
+In production, only `ADMIN_PASSWORD_HASH` is accepted. Startup validation
+fails, and credential verification fails closed, if a plain
+`ADMIN_PASSWORD` is present. Outside production, if both forms are set, **the
+hash wins** and startup emits a warning to remove the plain value.
 
 ### 2.2 Session variables
 
@@ -56,12 +58,13 @@ telling the operator to remove the plain value.
 | `SESSION_IDLE_MINUTES` | `30` | Integer 5–1440; cannot exceed the absolute lifetime |
 | `SESSION_RETENTION_DAYS` | `7` | Integer 1–90; how long expired/revoked rows are kept for audit |
 | `SESSION_COOKIE_SECURE` | `true` in production | Boolean; must stay `true` on HTTPS |
-| `SESSION_COOKIE_SAMESITE` | `none` in production, `lax` locally | `lax`, `strict` or `none`; `none` requires a Secure cookie |
+| `SESSION_COOKIE_SAMESITE` | `lax` in every environment | `lax`, `strict` or `none`; `none` requires a Secure cookie and an explicit opt-in |
 
-Because Vercel rewrites `/api` to Render, the session cookie is first-party
-on the portfolio origin. `SameSite=lax` is therefore a valid, stricter
-production choice. The default `none` also works but is only needed if the
-browser ever calls a different site directly.
+Because Vercel rewrites `/api` to Render, and Nginx/Vite proxy it locally, the
+session cookie is always first-party on the site's own origin.
+`SameSite=lax` is therefore the safe default. `SameSite=none` is only needed
+if a deployment ever calls the API on a different site directly; set it
+explicitly and keep `SESSION_COOKIE_SECURE=true`.
 
 ### 2.3 MFA and retired variables
 
@@ -95,12 +98,12 @@ reads or prints an existing configured secret.
 - plain password shorter than 12 characters;
 - placeholder/common plain password;
 - plain password equal to the email;
+- plain password set while `NODE_ENV=production`;
 - invalid `ADMIN_TOTP_SECRET`.
 
 Warnings include:
 
-- both password forms present;
-- plain password in production (hash is safer);
+- both password forms present outside production;
 - leading/trailing whitespace in the plain password;
 - only one character class in the plain password;
 - MFA not configured in production.
@@ -230,6 +233,12 @@ For every protected route, in order:
    session's CSRF value.
 6. Update `last_seen_at` at most once per minute.
 7. Attach `req.user` and `req.session`.
+
+The decision itself is a pure function, `evaluateSession()` in
+`server/utils/sessionState.js`. It returns one of `allow`, `reject`, or
+`revoke_and_reject`, so expiry, idle timeout, admin change, revocation and
+CSRF ordering are unit-tested without a database. The middleware performs
+the database side effects the decision requests.
 
 A rejected session receives `401` and the cookie is cleared. A missing or
 mismatched CSRF token receives `403` with `code: "CSRF_TOKEN_INVALID"`.
@@ -364,5 +373,7 @@ Then sign in through the site and confirm:
 - [ ] An idle or expired session returns `401`.
 - [ ] Changing `ADMIN_EMAIL` invalidates old sessions.
 - [ ] MFA is required when `ADMIN_TOTP_SECRET` is set.
+- [ ] `ADMIN_PASSWORD` is absent from the production environment; only `ADMIN_PASSWORD_HASH` is set.
+- [ ] A production process with only `ADMIN_PASSWORD` refuses to start.
 - [ ] `JWT_SECRET` is absent from Render and startup only warns if present.
 - [ ] No token appears in localStorage, sessionStorage, URLs, or logs.

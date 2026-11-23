@@ -1,0 +1,19 @@
+{
+  "name": "Mayuresh Kasar — Full Stack Developer",
+  "short_name": "MK Portfolio",
+  "description": "Portfolio, technical blog, and browser-based developer tools from Mayuresh Kasar, a full stack developer in Maharashtra, India.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#CCFF00",
+  "theme_color": "#CCFF00",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icons.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

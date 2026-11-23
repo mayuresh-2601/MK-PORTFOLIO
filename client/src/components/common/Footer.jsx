@@ -3,19 +3,28 @@ import { Mail, ArrowUpRight } from "lucide-react";
 import GithubIcon from "../../assets/GithubIcon";
 import LinkedinIcon from "../../assets/LinkedinIcon";
 import { CONTACT_EMAIL_LINK } from "../../config/site";
+import { trackEvent } from "../../lib/analytics";
 
 const primaryLinks = [
   { label: "Home", to: "/" },
   { label: "About", to: "/about" },
   { label: "Skills", to: "/skills" },
   { label: "Projects", to: "/projects" },
+  { label: "Blog", to: "/blog" },
 ];
 
 const secondaryLinks = [
+  { label: "Tools", to: "/tools" },
   { label: "Certificates", to: "/certificates" },
   { label: "System", to: "/system" },
   { label: "Contact", to: "/contact" },
   { label: "Admin", to: "/admin" },
+];
+
+const legalLinks = [
+  { label: "Privacy", to: "/privacy" },
+  { label: "Terms", to: "/terms" },
+  { label: "Accessibility", to: "/accessibility" },
 ];
 
 export default function Footer() {
@@ -42,6 +51,7 @@ export default function Footer() {
                 rel="noopener noreferrer"
                 aria-label="GitHub profile"
                 className="btn btn--sm site-footer__social"
+                onClick={() => trackEvent("social_link_clicked", { platform: "github" })}
               >
                 <GithubIcon size={16} />
               </a>
@@ -51,6 +61,7 @@ export default function Footer() {
                 rel="noopener noreferrer"
                 aria-label="LinkedIn profile"
                 className="btn btn--sm site-footer__social"
+                onClick={() => trackEvent("social_link_clicked", { platform: "linkedin" })}
               >
                 <LinkedinIcon size={16} />
               </a>
@@ -110,6 +121,7 @@ export default function Footer() {
               href="/Mayuresh_Kasar_Resume.pdf"
               download
               className="site-footer__link"
+              onClick={() => trackEvent("resume_download_clicked")}
             >
               Resume <ArrowUpRight size={12} aria-hidden="true" />
             </a>
@@ -122,6 +134,13 @@ export default function Footer() {
 
         <div className="site-footer__bottom">
           <span>© {new Date().getFullYear()} Mayuresh Kasar.</span>
+          <nav className="site-footer__legal" aria-label="Legal">
+            {legalLinks.map((link) => (
+              <Link key={link.to} to={link.to} className="site-footer__link">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
           <span>Designed with Kinetic Brutalism</span>
         </div>
       </div>

@@ -9,9 +9,9 @@ import { isValidTotpSecret } from "./totp.js";
 
    The admin account is deliberately environment-based: there is exactly one
    email/password pair, and it never touches the database. `ADMIN_PASSWORD_HASH`
-   (bcrypt) is preferred for production, but `ADMIN_PASSWORD` is supported so a
-   plain secret can live in the server-only `.env` file. Both paths are compared
-   in constant time:
+   (bcrypt) is required in production. `ADMIN_PASSWORD` remains available for
+   local development so a plain secret can live in the server-only `.env` file.
+   Both paths are compared in constant time:
      - plain text: SHA-256 + timingSafeEqual (hides length and content timing)
      - bcrypt:    bcrypt.compare
 */
@@ -105,6 +105,12 @@ export const verifyAdminCredentials = async (
   const config = getAdminAuthConfig();
 
   if (!config.email || config.mode === "none") {
+    return false;
+  }
+
+  // Defence in depth: even if startup validation were bypassed, a production
+  // process never accepts a plaintext environment password.
+  if (config.mode === "plain" && process.env.NODE_ENV === "production") {
     return false;
   }
 
@@ -262,9 +268,9 @@ export const validateAdminAuthConfig = ({
     }
 
     if (production) {
-      warnings.push(
-        "ADMIN_PASSWORD is stored in plain text in the environment. " +
-          "The env file is server-only, but ADMIN_PASSWORD_HASH is safer if you can generate one."
+      errors.push(
+        "ADMIN_PASSWORD is not allowed in production. " +
+          'Generate a bcrypt hash with: npm run hash-password -- "your-password", then set ADMIN_PASSWORD_HASH.'
       );
     }
   }

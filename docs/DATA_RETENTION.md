@@ -3,9 +3,10 @@
 **Product:** Mayuresh Kasar Portfolio ("MAYURESH.DEV")
 **Document owner:** Mayuresh Kasar
 **Status:** Retention policy
-**Version:** 1.0
-**Last updated:** 2026-11-16
-**Related:** [SECURITY_OPERATIONS.md](./SECURITY_OPERATIONS.md) · [INCIDENT_RESPONSE.md](./INCIDENT_RESPONSE.md) · [DATABASE.md](./DATABASE.md)
+**Version:** 1.1
+**Last updated:** 2026-11-22
+**Public policy:** <https://mk-portfolio-phi-silk.vercel.app/privacy>
+**Related:** [SECURITY_OPERATIONS.md](./SECURITY_OPERATIONS.md) · [INCIDENT_RESPONSE.md](./INCIDENT_RESPONSE.md) · [DATABASE.md](./DATABASE.md) · [ANALYTICS_SETUP.md](./ANALYTICS_SETUP.md)
 
 ---
 
@@ -16,15 +17,23 @@
 | Projects, skills, certificates | MySQL/TiDB | Public portfolio content | No (owner content) |
 | Contact messages | MySQL/TiDB `messages` | Reply to enquiries | Yes: name, email, message |
 | Admin sessions | MySQL/TiDB `admin_sessions` | Authenticate the single admin | Admin email, hashed token, CSRF value |
-| Uploaded files | Cloudinary | Public certificate/project images | Possibly, if the owner uploads one |
+| Uploaded certificate/project images | Cloudinary | Public portfolio content | Possibly, if the owner uploads one |
+| Contact attachments | Cloudinary, temporary | Include the file in the notification email | Yes |
+| AI explainer input | Sent to Google Gemini; not stored by this app | Generate the requested explanation | Free text the visitor submits |
 | API logs | Render | Operate and secure the service | IP, method, path, status, timing |
 | Security events | Render | Detect abuse and investigate incidents | IP, request id, event type |
 | Build/deploy logs | GitHub, Vercel, Render | Release history | Commit metadata |
 | Backups | Owner-controlled storage | Recovery | Everything except sessions |
 
 The application has no analytics, advertising pixels, third-party trackers, or
-visitor accounts. Public telemetry is limited to CPU load, memory percentage,
-uptime, AI availability and a short deployed-commit hash.
+visitor accounts by default. Google Analytics 4 is env-gated and off; see
+[ANALYTICS_SETUP.md](./ANALYTICS_SETUP.md). Public telemetry is limited to CPU
+load, memory percentage, uptime, AI availability and a short deployed-commit
+hash.
+
+The public [privacy policy](https://mk-portfolio-phi-silk.vercel.app/privacy)
+describes the same processing in visitor-facing language. Keep the two pages
+consistent when data handling changes.
 
 ## 2. Retention schedule
 
@@ -38,7 +47,8 @@ uptime, AI availability and a short deployed-commit hash.
 | CI logs | GitHub default (90 days for public repos) | GitHub settings |
 | Vercel deploy logs | Provider default | Vercel settings |
 | Application backups | 7 daily + 4 weekly + 3 monthly recommended | Owner rotation |
-| Uploaded files | Until the related certificate/project is removed | Cloudinary/admin dashboard |
+| Uploaded certificate/project images | Until the related certificate/project is removed | Cloudinary/admin dashboard |
+| Contact attachments | Deleted after the notification send attempt | `deleteCloudinaryAsset` in the message controller |
 | Browser CSRF token | Memory only; gone on reload | No persistence |
 | Browser admin hint | `sessionStorage`; gone on tab close/logout | Cosmetic only |
 | Cookies | Session cookie; removed on logout/expiry | HttpOnly cookie |
@@ -67,8 +77,10 @@ retroactively restore deleted rows.
 - Delete a message when the enquiry is resolved or after 12 months, whichever
   comes first, unless there is a documented reason to keep it.
 - Do not export messages into the repository, screenshots, or public issues.
-- If a visitor asks for deletion, delete the row and any related email
-  notification; confirm without echoing the message contents.
+- If a visitor asks for deletion, delete the row, the related Cloudinary
+  attachment if one exists, and any related email notification; confirm
+  without echoing the message contents. The public privacy page tells
+  visitors to write from the same address so ownership can be verified.
 
 Example (run as the owner, with a verified id):
 
@@ -100,8 +112,9 @@ DELETE FROM messages WHERE id = ?;
 
 ## 7. Data subject requests
 
-The only personal data the site collects directly is a contact message. For a
-deletion or access request:
+The only personal data the site collects directly is a contact message
+(including an optional attachment). AI explainer text is sent to Google and is
+not stored by this application. For a deletion or access request:
 
 1. Verify the requester controls the email address in the message.
 2. Locate rows by that email.
@@ -125,3 +138,11 @@ deletion or access request:
   storage; this repository only provides the tooling.
 - TiDB provider backup/PITR settings must be verified in the TiDB console.
 - Contact-message review is a manual owner task.
+- Google's retention of Gemini prompts and Gmail messages follows Google's
+  terms, not this repository. Confirm the current terms before claiming a
+  specific deletion period.
+- The Gmail OAuth app remains in Testing mode until the owner publishes it;
+  refresh tokens can expire after about seven days in that mode.
+- No Data Protection Officer or formal grievance officer is appointed because
+  this is a personal portfolio, not a company service. Revisit if the site
+  starts collecting data at scale or on behalf of clients.

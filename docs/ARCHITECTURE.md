@@ -515,3 +515,31 @@ Do not add these preemptively. Each adds operational cost and failure modes.
 8. The frontend and API remain independently deployable but contract-compatible.
 9. CI must pass before a production deploy.
 10. Documentation and code changes stay consistent with this architecture.
+
+## Growth Programme Additions (2026-11-21)
+
+The following are architectural notes for the organic growth programme
+(docs/SIX_MONTH_GROWTH_PLAN.md).
+
+### Frontend (new)
+
+- **Blog engine**: client/src/lib/blog.js + client/src/content/posts/*.js.
+- **Blog routes**: /blog, /blog/:slug, /blog/tag/:tag, /blog/category/:category.
+- **Developer tools**: client/src/pages/tools/Tools.jsx; pure logic in
+  client/src/lib/devtools.js; unit tests in client/tests/devtools.test.js.
+- **Analytics module**: client/src/lib/analytics.js (disabled by default).
+
+### Build
+
+- 
+pm run build now runs ite build && node scripts/build-seo.mjs.
+- scripts/build-seo.mjs generates dist/sitemap.xml (19 URLs, all public
+  routes) and dist/rss.xml from the post modules.
+- Static client/public/sitemap.xml still exists for direct serving.
+
+### SEO
+
+- Per-route metadata: client/src/components/common/SEO.jsx sets title,
+  description, canonical, OG, Twitter and injects Article JSON-LD for posts.
+- obots.txt excludes /admin and /admin/.
+

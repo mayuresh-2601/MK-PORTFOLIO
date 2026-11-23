@@ -64,7 +64,10 @@ const BASE_ENV = {
   SESSION_IDLE_MINUTES: "30",
   SESSION_RETENTION_DAYS: "7",
   ADMIN_EMAIL: "owner@gmail.com",
-  ADMIN_PASSWORD: "A-very-long-test-password-2026!",
+  // Test-only bcrypt hash; production requires a hash instead of a plain
+  // environment password.
+  ADMIN_PASSWORD_HASH:
+    "$2b$04$461pyZB.AW3AfKVEi8F8CeaNgWcSVao/vqprC0hKt50akDhQUA50S",
   EMAIL_TRANSPORT: "none",
 };
 
@@ -97,6 +100,21 @@ test("a complete production configuration passes", () => {
   const result = validateEnvironment({ production: true });
 
   assert.deepEqual(result.errors, []);
+});
+
+test("a plain-text admin password is fatal in production", () => {
+  setEnv({
+    ADMIN_PASSWORD_HASH: "",
+    ADMIN_PASSWORD: "A-very-long-test-password-2026!",
+  });
+
+  const result = validateEnvironment({ production: true });
+
+  assert.ok(
+    result.errors.some((error) =>
+      error.includes("ADMIN_PASSWORD is not allowed in production")
+    )
+  );
 });
 
 test("placeholder database hosts are fatal", () => {

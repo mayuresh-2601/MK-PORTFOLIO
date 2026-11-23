@@ -3,8 +3,8 @@
 **Product:** Mayuresh Kasar Portfolio ("MAYURESH.DEV")
 **Document owner:** Mayuresh Kasar
 **Status:** Source of truth for verification
-**Version:** 1.0
-**Last updated:** 2026-11-14
+**Version:** 1.1
+**Last updated:** 2026-11-22
 **Related:** [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [DEBUGGING.md](./DEBUGGING.md) · [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
@@ -28,8 +28,9 @@ Do not chase coverage percentages. This project has a small surface and no dedic
 |---|---|---|---|
 | Server syntax | custom `checkSyntax.js` | `server/scripts` | Yes |
 | Server unit | `node:test` + `assert` | `server/tests/*.test.js` | Yes |
+| Client unit | `node:test` + `assert` | `client/tests/*.test.js` | Yes |
 | Client static | ESLint | `client/` | Yes |
-| Client build | Vite | `client/` | Yes |
+| Client build | Vite + SEO generator | `client/` | Yes |
 | Dockerfile lint | Hadolint | three Dockerfiles | Yes |
 | Full stack integration | Docker Compose + curl + jq | workflow | Yes |
 | Production smoke | curl + Node script | workflow | Yes |
@@ -42,13 +43,23 @@ Do not chase coverage percentages. This project has a small surface and no dedic
 
 | File | Focus |
 |---|---|
-| `adminAuth.test.js` | Plain and bcrypt credential paths, precedence, normalization, validation |
+| `adminAuth.test.js` | Plain and bcrypt paths, hash precedence, production plaintext rejection, validation |
+| `sessionState.test.js` | Pure allow/reject/revoke state machine: revocation, expiry, idle timeout, admin change, CSRF |
+| `sessionConfig.test.js` | Cookie defaults, SameSite, clamping, `__Host-` prefix, set/read/clear |
 | `email.test.js` | Email config/transport selection, Gmail client and MIME behavior |
 | `validateEnv.test.js` | Required env values, production rules, origins, placeholders |
 | `messageValidation.test.js` | Contact payload types, defaults, lengths, email format |
 | `clientIp.test.js` | Real client IP resolution from proxy headers |
+| `origin.test.js` | Origin/Referer allowlist and CSRF-adjacent request checks |
+| `security.test.js` | Hashing, token entropy, constant-time comparison |
+| `totp.test.js` | RFC 6238 vectors and clock-skew window |
+| `fileSignature.test.js` | Magic-byte validation and disguised uploads |
+| `spamGuard.test.js` | Honeypot, timing, link/email flood checks |
+| `errorMiddleware.test.js` | Production error normalization and log redaction |
+| `pagination.test.js` | Page/limit parsing and clamping |
+| `cloudinaryAsset.test.js` | Cloudinary URL parsing and orphan cleanup |
 
-Current baseline: **35 tests passing** across these files.
+Current baseline: **119 tests passing** across 15 files.
 
 ### 3.2 Commands
 
@@ -58,7 +69,7 @@ npm run check   # syntax over all server JS files
 npm test        # node --test "tests/*.test.js"
 ```
 
-`npm run check` currently covers 45 files.
+`npm run check` currently covers 71 files.
 
 ### 3.3 Rules for new tests
 
@@ -73,35 +84,54 @@ npm test        # node --test "tests/*.test.js"
 ### 3.4 Gaps
 
 - No controller/model tests with a mocked pool.
-- No token-expiry test.
-- No issuer/audience mismatch test.
 - No test for the 401 interceptor in the browser.
 - No rate-limit integration test in unit suites (the Docker job exercises login limits).
+- No test that the middleware itself wires every state-machine decision to the
+  correct HTTP response; the pure decision function is covered, the wiring is
+  reviewed manually.
+- No upload-timeout test with a mocked Cloudinary stream.
 
-Add these before expanding the auth or rate-limit surface.
+Add these before expanding the auth, upload, or rate-limit surface.
 
 ## 4. Client checks
 
 ```bash
 cd client
+npm test          # node --test "tests/*.test.js"
 npm run lint
 npm run build
 ```
 
+Client unit suites:
+
+| File | Focus |
+|---|---|
+| `devtools.test.js` | JSON, Base64, URL/HTML, regex, JWT decode, gradient builder, zero-width regex safety |
+| `taxonomy.test.js` | Slug matching for tags/categories and canonical label recovery |
+| `seo-build.test.js` | Route documents, directory indexes, sitemap exclusion, metadata replacement, 404 noindex, RSS, llms.txt, `vercel.json` clean URLs |
+
+Current baseline: **29 tests passing**.
+
 What the build must prove:
 
-- `dist/index.html` exists;
-- the React root is present;
+- `dist/index.html` exists and the React root is present;
+- `dist/404.html` exists and is `noindex`;
+- every public route, post and taxonomy page has a directory-index document;
+- `dist/sitemap.xml` has 22 URLs and no `/admin`, `/api` or `/404`;
+- `dist/rss.xml` and `dist/llms.txt` exist and exclude private routes;
+- `.well-known/security.txt` and `manifest.json` are copied;
 - per-page SEO markers survive minification;
 - the production API URL is baked in when configured;
 - no server secret appears in the bundle;
 - assets are emitted under `dist/assets`.
 
-ESLint config covers React, hooks, and refresh rules. There are no client unit or component tests; the lint/build gate plus manual browser checks are the current baseline.
+ESLint covers React, hooks, and refresh rules. The unit suites cover pure
+logic; there is still no browser component test or committed E2E suite.
 
 ### Manual client checks
 
-- All public routes render.
+- All public routes render, including `/privacy`, `/terms`, `/accessibility`
+  and every `/tools` tool.
 - Unknown route renders the 404.
 - Admin login and dashboard render.
 - Loading, empty, error, and retry states.
@@ -152,15 +182,18 @@ The final CI job verifies the live system:
 | API readiness | `200`, database connected |
 | Node version | `v22.x` |
 | Projects/skills/certificates | Non-zero counts |
-| `/api/messages` without token | `401` |
-| Login with CI credentials | `200` + token |
+| `/api/messages` without a cookie | `401` |
+| Login with CI credentials | `200` + HttpOnly session cookie + CSRF token |
 | Wrong password | `401` |
+| Protected mutation without `X-CSRF-Token` | `403` |
 | CORS preflight | Expected allow origin; disallowed origin rejected |
 | Vercel routes | Home and deep links return the app shell |
 | Security headers | CSP, HSTS, frame denial, nosniff, referrer, permissions |
 | `/admin` noindex | `X-Robots-Tag: noindex, nofollow` |
-| `robots.txt` | Present and points to sitemap |
-| `sitemap.xml` | Present and valid |
+| `robots.txt` | Present, excludes `/admin` and `/api`, points to sitemap |
+| `sitemap.xml` | Present, valid, and has no private URLs |
+| `rss.xml` / `llms.txt` | Present and free of private URLs |
+| Unknown path | HTTP `404`, not a 200 SPA shell |
 
 Production smoke tests use CI-only credentials; they do not print tokens.
 
@@ -290,8 +323,9 @@ A change is not verified until the pipeline result is known. A green local run d
 
 ## 14. Release test checklist
 
-- [ ] Server syntax and 35+ tests pass.
-- [ ] Client lint and build pass.
+- [ ] Server syntax and 119 tests pass.
+- [ ] Client 29 tests, lint and build pass.
+- [ ] Build emitted 22 sitemap URLs, `404.html` and route documents.
 - [ ] No new dependency vulnerability.
 - [ ] Secret scan clean (tree, history, build, live assets).
 - [ ] API contract unchanged or documented.
@@ -308,8 +342,9 @@ A change is not verified until the pipeline result is known. A green local run d
 
 | Limitation | Impact | Mitigation |
 |---|---|---|
-| No client unit tests | Regressions rely on lint/build/manual checks | Add targeted tests for critical components |
+| No client component tests | UI regressions rely on lint/build/manual checks | Add targeted tests for critical components |
 | No repository E2E suite | Live audit is not reproducible in CI | Add Playwright with deterministic data |
+| No upload-timeout integration test | Timeout wiring is only reviewed | Mock the Cloudinary stream in a test |
 | No axe/Lighthouse gate | Accessibility can regress silently | Add CI check |
 | No load test | Unknown behavior under traffic | Test before a launch spike |
 | No backup restore drill | Recovery is unproven | Schedule a drill |
