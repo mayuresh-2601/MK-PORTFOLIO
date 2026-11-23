@@ -253,8 +253,10 @@ jobs:
           SESSION_RETENTION_DAYS=7
 
           # CI-only admin identity. Never used in a real deployment.
+          # The server image runs with NODE_ENV=production, so a bcrypt hash
+          # is required; plaintext ADMIN_PASSWORD is rejected at startup.
           ADMIN_EMAIL=ci-admin@portfolio.test
-          ADMIN_PASSWORD=ci_test_password_2026!
+          ADMIN_PASSWORD_HASH=$2b$12$ZvC71Wn222MTeNYZw3cbm.1ky8okvLO/D0VuI0KnR3HGeHN1aoP.i
           EOF
 
           # Cloudinary, Gmail and Gemini are intentionally unset so CI also
