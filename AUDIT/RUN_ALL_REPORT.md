@@ -2,7 +2,8 @@
 
 **Date:** 23 November 2026
 **Branch:** `feature/100k-organic-growth`
-**HEAD at verification:** `90f824f` (`docs: add growth audits, journal, reports and fix deliverables`)
+**Gate source:** working tree on top of `90f824f`
+**Final branch HEAD:** `a70cb56` (`docs: record post-push Vercel, GitHub Actions and Render evidence`)
 **Source of truth:** `E:\PORT\PORTFOLIO-APP`
 **Executed in:** `C:\PortfolioRepoFresh` (temporary mirror)
 **Operator:** OpenCode agent, on behalf of Mayuresh Kasar
@@ -255,18 +256,22 @@ Deployment completed
 status  ● Ready
 ```
 
+`[VERIFIED]` The follow-up docs commit `a70cb56` also received a Vercel commit status of
+`success` ("Deployment has completed").
+
 `[BLOCKED]` The preview pages themselves return `302` to
 `https://vercel.com/sso-api?...` because Vercel Deployment Protection is enabled. Without
 an SSO bypass token, the preview's HTML, headers, sitemap and 404 cannot be fetched
 anonymously. The build log and deployment state are verified; the rendered preview content
 is not.
 
-`[VERIFIED]` GitHub Actions has **no run** for `feature/100k-organic-growth` or commit
-`6204f2b`:
+`[VERIFIED]` GitHub Actions has **no run** for `feature/100k-organic-growth`, commit
+`6204f2b`, or commit `a70cb56`:
 
 ```text
 actions/runs?branch=feature/100k-organic-growth -> TOTAL=0
 actions/runs?head_sha=6204f2b                    -> TOTAL=0
+actions/runs?head_sha=a70cb56                    -> TOTAL=0
 ```
 
 `[VERIFIED]` This is expected from the workflow configuration. `docker-ci.yml`, `codeql.yml`,
@@ -414,8 +419,9 @@ dependencies or production credentials:
   `llms.txt`, `robots.txt`, the manifest, and `security.txt`.
 - `npm audit` reports zero vulnerabilities in both packages.
 - 22/22 clean-URL, route, and 404 checks pass.
-- Commit `6204f2b` is pushed to `origin/feature/100k-organic-growth`.
-- Vercel built and marked the preview deployment `READY` for commit `6204f2b`.
+- Commits `6204f2b` and `a70cb56` are pushed to
+  `origin/feature/100k-organic-growth`.
+- Vercel built and marked the preview deployments `READY` for both commits.
 
 `[BLOCKED]` No GitHub Actions run exists for `6204f2b` because no pull request exists and
 the workflows do not trigger on a feature-branch push. The Vercel preview is behind SSO, so
