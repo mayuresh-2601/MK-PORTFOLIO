@@ -255,8 +255,10 @@ jobs:
           # CI-only admin identity. Never used in a real deployment.
           # The server image runs with NODE_ENV=production, so a bcrypt hash
           # is required; plaintext ADMIN_PASSWORD is rejected at startup.
+          # Single quotes keep Compose from interpolating the `$` segments
+          # inside env_file values, which would corrupt the hash.
           ADMIN_EMAIL=ci-admin@portfolio.test
-          ADMIN_PASSWORD_HASH=$2b$12$ZvC71Wn222MTeNYZw3cbm.1ky8okvLO/D0VuI0KnR3HGeHN1aoP.i
+          ADMIN_PASSWORD_HASH='$2b$12$ZvC71Wn222MTeNYZw3cbm.1ky8okvLO/D0VuI0KnR3HGeHN1aoP.i'
           EOF
 
           # Cloudinary, Gmail and Gemini are intentionally unset so CI also
@@ -279,7 +281,14 @@ jobs:
             "if [ -f /app/.env ]; then echo 'server/.env was baked into the image'; exit 1; fi; echo 'No .env file in server image.'"
 
       - name: Start Containers
-        run: docker compose up -d
+        run: |
+          set -euo pipefail
+          if ! docker compose up -d; then
+            echo "::error::Docker Compose failed to start the stack."
+            docker compose ps
+            docker compose logs
+            exit 1
+          fi
 
       - name: Wait for Services
         run: |
@@ -1158,7 +1167,7 @@ jobs:
             exit 1
           fi
 
-          for ROUTE in / /projects /skills /certificates /system /contact /admin /this-route-does-not-exist; do
+          for ROUTE in / /projects /skills /certificates /system /contact /admin /blog /tools /privacy /blog/how-i-built-my-full-stack-developer-portfolio; do
             STATUS=$(curl \
               --silent \
               --output /dev/null \
@@ -1167,12 +1176,28 @@ jobs:
               "${PRODUCTION_SITE_URL}${ROUTE}")
 
             if [ "$STATUS" != "200" ]; then
-              echo "::error::${ROUTE} returned ${STATUS}, expected 200 (SPA fallback)."
+              echo "::error::${ROUTE} returned ${STATUS}, expected 200."
               exit 1
             fi
 
             echo "${ROUTE} OK (200)"
           done
+
+          # vercel.json no longer rewrites unknown paths to the SPA shell.
+          # A missing page must return 404 so crawlers do not index it.
+          UNKNOWN_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --max-time 60 \
+            "${PRODUCTION_SITE_URL}/this-route-does-not-exist")
+
+          if [ "$UNKNOWN_STATUS" != "404" ]; then
+            echo "::error::Unknown route returned ${UNKNOWN_STATUS}, expected 404."
+            exit 1
+          fi
+
+          echo "Unknown route returns 404."
 
           HEADERS=$(curl --silent --show-error --head --max-time 60 "${PRODUCTION_SITE_URL}/")
 
