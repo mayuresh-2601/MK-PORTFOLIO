@@ -244,10 +244,32 @@
   gap: 24px;
 }
 
+.blog-post__grid > * {
+  min-width: 0;
+}
+
 @media (min-width: 900px) {
   .blog-post__grid {
-    grid-template-columns: 2.4fr 1fr;
+    /* Article is wide, reading tools are narrow. The related-articles aside
+       is placed below the article in the same wide column so it never wraps
+       into the narrow column and collides with the sticky table of contents. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr);
     align-items: start;
+  }
+
+  .blog-post__toc {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .blog-post__article {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .blog-post__aside {
+    grid-column: 2;
+    grid-row: 2;
   }
 }
 
