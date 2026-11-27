@@ -157,6 +157,12 @@ All screenshots captured from live production at **1440 × 900**.
 - **Real 404s** — Unknown slugs return HTTP 404 with `noindex`, not a soft 200
 - **Accessibility** — Semantic headings, `aria-current` on active taxonomy, skip links, reduced motion
 
+### Blog in Action
+
+| Index with taxonomy & search | Article with sticky TOC |
+|:---:|:---:|
+| <img src="docs/screenshots/blog-index.png" alt="Blog index with category/tag filters" width="100%" /> | <img src="docs/screenshots/blog-post.png" alt="Article page with table of contents" width="100%" /> |
+
 ---
 
 ## 🛠 Developer Tools
@@ -180,10 +186,16 @@ All screenshots captured from live production at **1440 × 900**.
 
 ### Tool Security Model
 
-- **No network calls** — all logic in `client/src/lib/devtools.ts` pure functions
+- **No network calls** — all logic in `client/src/lib/devtools.js` pure functions
 - **JWT decoder warns** — "Does not verify signature; do not trust for auth"
 - **Hash ≠ password storage** — UI states: "Use bcrypt/scrypt/Argon2 for passwords"
 - **Tested** — 38 client tests covering edge cases, malformed input, large payloads
+
+### Tools in Action
+
+| All 12 tools | JWT decoder (expiry) | WCAG contrast checker |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/tools-index.png" alt="Developer tools index" width="100%" /> | <img src="docs/screenshots/tools-jwt.png" alt="JWT payload decoder with expiry" width="100%" /> | <img src="docs/screenshots/tools-contrast.png" alt="WCAG 2.2 contrast checker" width="100%" /> |
 
 ---
 
