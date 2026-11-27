@@ -105,7 +105,7 @@ The project is designed to demonstrate the engineering practices behind a real p
 
 > **Free-tier note:** the Render API may take 30-60 seconds to wake after a period of inactivity. The frontend uses a 60-second request timeout and shows a clear loading state while the API starts.
 >
-> **Last production verification:** 19 November 2026 - seven CI jobs green, Render and Vercel healthy, all public pages and assets returning `200`, admin cookie-session login working, and a Gmail API notification confirmed in production.
+> **Last production verification:** 27 November 2026 - seven CI jobs green, Render and Vercel healthy, all public pages and assets returning `200`, admin cookie-session login working. Blog layout fix (explicit grid placement preventing related-articles/TOC overlap) deployed and verified live.
 >
 > **Repository checks:** 27 November 2026 - 119 server tests, 38 client tests, lint, production build, 39 sitemap URLs, 42 route documents, and local clean-URL/404 checks passed. See [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md) for the earlier labelled evidence.
 
