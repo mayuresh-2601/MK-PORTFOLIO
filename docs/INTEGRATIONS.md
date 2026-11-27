@@ -296,11 +296,12 @@ Static hosting for the React build, with CDN delivery, SPA rewrites, and securit
 | Framework | Vite |
 | Build command | `npm run build` |
 | Output | `dist` |
-| Env | `VITE_API_BASE_URL=https://mk-portfolio-api.onrender.com` |
+| Env | None required; `/api` stays same-origin |
 
 `client/vercel.json` supplies:
 
-- SPA rewrite of unknown paths to `index.html`;
+- route documents for public pages and a real `404.html`; no SPA catch-all rewrite;
+- an `/api/*` rewrite to the Render API;
 - security headers (CSP, HSTS, frame denial, nosniff, referrer, permissions);
 - `/admin` and `/admin/*` `X-Robots-Tag: noindex, nofollow`;
 - asset caching rules.
@@ -310,8 +311,8 @@ Static hosting for the React build, with CDN delivery, SPA rewrites, and securit
 | Failure | Effect |
 |---|---|
 | Build error | Previous deployment remains |
-| Missing `VITE_API_BASE_URL` | Browser calls same-origin `/api` on Vercel and fails |
-| Wrong API URL | CORS/404 errors |
+| Missing `/api` rewrite | Same-origin API calls fail on Vercel |
+| Cross-site API origin baked into a custom build | Cookie/CORS failures |
 | Header regression | Security or noindex checks fail in CI |
 
 ### Verification

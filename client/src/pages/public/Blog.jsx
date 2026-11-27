@@ -2,12 +2,19 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import SEO from "../../components/common/SEO";
 import BlogCard from "../../components/blog/BlogCard";
-import { allTags, POSTS, searchPosts, tagSlug } from "../../lib/blog";
+import {
+  allCategories,
+  allTags,
+  POSTS,
+  searchPosts,
+  tagSlug,
+} from "../../lib/blog";
 
 export default function Blog() {
   const [query, setQuery] = useState("");
 
   const results = useMemo(() => searchPosts(query), [query]);
+  const categories = allCategories();
   const popularTags = allTags();
 
   return (
@@ -21,7 +28,9 @@ export default function Blog() {
       <div className="section__inner">
         <div className="blog-head">
           <div className="reveal">
-            <p className="meta text-ink">Blog / 03</p>
+            <p className="meta text-ink">
+              Blog / {POSTS.length} {POSTS.length === 1 ? "article" : "articles"}
+            </p>
             <h1 className="display section-title">
               Engineering <br />
               in practice
@@ -46,16 +55,44 @@ export default function Blog() {
             className="blog-search__input"
           />
           {results.length === 0 && (
-            <p className="blog-search__empty">
-              No articles match that search.
-            </p>
+            <div className="blog-search__empty">
+              <p>No articles match that search.</p>
+              <button
+                type="button"
+                className="blog-search__clear"
+                onClick={() => setQuery("")}
+              >
+                Clear search
+              </button>
+            </div>
           )}
           {results.length > 0 && POSTS.length > 0 && (
             <p className="blog-search__count">
-              {results.length} of {POSTS.length} articles
+              {query
+                ? `${results.length} of ${POSTS.length} articles`
+                : `${POSTS.length} ${POSTS.length === 1 ? "article" : "articles"}`}
             </p>
           )}
         </div>
+
+        {categories.length > 0 && (
+          <div className="blog-taxonomy-row reveal">
+            <h2 className="blog-taxonomy-title">Browse by category</h2>
+            <ul className="blog-taxonomy-tags">
+              {categories.map(({ category, count }) => (
+                <li key={category}>
+                  <Link
+                    to={`/blog/category/${tagSlug(category)}`}
+                    className="blog-taxonomy-tag"
+                    aria-label={`View ${count} article${count === 1 ? "" : "s"} about ${category}`}
+                  >
+                    {category} <span className="meta">{count}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="blog-taxonomy-row reveal">
           <h2 className="blog-taxonomy-title">Popular tags</h2>

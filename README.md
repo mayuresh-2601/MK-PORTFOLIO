@@ -70,7 +70,7 @@ The project is designed to demonstrate the engineering practices behind a real p
 - **Docker Compose stack** that runs the entire application locally, including the database.
 - **Seven-job GitHub Actions pipeline** that lints, tests, builds, deploys, and smoke-tests the live system.
 - **Live server telemetry** on `/system` showing real CPU, memory, uptime, AI availability, and deployment state.
-- **Technical blog and browser tools** - dependency-free articles, tag/category pages, and eight developer tools that run locally in the browser.
+- **Technical blog and browser tools** - dependency-free articles, tag/category pages, and twelve developer tools that run locally in the browser.
 - **Crawlable route documents** - every public route has its own title, description, canonical URL, JSON-LD and `<noscript>` summary at build time.
 - **Optional integrations** for Gmail notifications, Cloudinary uploads, and Google Gemini AI.
 
@@ -107,7 +107,7 @@ The project is designed to demonstrate the engineering practices behind a real p
 >
 > **Last production verification:** 19 November 2026 - seven CI jobs green, Render and Vercel healthy, all public pages and assets returning `200`, admin cookie-session login working, and a Gmail API notification confirmed in production.
 >
-> **Repository checks:** 23 November 2026 - 119 server tests, 29 client tests, lint, production build, 22 sitemap URLs, and local clean-URL/404 checks passed. See [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md) for the labelled evidence.
+> **Repository checks:** 27 November 2026 - 119 server tests, 38 client tests, lint, production build, 39 sitemap URLs, 42 route documents, and local clean-URL/404 checks passed. See [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md) for the earlier labelled evidence.
 
 ---
 
@@ -159,9 +159,9 @@ All screenshots are captured from the live production deployment at **1440 x 900
 ### Technical blog and developer tools
 
 - **Dependency-free blog** - structured JavaScript content blocks rendered to safe React elements; no Markdown parser and no `dangerouslySetInnerHTML`.
-- **Two published articles** - a full-stack architecture walkthrough and a React/Vite SPA architecture article, both grounded in this repository.
+- **Six published articles** - full-stack architecture, React/Vite delivery, Docker CI debugging, HttpOnly cookie sessions, static SEO with real 404s, and startup environment validation. Each article is grounded in this repository.
 - **Taxonomy and search** - tag and category pages use slug matching, and search is scoped to the current taxonomy.
-- **Eight browser tools** - JSON formatter/validator, Base64, URL and HTML codecs, regex tester, JWT decoder, CSS gradient builder, and HTTP status reference.
+- **Twelve browser tools** - JSON formatter/validator, Base64, URL and HTML codecs, regex tester, JWT decoder with expiry display, UUID v4 generator, SHA-256/384/512 hashing, Unix timestamp converter, WCAG contrast checker, CSS gradient builder, and HTTP status reference.
 - **Local-only JWT decoding** - the tool never transmits or stores a token and clearly states that it does not verify the signature.
 - **Tested pure logic** - `client/tests/devtools.test.js`, `taxonomy.test.js`, and `seo-build.test.js` run with Node's built-in test runner.
 
@@ -277,7 +277,7 @@ The browser loads the static bundle from Vercel and calls the Render API through
 ### Request flow
 
 1. Vercel serves a route-specific static document (for example `about/index.html` for `/about`) with clean URLs. Unknown paths get `404.html`.
-2. The browser hydrates the React app and calls the same-origin `/api` endpoint (or `VITE_API_BASE_URL` in the split Vercel/Render deployment).
+2. The browser hydrates the React app and calls the same-origin `/api` endpoint; Vercel rewrites that path to Render.
 3. Express applies CORS, Helmet, JSON parsing, rate limiting, and route handlers. Every state-changing request requires `X-CSRF-Token` matching the session value; Origin/Referer are enforced for production calls.
 4. Public reads come from TiDB; admin writes use the cookie-based session (no Bearer token in the Authorization header).
 5. Contact messages are inserted first, then a Gmail notification is attempted. An optional attachment passes through Cloudinary temporarily and is deleted after the send attempt.
@@ -433,7 +433,7 @@ Create the local environment file:
 Copy-Item .env.example .env
 ```
 
-Keep `VITE_API_BASE_URL` empty. Vite proxies `/api` to `VITE_PROXY_TARGET` (`http://localhost:5000`) during development.
+The client always calls same-origin `/api`. Vite proxies that path to `VITE_PROXY_TARGET` (`http://localhost:5000`) during development. Do not set a cross-site API origin.
 
 ```bash
 npm run dev
@@ -484,7 +484,10 @@ The project uses **three separate environment files**. Keeping them separate pre
 | Gmail variables | `server/.env` | `server/.env` | Render Environment | - |
 | Cloudinary variables | `server/.env` | `server/.env` | Render Environment | - |
 | `GEMINI_API_KEY` | `server/.env` | `server/.env` | Render Environment | - |
-| `VITE_API_BASE_URL` | `client/.env`  | `client/.env` | - | Vercel Environment |
+
+The browser always calls same-origin `/api`. Vercel rewrites that path to Render,
+so the session cookie stays first-party; there is no public API-origin variable
+to set in Vercel.
 
 ### Root `.env` (Docker Compose only)
 
@@ -499,8 +502,10 @@ These are local development values only. Never reuse them in production.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VITE_API_BASE_URL` | empty | Explicit API origin. Leave empty for same-origin `/api` in dev and Docker. Set it in Vercel for the split deployment. |
 | `VITE_PROXY_TARGET` | `http://localhost:5000` | Where Vite forwards `/api` during `dev` and `preview`. Not used by the Docker build. |
+
+`VITE_API_BASE_URL` is retired. The client hardcodes same-origin `/api` so the
+HttpOnly session cookie is never treated as a third-party cookie.
 
 Only `VITE_*` variables are public. Vite embeds them in the browser bundle, so this file must never contain a server secret.
 
@@ -883,7 +888,7 @@ The pipeline runs on every push and pull request to `main`, plus manual dispatch
 |---|---|---|
 | 1 | **Repository Hygiene** | No `.env` files, secrets, `node_modules`, `dist`, or build output are tracked |
 | 2 | **Server Syntax & Tests** | Node syntax checks and the server test suite |
-| 3 | **Client Tests, Lint & Build** | Node tests, ESLint, and a production build that emits route documents and 22 sitemap URLs |
+| 3 | **Client Tests, Lint & Build** | Node tests, ESLint, and a production build that emits 42 route documents and 39 sitemap URLs |
 | 4 | **Lint Dockerfiles** | All three Dockerfiles pass Hadolint |
 | 5 | **Build & Test Full Stack** | Builds the compose stack, starts MySQL/API/Nginx, verifies schema and seed data, tests API/auth/update endpoints, and serves the frontend |
 | 6 | **Deploy API to Render** | Triggers a Render deploy hook for the pushed commit and waits for `/api/system` to report it live |
@@ -919,12 +924,7 @@ Render's native GitHub integration is intentionally disabled (`autoDeploy: false
 3. Use the **Vite** framework preset.
 4. Build command: `npm run build`.
 5. Output directory: `dist`.
-6. Add the environment variable:
-
-```env
-VITE_API_BASE_URL=https://mk-portfolio-api.onrender.com
-```
-
+6. Do not add an API-origin variable. `client/vercel.json` rewrites same-origin `/api` to Render, which keeps the session cookie first-party.
 7. Deploy. `client/vercel.json` supplies clean URLs, security headers, asset caching and the `/api` rewrite. `client/scripts/build-seo.mjs` generates the route documents, sitemap, RSS, `llms.txt` and 404 page.
 
 ### API -> Render
@@ -995,7 +995,7 @@ If you find a security issue, please open a private report through GitHub or con
 | API cannot connect to TiDB | Wrong port, SSL, or credentials | Use port `4000`, `DB_SSL=true`, and verify the TiDB user |
 | Admin login returns `401` | Email/password mismatch | Check `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH`; plain `ADMIN_PASSWORD` is rejected in production |
 | API refuses to start: plain admin password | `ADMIN_PASSWORD` set in production | Generate a hash, set `ADMIN_PASSWORD_HASH`, remove `ADMIN_PASSWORD` |
-| Local site calls the Render API | `client/.env` still contains a production URL | Set `VITE_API_BASE_URL=` empty and rebuild |
+| Local site calls the Render API | A custom build still bakes in a cross-site API URL | Remove the API-origin variable; the client uses same-origin `/api` |
 | Docker MySQL starts without tables | Old image or existing volume | `docker compose build --no-cache db` then `docker compose down -v` |
 | Docker cannot find the daemon | Docker Desktop is stopped | Start Docker Desktop and wait for the engine |
 | AI returns `502` | `GEMINI_API_KEY` missing or invalid | Add a valid key in the API environment |

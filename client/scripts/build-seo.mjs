@@ -127,7 +127,7 @@ export const STATIC_ROUTES = [
     path: "/tools",
     title: "Developer Tools | Mayuresh Kasar — Full Stack Developer",
     description:
-      "Free browser-based developer tools: JSON formatter, validator, Base64 and URL encoders, HTML entity encoder, regex tester, JWT decoder, CSS gradient generator and HTTP status reference. All tools run locally.",
+      "Free browser-based developer tools: JSON formatter, Base64, URL and HTML codecs, regex tester, JWT decoder with expiry, UUID v4 generator, SHA hashes, Unix timestamp converter, WCAG contrast checker, CSS gradient builder and HTTP status reference. All tools run locally.",
     heading: "Developer toolkit",
     priority: 0.8,
     breadcrumb: [{ name: "Tools", path: "/tools" }],
@@ -676,6 +676,7 @@ export const renderLlms = (posts, routes) => {
     "- Use the canonical URLs above when citing pages.",
     "- Do not infer employers, salary, availability, or personal details that are not stated on the site.",
     "- The JWT decoder is a local inspection tool. It does not verify signatures.",
+    "- Hashing, timestamp, UUID and contrast tools run locally in the browser.",
     "- The admin area and `/api/` are private and excluded from robots.txt.",
     `- Security reports: ${SITE}/.well-known/security.txt`,
     "",

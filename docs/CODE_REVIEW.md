@@ -72,7 +72,7 @@ Review in this order; later checks are wasted if an earlier one fails.
 
 - [ ] Every mutation and private read uses `protect`.
 - [ ] Client route guards are not treated as security.
-- [ ] JWT verification still pins HS256, issuer, audience, role, and current admin email.
+- [ ] Session auth still validates the HttpOnly cookie, absolute/idle timeouts, current admin email and per-session CSRF token.
 - [ ] No new public endpoint exposes messages, credentials, or admin data.
 
 ### Input and SQL

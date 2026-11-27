@@ -43,18 +43,18 @@ a structure, not a promise.
 - Enable GA4 (pending owner approval).
 
 **Checklist**
-- [ ] `npm run build` green; `npm run lint` green; server `npm test` green (30 tests).
+- [ ] `npm run build` green; `npm run lint` green; server `npm test` green (119 tests); client `npm test` green (38 tests).
 - [ ] `sitemap.xml` and `rss.xml` validate (see `docs/SEARCH_ENGINE_SETUP.md` §1, §2).
 - [ ] `/admin` returns `noindex, nofollow`.
 - [ ] Every route returns `200` and a unique title/description (curl check).
-- [ ] Blog published at `/blog` with 2 posts.
+- [ ] Blog published at `/blog` with 6 posts.
 - [ ] GSC: sitemap submitted, robots.txt valid.
 - [ ] Bing Webmaster Tools: sitemap + RSS submitted.
 - [ ] GA4: Measurement ID configured, realtime check (owner-approved).
 - [ ] README updated with blog/tools links.
 
 **Content targets**
-- Publish: 2 blog posts (both drafts in `docs/EDITORIAL_STRATEGY.md`).
+- Publish: 6 articles (tracked in `docs/EDITORIAL_STRATEGY.md`).
 
 ### Month 2 (Jan 2027): Depth
 
@@ -223,14 +223,14 @@ Reports are stored in `AUDIT/GROWTH_JOURNAL.md`.
 | Item | Status | Owner decision required |
 | --- | --- | --- |
 | GA4 enabling | Code ready, not enabled | Yes (see `docs/ANALYTICS_SETUP.md`) |
-| Blog drafts | 2 published (`how-i-built-my-full-stack-developer-portfolio`, `react-and-vite-architecture-for-a-portfolio-spa`) | Yes — review |
+| Blog articles | 6 published (`how-i-built-my-full-stack-developer-portfolio`, `react-and-vite-architecture-for-a-portfolio-spa`, `docker-compose-bcrypt-hash-ci-failure`, `cookie-sessions-without-jwt-localstorage`, `static-seo-and-real-404s-in-a-react-spa`, `fail-fast-environment-validation`) | Yes — review |
 | `/tools` | Implemented; linked in Navbar (`Navbar.jsx`) | Owner — can unlink if undesired |
 | Growth journal template | `AUDIT/GROWTH_JOURNAL.md` created | Yes — fill monthly |
 | Review cadence | Monthly growth journal + data update | Yes |
 
 ## 9. Next steps
 
-1. Owner: review 2 blog drafts.
+1. Owner: review the 6 published articles.
 2. Owner: approve GA4 enabling or defer.
 3. Run `npm run build`, `npm run lint`, server `npm test` — evidence in `AUDIT/FINAL_VERIFICATION.md`.
 4. Launch: `sitemap.xml`/`rss.xml` deployed; GSC/Bing configured.

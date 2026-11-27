@@ -59,7 +59,7 @@ addresses the additions.
 | Check | Command | Expected result |
 | --- | --- | --- |
 | Client lint | `cd client && npm run lint` | 0 errors (owner accepts warnings) |
-| Client tests | `cd client && node --test "tests/*.test.js"` | 15 pass / 0 fail |
+| Client tests | `cd client && node --test "tests/*.test.js"` | 38 pass / 0 fail |
 | Client build | `cd client && npm run build` | exit 0; sitemap + RSS generated |
 | Server syntax | `cd server && npm run check` | exit 0 |
 | Server tests | `cd server && npm test` | 100 pass / 0 fail |

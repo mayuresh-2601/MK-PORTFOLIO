@@ -41,22 +41,20 @@ was deleted for that reason.
 Current output on a clean build:
 
 ```text
-build-seo: 2 blog posts, 22 sitemap URLs, 25 route documents
+build-seo: 6 blog posts, 39 sitemap URLs, 42 route documents
 ```
 
-The 25 route documents are 12 public static pages, 2 blog posts, 8 taxonomy
+The 42 route documents are 12 public static pages, 6 blog posts, 21 taxonomy
 pages, `/admin`, `/admin/dashboard`, and `404.html`.
 
 ## 2. Sitemap contents
 
-The 22 indexable URLs are:
+The 39 indexable URLs are:
 
-- `/`, `/about`, `/skills`, `/projects`, `/certificates`, `/system`, `/contact`, `/blog`, `/tools`
-- `/privacy`, `/terms`, `/accessibility`
-- `/blog/how-i-built-my-full-stack-developer-portfolio`
-- `/blog/react-and-vite-architecture-for-a-portfolio-spa`
-- `/blog/tag/architecture`, `/blog/tag/frontend`, `/blog/tag/full-stack`, `/blog/tag/nodejs`, `/blog/tag/react`, `/blog/tag/vite`
-- `/blog/category/frontend`, `/blog/category/full-stack`
+- 12 static pages: `/`, `/about`, `/skills`, `/projects`, `/certificates`, `/system`, `/contact`, `/blog`, `/tools`, `/privacy`, `/terms`, `/accessibility`
+- 6 articles: `/blog/how-i-built-my-full-stack-developer-portfolio`, `/blog/react-and-vite-architecture-for-a-portfolio-spa`, `/blog/docker-compose-bcrypt-hash-ci-failure`, `/blog/cookie-sessions-without-jwt-localstorage`, `/blog/static-seo-and-real-404s-in-a-react-spa`, `/blog/fail-fast-environment-validation`
+- 17 tag pages: `/blog/tag/architecture`, `/blog/tag/frontend`, `/blog/tag/full-stack`, `/blog/tag/nodejs`, `/blog/tag/react`, `/blog/tag/vite`, `/blog/tag/docker`, `/blog/tag/cicd`, `/blog/tag/github-actions`, `/blog/tag/debugging`, `/blog/tag/security`, `/blog/tag/cookies`, `/blog/tag/csrf`, `/blog/tag/seo`, `/blog/tag/vercel`, `/blog/tag/configuration`, `/blog/tag/deployment`
+- 4 category pages: `/blog/category/frontend`, `/blog/category/full-stack`, `/blog/category/devops`, `/blog/category/security`
 
 `/admin` and `/admin/dashboard` are deliberately absent. The sitemap
 generator filters on `route.sitemap !== false`, and the private routes set it
@@ -158,6 +156,7 @@ policies, and explicit notes:
 - cite the canonical URLs;
 - do not infer employers, salary, availability, or personal details;
 - the JWT decoder does not verify signatures;
+- hashing, timestamp, UUID and contrast tools also run locally;
 - `/admin` and `/api/` are private.
 
 It is generated from the same route list as the sitemap and cannot include a
@@ -183,7 +182,7 @@ npm run lint
 npm run build
 ```
 
-The build must print `22 sitemap URLs` while both posts are published. If a
+The build must print `6 blog posts, 39 sitemap URLs, 42 route documents`. If a
 post is added, the count increases by one plus any new tag/category pages.
 
 Inspect the output:

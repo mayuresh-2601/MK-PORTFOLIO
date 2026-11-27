@@ -29,7 +29,7 @@ flowchart LR
     Visitor[Visitor / Recruiter] -->|HTTPS| Vercel[Vercel: React SPA]
     Visitor -->|HTTPS /api| Render[Render: Express API]
     Admin[Owner / Admin] -->|HTTPS /admin| Vercel
-    Admin -->|HTTPS /api + JWT| Render
+    Admin -->|HTTPS /api + session cookie| Render
     Vercel -->|JSON API| Render
     Render -->|mysql2 TLS| TiDB[(TiDB Cloud / MySQL)]
     Render -->|HTTPS upload| Cloudinary[Cloudinary]
@@ -50,12 +50,12 @@ flowchart LR
 | Styling | Tailwind 4 import + bespoke CSS design system | Tailwind reset/utilities available; the visual identity lives in explicit CSS tokens |
 | Backend | Express 5 on Node.js 22 | Minimal, well-understood HTTP layer; native async error handling |
 | Database | MySQL 8/TiDB Cloud with `mysql2` | Relational content, SQL clarity, managed TLS, low cost |
-| ORM | None | Four tables, simple queries; parameterized SQL is clearer and smaller |
-| Auth | Single admin, env credentials, JWT HS256 | No user accounts; minimal attack surface |
+| ORM | None | Four content tables plus `admin_sessions`; parameterized SQL is clearer and smaller |
+| Auth | Single admin, env credentials, revocable HttpOnly cookie sessions | No user accounts; server-side revocation and no browser-readable token |
 | Media | Cloudinary | No persistent disk on Render; managed transforms and delivery |
 | AI | Direct Gemini REST call | No SDK dependency; timeout and response parsing stay explicit |
 | Email | Gmail API preferred, SMTP fallback | Render free tier blocks SMTP; API works over HTTPS |
-| Frontend host | Vercel | Git integration, CDN, headers, SPA rewrites |
+| Frontend host | Vercel | Git integration, CDN, headers, clean URLs, `/api` rewrite |
 | API host | Render | Simple Node hosting, health checks, API-triggered deploys |
 | CI/CD | GitHub Actions | Already the source of truth; no extra CI service |
 
@@ -83,7 +83,6 @@ No global state library. Page-local `useState`/`useEffect` is sufficient. Shared
 |---|---|---|
 | Express | 5.2 | HTTP routing and middleware |
 | `mysql2` | 3.22 | Connection pool and prepared statements |
-| `jsonwebtoken` | 9.0 | Admin JWT |
 | `bcryptjs` | 3.0 | Password hash verification |
 | `helmet` | 8.1 | Security headers |
 | `cors` | 2.8 | Origin allowlist |
@@ -115,14 +114,14 @@ No ORM, no validation library, no queue, no Redis, no WebSocket server.
 ```text
 client/
 ├── index.html                 SPA shell, static SEO, JSON-LD, noscript
-├── vercel.json                Headers, admin noindex, SPA rewrite
-├── nginx.conf                 Docker headers, gzip, SPA fallback, /api proxy
+├── vercel.json                Headers, admin noindex, clean URLs, /api rewrite
+├── nginx.conf                 Docker headers, gzip, route documents, SPA fallback, /api proxy
 ├── public/                    Portrait, resume, OG image, robots, sitemap, IndexNow key
 └── src/
     ├── main.jsx               React root + router
     ├── App.jsx                Routes, skip link, nav/footer visibility, scroll reset
     ├── index.css              Tokens, layout, components, responsive, reduced motion
-    ├── api/axios.js           Base URL, JWT header, 401 handling, cold-start retry
+    ├── api/axios.js           Same-origin base URL, CSRF header, 401 handling, cold-start retry
     ├── components/
     │   ├── common/            Navbar, Footer, SEO, AIExplainModal, CountUp, Marquee, StatsBand
     │   └── protected/         ProtectedRoute
@@ -136,7 +135,7 @@ client/
 ### Rendering and routing
 
 - `BrowserRouter` wraps the app in `main.jsx`; `App.jsx` declares all routes.
-- Vercel/Nginx rewrite unknown paths to `index.html`; React Router renders the 404 route for unknown client paths. This is why production returns HTTP 200 for unknown SPA routes; the 404 is a client-rendered state and sends `noindex`.
+- The build writes a route document for every public page, article and taxonomy page. Vercel serves those documents through `cleanUrls`; unknown paths get the generated `404.html` with a real HTTP 404. Nginx keeps an SPA fallback for local Docker routes that have no generated document.
 - Public routes render the fixed `Navbar` and `Footer`; `/admin*` routes do not.
 - Each route mounts a page that owns its data fetching and local UI state.
 - Route changes scroll to top instantly and replay a short entrance animation.
@@ -145,11 +144,11 @@ client/
 ### Data fetching
 
 - `client/src/api/axios.js` creates one Axios instance.
-- `baseURL` is `${VITE_API_BASE_URL}/api`; when the variable is empty, requests are same-origin and rely on the Vite/Nginx proxy.
-- Access tokens are read from `localStorage` and attached as `Authorization: Bearer <token>`.
+- `baseURL` is the same-origin `/api` path; Vite, Nginx and Vercel each proxy or rewrite it to the API.
+- The session token lives only in an HttpOnly cookie. The CSRF token returned by login or `/auth/session` is kept in memory and sent as `X-CSRF-Token` on state-changing requests.
 - Multipart requests let the browser set `Content-Type`.
 - One automatic retry is allowed for idempotent `GET` requests when there is no response (cold start/network failure), after a 2-second delay.
-- A `401` clears local auth. Admin pages redirect to `/admin`; the login request is excluded so the form error is preserved.
+- A `401` clears the in-memory CSRF token and admin hint. Admin pages redirect to `/admin`; the login request is excluded so the form error is preserved.
 - Public pages support both bare arrays and `{ success, data }` envelopes for resilience, although the API consistently returns envelopes.
 
 ### UI state model
@@ -161,7 +160,7 @@ client/
 | AI explanation | Reusable modal | Keyed request state: `idle`, `loading`, `success`, or `error`; an `AbortController` cancels the previous payload |
 | System snapshot | System page | Snapshot + `lastUpdatedAt` + inline error; the next 5-second poll starts only after the previous one ends, so cold starts cannot stack requests |
 | Admin data | Dashboard | One exclusive `pending` operation (`load`, `add-project`, `delete`, ...) plus four data arrays and a feedback banner; writes and deletes are rejected while busy |
-| Auth | `localStorage` + route guard | Token presence gate; server remains authoritative |
+| Auth | HttpOnly cookie + in-memory CSRF token + route guard | Route guard is convenience; the server session remains authoritative |
 | Mobile navigation | Navbar | `isOpen` is closed on route change and when the 1181 px breakpoint removes the menu trigger |
 
 Rule: a component must never expose contradictory states such as loading plus error, or a stale list plus "empty". New asynchronous UI uses one status value or one keyed request object and guards re-entry.
@@ -169,8 +168,8 @@ Rule: a component must never expose contradictory states such as loading plus er
 ### Build and environment
 
 - Vite exposes only `VITE_*` variables to the browser.
-- `VITE_API_BASE_URL` is baked into the build and must be set in Vercel for the split deployment.
-- `VITE_PROXY_TARGET` is local-only and points Vite dev/preview at the API.
+- `VITE_PROXY_TARGET` is local-only and points Vite dev/preview at the API. The browser always calls same-origin `/api`.
+- `VITE_API_BASE_URL` is no longer used; a direct cross-site API URL would break the first-party session cookie.
 - No server secret is imported into client code.
 - The build must produce `dist/index.html`, `dist/assets`, the React root, and per-page SEO markers checked by CI.
 
@@ -370,8 +369,9 @@ The context is a few paragraphs about one person. A vector database, embeddings 
 
 | Variable | Purpose | Secret? |
 |---|---|---|
-| `VITE_API_BASE_URL` | API origin for split deployment; empty means same-origin | No |
 | `VITE_PROXY_TARGET` | Local dev/preview proxy target | No |
+
+`VITE_API_BASE_URL` is retired; the client always uses same-origin `/api`.
 
 Rules:
 
@@ -410,13 +410,13 @@ Principles:
 | Boundary | Untrusted input | Control |
 |---|---|---|
 | Browser → Vercel | URLs, static assets | Static hosting, CSP, headers, SPA fallback |
-| Browser → Render API | JSON, multipart, JWT, origin | CORS, Helmet, rate limits, validation, auth, upload filters |
+| Browser → Render API | JSON, multipart, session cookie, CSRF token, origin | CORS, Helmet, rate limits, validation, auth, upload filters |
 | API → Database | Query parameters | Parameterized SQL, least-privilege DB user, TLS |
 | API → Cloudinary | File bytes/name | MIME/size limits, sanitized public ID, folder, allowed formats |
 | API → Gemini | Visitor text | Length limits, prompt context, server-side key, timeout, rate limit |
 | API → Gmail | Visitor fields/attachment | Header sanitization, HTML escaping, buffer-only attachments, timeouts |
 | CI → Render | Deploy trigger | API key stored as GitHub secret; commit ancestry check |
-| Admin browser | JWT in localStorage | Short expiry, strict CSP, no third-party scripts, 401 handling |
+| Admin browser | HttpOnly session cookie | Secure + SameSite=Lax, per-session CSRF token, absolute/idle timeouts, strict CSP, 401 handling |
 
 ### Key threats and mitigations
 
@@ -485,7 +485,7 @@ Full runbook: [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ### MVP (current)
 
-Single admin, four tables, one API instance, static frontend, optional integrations, in-memory limits, no pagination, no background jobs.
+Single admin, four content tables plus `admin_sessions`, one API instance, static frontend, optional integrations, in-memory limits, no pagination, no background jobs.
 
 ### Future triggers
 

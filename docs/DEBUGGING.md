@@ -279,9 +279,9 @@ AI is optional. Do not block the page or retry aggressively. The rest of the sit
 
 ### API calls go to the wrong origin
 
-- Local: `client/.env` must have `VITE_API_BASE_URL=` empty and the dev server restarted.
-- Production: Vercel must have `VITE_API_BASE_URL=https://mk-portfolio-api.onrender.com`.
-- Changing a Vite env var requires a rebuild, not just a refresh.
+- The client always uses same-origin `/api`; there is no API-origin variable to set.
+- Local: confirm `VITE_PROXY_TARGET` points at the running API and restart the dev server.
+- Production: confirm `client/vercel.json` still rewrites `/api/*` to Render and redeploy after changing it.
 
 ### Deep link returns 404
 

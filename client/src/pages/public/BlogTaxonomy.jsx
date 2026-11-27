@@ -58,7 +58,9 @@ export default function BlogTaxonomy() {
       <div className="section__inner">
         <div className="blog-head">
           <div className="reveal">
-            <p className="meta text-ink">Blog / 04</p>
+            <p className="meta text-ink">
+              Blog / {allPosts.length} {allPosts.length === 1 ? "article" : "articles"}
+            </p>
             <h1 className="display section-title">
               {mode === "category" ? displayName : `#${displayName}`}
             </h1>
@@ -79,6 +81,7 @@ export default function BlogTaxonomy() {
                 <Link
                   to={`/blog/category/${tagSlug(name)}`}
                   className={`blog-taxonomy-crumb${tagSlug(name) === category ? " is-active" : ""}`}
+                  aria-current={tagSlug(name) === category ? "page" : undefined}
                 >
                   {name} <span>({count})</span>
                 </Link>

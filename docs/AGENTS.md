@@ -15,8 +15,8 @@ A production portfolio platform with:
 
 - a React 18 + Vite 6 single-page frontend (`client/`);
 - an Express 5 + Node.js 22 REST API (`server/`);
-- MySQL 8 locally and TiDB Cloud in production, four tables;
-- a single environment-configured admin with JWT authentication;
+- MySQL 8 locally and TiDB Cloud in production, four content tables plus `admin_sessions`;
+- a single environment-configured admin with revocable HttpOnly cookie sessions;
 - Cloudinary uploads, Google Gemini AI, optional Gmail notifications;
 - Docker Compose for the local full stack;
 - GitHub Actions CI/CD that deploys the API to Render after checks pass; Vercel deploys the client through Git integration.
@@ -36,7 +36,7 @@ The live system is not a demo. Treat every change as production-bound.
 ```text
 client/                     React SPA
   public/                   resume, portrait, social card, robots.txt, sitemap.xml, IndexNow key
-  src/api/axios.js          single Axios instance, JWT header, 401 handling, GET retry
+  src/api/axios.js          single Axios instance, CSRF header, 401 handling, GET retry
   src/components/common/    Navbar, Footer, SEO, AIExplainModal, StatsBand, Marquee, CountUp
   src/components/protected/ ProtectedRoute
   src/hooks/                useScrollReveal

@@ -8,7 +8,7 @@
 **Base URLs:**
 - Production: `https://mk-portfolio-api.onrender.com`
 - Local: `http://localhost:5000`
-- Frontend calls: `${VITE_API_BASE_URL}/api` or same-origin `/api`
+- Frontend calls: same-origin `/api`, proxied or rewritten by Vite, Nginx or Vercel
 
 **Inputs:** [PRD.md](./PRD.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATABASE.md](./DATABASE.md)
 
@@ -743,8 +743,10 @@ No inbound webhooks are implemented or required.
 
 | Variable | Purpose |
 |---|---|
-| `VITE_API_BASE_URL` | API origin; empty = same-origin |
 | `VITE_PROXY_TARGET` | Local dev/preview proxy |
+
+`VITE_API_BASE_URL` is retired; the browser always uses same-origin `/api` so
+the HttpOnly session cookie remains first-party.
 
 Never put any server secret in a `VITE_*` variable.
 

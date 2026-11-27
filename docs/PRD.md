@@ -65,7 +65,7 @@ The product combines:
 | G3 | Keep the public and admin surfaces secure | No secrets in the client; server-side authorization on every mutation; hardened headers |
 | G4 | Be discoverable and shareable | Per-route metadata, sitemap, robots, structured data, 1200×630 social card |
 | G5 | Demonstrate operational competence | Live telemetry, health checks, CI/CD, production deployment |
-| G6 | Stay cheap and maintainable | Single admin, four tables, one API service, one static frontend, no unnecessary infrastructure |
+| G6 | Stay cheap and maintainable | Single admin, four content tables plus `admin_sessions`, one API service, one static frontend, no unnecessary infrastructure |
 
 ### Non-goals
 
@@ -100,7 +100,7 @@ These are product or operational decisions, not implementation details.
 |---|---|---|---|
 | D1 | Keep a single environment-configured admin instead of a user database | Implemented | Changes security model and data requirements |
 | D2 | Show live host telemetry publicly | Implemented without hostname | Exposes platform, Node version, git commit, CPU, memory |
-| D3 | Store the admin JWT in `localStorage` | Implemented | Convenient, but any XSS becomes token theft; an HttpOnly cookie is safer |
+| D3 | Store the admin session in an HttpOnly cookie | Implemented | Page JavaScript cannot read the session token; CSRF is handled by a per-session token and trusted-origin checks |
 | D4 | Rotate the Cloudinary upload credential | Outstanding | A credential used during development must be treated as exposed until rotated |
 | D5 | Keep email notifications disabled until real Gmail OAuth values exist | Implemented as disabled | No placeholder credentials are added; messages are still saved |
 | D6 | Do not configure any MCP server without an approved use case | No MCP server configured | MCP tools expand the agent's access and must follow least privilege |
@@ -143,9 +143,9 @@ These are product or operational decisions, not implementation details.
 
 1. Opens `/admin`.
 2. Enters the configured admin email and password.
-3. Receives a short-lived JWT and is routed to `/admin/dashboard`.
+3. Receives a short-lived HttpOnly session cookie and is routed to `/admin/dashboard`.
 4. Invalid credentials show a generic error without revealing which field was wrong.
-5. An expired/invalid token returns the user to `/admin`.
+5. An expired, revoked or invalid session returns the user to `/admin`.
 
 **Success:** only the configured admin can mutate content.
 
@@ -218,13 +218,13 @@ These are product or operational decisions, not implementation details.
 | ID | Requirement | Priority |
 |---|---|---|
 | FR-A-01 | `/admin` accepts only the configured admin email/password | Must |
-| FR-A-02 | Successful login returns a JWT and routes to `/admin/dashboard` | Must |
+| FR-A-02 | Successful login sets an HttpOnly session cookie and routes to `/admin/dashboard` | Must |
 | FR-A-03 | Dashboard loads projects, skills, certificates, and messages; a partial load failure is reported without crashing the page | Must |
 | FR-A-04 | Admin can create, edit, and delete projects, skills, and certificates | Must |
 | FR-A-05 | Admin can read and delete contact messages | Must |
 | FR-A-06 | Admin routes are protected client-side and server-side; client protection is convenience, not security | Must |
 | FR-A-07 | Admin pages are `noindex, nofollow` and excluded from the sitemap | Must |
-| FR-A-08 | Logout removes the local token and returns to `/admin` | Must |
+| FR-A-08 | Logout revokes the server-side session, clears the cookie and returns to `/admin` | Must |
 
 ### 9.3 Contact and notifications
 
@@ -385,7 +385,7 @@ No inbound webhooks are used. Integration details and failure behavior are in [I
 
 - Public Home, About, Skills, Projects, Certificates, System, Contact, 404.
 - Database-driven project, skill, and certificate content.
-- Single-admin JWT authentication with bcrypt production hash.
+- Single-admin authentication with a bcrypt production hash and revocable HttpOnly cookie sessions.
 - Admin CRUD for content; inbox read/delete.
 - Contact persistence with optional attachment and optional email notification.
 - AI explainers and portfolio Q&A.
@@ -441,7 +441,7 @@ No inbound webhooks are used. Integration details and failure behavior are in [I
 | Gmail OAuth not configured | No notification email | Messages persist; admin inbox is source of truth |
 | Render free-tier cold start | Slow first API request | 60s client timeout, one GET retry, clear loading states |
 | In-memory rate limiting | Bypass across instances/restarts | Single instance today; move to shared store before scaling |
-| JWT in localStorage | Token theft via XSS | Strict CSP, no unsafe scripts, short expiry; consider HttpOnly cookies |
+| Admin session cookie theft | Session takeover | HttpOnly, Secure and SameSite=Lax cookie, per-session CSRF token, absolute/idle timeouts, immediate revocation |
 | No automated backup/restore drill | Data loss risk | Provider backups + scheduled logical dumps + restore test |
 | SEO competition | Low ranking despite technical SEO | Content, backlinks, repo stars, Search Console, time |
 | Single admin | Key-person dependency | Secure credential escrow and documented recovery |
@@ -449,7 +449,7 @@ No inbound webhooks are used. Integration details and failure behavior are in [I
 
 ## 19. Open questions and approvals
 
-1. **D3:** Should the admin token move to an HttpOnly, Secure, SameSite cookie with CSRF protection?
+1. **D3 (resolved):** The admin session uses an HttpOnly, Secure, SameSite=Lax cookie with a per-session CSRF token.
 2. **D4:** When will Cloudinary credentials be rotated, and who confirms completion?
 3. **D5:** Is Gmail notification required for launch, or is the admin inbox sufficient?
 4. **D7:** What is the retention period for contact messages, and who owns deletion?

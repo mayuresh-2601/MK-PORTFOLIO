@@ -159,11 +159,12 @@ Copy-Item client/.env.example client/.env
 ```
 
 ```env
-VITE_API_BASE_URL=
 VITE_PROXY_TARGET=http://localhost:5000
 ```
 
-Leave `VITE_API_BASE_URL` empty for local development. Vite proxies `/api` to `VITE_PROXY_TARGET`. In production, `VITE_API_BASE_URL` is set to the Render origin.
+The client always calls same-origin `/api`. Vite proxies that path to
+`VITE_PROXY_TARGET` locally; Vercel rewrites it to Render in production.
+`VITE_API_BASE_URL` is retired.
 
 ## 5. Install dependencies
 
@@ -383,7 +384,7 @@ The volume removal deletes local data. Never run `-v` against anything you need 
 | TLS error connecting to TiDB | `DB_SSL=false` or wrong port | Use `DB_PORT=4000`, `DB_SSL=true` |
 | `db:setup` permission error | User cannot create the database | Create it manually, grant rights, or use an admin user for setup only |
 | Seed shows 0 rows | Schema applied to a different database name | Check `DB_NAME`; SQL contains no `USE` statement |
-| Browser calls Render instead of local API | `client/.env` still has production `VITE_API_BASE_URL` | Set it empty and restart the dev server |
+| Browser calls Render instead of local API | A custom build still bakes in a cross-site API URL | Remove the API-origin variable and restart the dev server |
 | CORS error in the browser | `CLIENT_URL` does not match the exact origin | Use the exact scheme/host/port, no trailing slash |
 | `503` on upload | Cloudinary not configured | Add all three Cloudinary values and restart |
 | `502` from AI | Missing/invalid Gemini key or provider outage | Set `GEMINI_API_KEY`; check provider quota |

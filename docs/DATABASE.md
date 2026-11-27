@@ -29,11 +29,11 @@
 - The data is small, relational, and read-heavy.
 - TiDB Cloud provides a managed MySQL-compatible endpoint with TLS and a free/serverless tier.
 - MySQL 8 keeps local development and Docker close to production.
-- Four tables and simple queries do not justify an ORM or a document database.
+- Four content tables plus one session table and simple queries do not justify an ORM or a document database.
 
 ## 2. Logical model and ER diagram
 
-The schema has **four independent content tables**. There are no foreign keys because:
+The schema has **four independent content tables** and one operational table, `admin_sessions`. There are no foreign keys because:
 
 - projects, skills, certificates, and messages have no parent/child relationship;
 - there is one admin and no per-row ownership;
@@ -144,6 +144,21 @@ Indexes:
 
 There is no read/unread flag, attachment path, status, or ownership column. The current inbox shows all messages newest first; deletion is permanent. Attachments are sent by email when configured and are not stored as message metadata.
 
+### 3.5 `admin_sessions`
+
+| Column | Type | Null | Default | Notes |
+|---|---|---|---|---|
+| `token_hash` | `CHAR(64)` | No | — | SHA-256 hex digest of the opaque cookie token; primary key |
+| `admin_email` | `VARCHAR(254)` | No | — | Session owner; must match the configured admin |
+| `csrf_token` | `CHAR(64)` | No | — | Per-session CSRF token |
+| `created_at` | `BIGINT` | No | — | Epoch milliseconds |
+| `last_seen_at` | `BIGINT` | No | — | Epoch milliseconds; idle-timeout source |
+| `expires_at` | `BIGINT` | No | — | Epoch milliseconds; absolute expiry |
+| `revoked_at` | `BIGINT` | Yes | `NULL` | Epoch milliseconds; set on logout or rejection |
+
+The raw session token is never stored. It exists only in the HttpOnly cookie.
+Expired and revoked rows are removed after `SESSION_RETENTION_DAYS` (1–90).
+
 ## 4. Relationships
 
 | Relationship | Cardinality | Enforcement |
@@ -209,11 +224,11 @@ Database-level constraints are intentionally minimal because TiDB compatibility 
 
 ## 7. Ownership and authorization
 
-- There is no row-level ownership column. The single admin owns all content and messages.
+- There is no row-level ownership column. The single admin owns all content and messages. The `admin_sessions` table is an operational exception: it stores session hashes and CSRF tokens, not public content.
 - Public users may read projects, skills, and certificates; they may not read messages or mutate content.
 - Authorization is enforced in the API, not the database:
   - public routes: no token;
-  - admin routes: valid JWT with the configured admin email and `admin` role;
+  - admin routes: valid server-side session whose `admin_email` matches the configured admin;
   - message inbox and all mutations: `protect` middleware.
 - Database credentials belong only to the API. The browser never connects to MySQL/TiDB.
 - Row-level security is not used because MySQL/TiDB does not provide PostgreSQL-style RLS and there is only one privileged application role.
@@ -222,7 +237,7 @@ Database-level constraints are intentionally minimal because TiDB compatibility 
 
 The production application user needs:
 
-- `SELECT`, `INSERT`, `UPDATE`, `DELETE` on the four tables;
+- `SELECT`, `INSERT`, `UPDATE`, `DELETE` on the four content tables and `admin_sessions`;
 - no `CREATE DATABASE`, `DROP`, `ALTER`, or grant privileges at runtime.
 
 Schema/migration commands may use a separate migration credential with DDL rights. Review the actual TiDB user grants before production changes; do not assume the application user is least-privileged until verified.
@@ -234,7 +249,7 @@ Schema/migration commands may use a separate migration credential with DDL right
 | Contact name, email, subject, message | Personal data | Stored in `messages`; visible only to admin; never logged in request bodies; retained until owner deletes |
 | Contact attachment | Potentially personal | Forwarded to email; not stored in DB; Cloudinary may retain the uploaded asset until deleted |
 | Admin email/password/hash | Secret | Environment only; never in DB or client |
-| JWT secret | Secret | Environment only |
+| Session token hash / CSRF token | Secret | `admin_sessions` only; the raw cookie token is never stored |
 | Database credentials | Secret | Environment only |
 | Cloudinary/Gemini/Gmail secrets | Secret | Server environment only |
 | Public project/skill/certificate content | Public | Readable without auth |
@@ -254,7 +269,7 @@ Schema/migration commands may use a separate migration credential with DDL right
 
 | File | Purpose |
 |---|---|
-| `schema.sql` | Creates the four tables if missing; no `USE` statement; database-name independent |
+| `schema.sql` | Creates the four content tables and `admin_sessions` if missing; no `USE` statement; database-name independent |
 | `seed.sql` | Idempotent baseline content: 14 projects, 16 skills, 16 certificates |
 | `scripts/database.js` | `setup`, `migrate`, `seed`, `check` commands |
 | `database/Dockerfile` | Bakes schema/seed into the local MySQL image for Docker initialization |

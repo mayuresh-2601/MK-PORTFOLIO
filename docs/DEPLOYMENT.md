@@ -95,11 +95,9 @@ Optional:
 
 ### 3.2 Vercel frontend
 
-| Variable | Value |
-|---|---|
-| `VITE_API_BASE_URL` | `https://mk-portfolio-api.onrender.com` |
-
-`VITE_PROXY_TARGET` is local-only and must not be required in production. Changing a `VITE_*` variable requires a new build.
+No frontend API-origin variable is required. The browser calls same-origin
+`/api`, and `client/vercel.json` rewrites that path to the Render API so the
+session cookie remains first-party. `VITE_PROXY_TARGET` is local-only.
 
 ### 3.3 GitHub Actions
 
@@ -114,7 +112,7 @@ Never put the Render key in `render.yaml`, a workflow file, or a document.
 ## 4. Database deployment
 
 1. Create a TiDB Cloud Starter/Dedicated cluster.
-2. Create a database user with DML rights on the four tables.
+2. Create a database user with DML rights on the four content tables and `admin_sessions`.
 3. Create `portfolio` (or the chosen `DB_NAME`).
 4. Allow Render's outbound connections.
 5. From a trusted machine with production values **temporarily** in a local, gitignored shell environment:
@@ -217,7 +215,8 @@ Optional-integration warnings are expected when those services are absent.
 | Install Command | `npm ci` |
 | Node Version | 22.x |
 
-Set `VITE_API_BASE_URL` for Production (and Preview if previews should call the production API). Redeploy after changing it.
+Do not set a cross-site API origin. The `/api` rewrite in `client/vercel.json`
+keeps the session cookie first-party for both Production and Preview.
 
 ### 6.2 What the client build and `client/vercel.json` provide
 
@@ -285,8 +284,9 @@ Use the GitHub Actions UI → CI/CD Pipeline → Run workflow on `main`. It foll
    cd server && npm run check && npm test
    cd ../client && npm test && npm run lint && npm run build
    ```
-   The client build must print `22 sitemap URLs` while both posts are
-   published, and must emit `404.html` plus the route directories.
+   The client build must print the expected post, sitemap-URL and route-document
+   counts (currently `6 blog posts`, `39 sitemap URLs`, `42 route documents`), and
+   must emit `404.html` plus the route directories.
 3. **Check secrets**: no `.env`, keys, dumps, or build output staged.
 4. **Push to `main`**.
 5. **Watch CI** until all seven jobs pass.
@@ -384,7 +384,7 @@ Expected: health/ready `200`; messages `401`; API `X-Robots-Tag` and `Cache-Cont
 |---|---|---|
 | Render deploy fails immediately | Env validation error | Read the first fatal log line; fix the named variable |
 | API starts but readiness 503 | DB unreachable | Check TiDB host/port/TLS/IP allowlist |
-| Vercel site calls `/api` on its own origin | `VITE_API_BASE_URL` missing | Set it and redeploy |
+| Browser calls a cross-site API | A custom build still bakes in an API origin | Remove `VITE_API_BASE_URL` and rebuild; `/api` must stay same-origin |
 | CORS error | `CLIENT_URL` mismatch | Exact origin, no trailing slash; redeploy Render |
 | Admin login 401 | Hash/password mismatch | Verify `ADMIN_EMAIL` and hash; check startup mode |
 | Uploads 503 | Cloudinary not configured | Add all three values |
@@ -415,7 +415,7 @@ Expected: health/ready `200`; messages `401`; API `X-Robots-Tag` and `Cache-Cont
 - [ ] Render env complete; `ADMIN_PASSWORD_HASH` set; no plain `ADMIN_PASSWORD`.
 - [ ] Session cookie is Secure and SameSite=Lax unless cross-site is intentional.
 - [ ] Vercel env points to the Render API.
-- [ ] Client build emitted 22 sitemap URLs, `404.html`, and route documents.
+- [ ] Client build emitted 39 sitemap URLs and 42 route documents, including `404.html`.
 - [ ] `RENDER_DEPLOY_HOOK_URL` secret present.
 - [ ] Local server/client gates pass.
 - [ ] No secret staged.

@@ -106,18 +106,18 @@ Client unit suites:
 
 | File | Focus |
 |---|---|
-| `devtools.test.js` | JSON, Base64, URL/HTML, regex, JWT decode, gradient builder, zero-width regex safety |
+| `devtools.test.js` | JSON, Base64, URL/HTML, regex, JWT decode and time claims, UUID v4, SHA hashes, timestamps, WCAG contrast, gradient builder, zero-width regex safety |
 | `taxonomy.test.js` | Slug matching for tags/categories and canonical label recovery |
 | `seo-build.test.js` | Route documents, directory indexes, sitemap exclusion, metadata replacement, 404 noindex, RSS, llms.txt, `vercel.json` clean URLs |
 
-Current baseline: **29 tests passing**.
+Current baseline: **38 tests passing**.
 
 What the build must prove:
 
 - `dist/index.html` exists and the React root is present;
 - `dist/404.html` exists and is `noindex`;
 - every public route, post and taxonomy page has a directory-index document;
-- `dist/sitemap.xml` has 22 URLs and no `/admin`, `/api` or `/404`;
+- `dist/sitemap.xml` has 39 URLs and no `/admin`, `/api` or `/404`;
 - `dist/rss.xml` and `dist/llms.txt` exist and exclude private routes;
 - `.well-known/security.txt` and `manifest.json` are copied;
 - per-page SEO markers survive minification;
@@ -324,8 +324,8 @@ A change is not verified until the pipeline result is known. A green local run d
 ## 14. Release test checklist
 
 - [ ] Server syntax and 119 tests pass.
-- [ ] Client 29 tests, lint and build pass.
-- [ ] Build emitted 22 sitemap URLs, `404.html` and route documents.
+- [ ] Client 38 tests, lint and build pass.
+- [ ] Build emitted 39 sitemap URLs, 42 route documents and `404.html`.
 - [ ] No new dependency vulnerability.
 - [ ] Secret scan clean (tree, history, build, live assets).
 - [ ] API contract unchanged or documented.

@@ -30,15 +30,22 @@ accurate as personal narratives and approves publication.
 
 | Post | Why it is search-relevant | Target query intent |
 | --- | --- | --- |
-| `how-i-built-my-full-stack-developer-portfolio` | "How I built my full stack developer portfolio", "React + Node.js + MySQL portfolio architecture", "jwt authentication portfolio", "docker compose portfolio" | Developers evaluating portfolios, looking for architecture patterns |
+| `how-i-built-my-full-stack-developer-portfolio` | "How I built my full stack developer portfolio", "React + Node.js + MySQL portfolio architecture", "cookie session portfolio", "docker compose portfolio" | Developers evaluating portfolios, looking for architecture patterns |
 | `react-and-vite-architecture-for-a-portfolio-spa` | "React and Vite portfolio architecture", "React Router portfolio", "self-hosted fonts React", "code splitting Vite SPA" | Developers deciding between SPA, SSR, or static for their own sites |
+| `docker-compose-bcrypt-hash-ci-failure` | "docker compose bcrypt hash", "docker compose dollar sign escaping", "GitHub Actions Docker CI failure" | Developers debugging Compose interpolation and CI startup failures |
+| `cookie-sessions-without-jwt-localstorage` | "HttpOnly cookie sessions Node.js", "JWT vs server-side session", "CSRF token Express" | Developers choosing an admin authentication model |
+| `static-seo-and-real-404s-in-a-react-spa` | "React SPA SEO", "real 404 Vercel SPA", "prerender metadata Vite" | Developers improving crawlability without adopting SSR |
+| `fail-fast-environment-validation` | "Node.js validate environment variables", "fail fast config production", "Express startup validation" | Developers hardening deployment configuration |
 
-Draft status: `DRAFT — review and approve before publishing`.
+Publication status: all six articles are included in the 2026-11-27 release.
+Owner review remains the gate for future first-person experience claims.
 
 ## 2. Ready-to-write outlines (12 of 12 from the mission)
 
 For each, the deliverable is an **outline with verified statements**. Publishing
-requires owner approval.
+requires owner approval. Four additional articles now cover CI/Docker, cookie
+sessions, static SEO and environment validation; the outlines below remain
+useful for deeper follow-ups.
 
 1. **How I Built My Full Stack Developer Portfolio** (published)
 2. **React and Vite Architecture** (published)
@@ -83,7 +90,7 @@ For each post, follow this template:
 ## 4. Content calendar (6 months)
 
 **Month 1 (Nov–Dec 2026)** — Foundations
-- Publish the two drafts.
+- Publish the six articles in this release.
 - Publish `docs/SEO_SETUP.md`, `docs/ANALYTICS_SETUP.md` (pending).
 - Add `rss.xml` feed.
 - Weekly: 2 posts (if approved) + 1 LinkedIn post.
@@ -150,6 +157,6 @@ This file is updated after each review:
 
 ---
 
-**Next owner action:** Review the two published drafts. If they are acceptable,
-add `PUBLISHED` to `client/src/content/posts/*.js` frontmatter? (no frontmatter
-— status is tracked in this doc and by commit.)
+**Next owner action:** Review the six published articles. Future posts still
+need owner approval before first-person claims are added; status is tracked in
+this document and by commit because the post modules have no frontmatter.

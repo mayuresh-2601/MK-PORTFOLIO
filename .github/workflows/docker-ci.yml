@@ -170,13 +170,39 @@ jobs:
             "Projects | Mayuresh Kasar" \
             "Certificates | Mayuresh Kasar" \
             "Live System Metrics | Mayuresh Kasar" \
-            "Contact Mayuresh Kasar | Hire a Full Stack Developer"
+            "Contact Mayuresh Kasar | Hire a Full Stack Developer" \
+            "Technical Blog" \
+            "Developer toolkit" \
+            "UUID v4 Generator" \
+            "SHA Hash Generator" \
+            "Unix Timestamp Converter" \
+            "WCAG Contrast Checker"
           do
             if ! grep -rqF "$MARKER" dist/assets; then
               echo "::error::Built bundle is missing the page metadata: $MARKER"
               exit 1
             fi
           done
+
+          # New public content must also produce crawlable route documents,
+          # not only client-side React routes.
+          for DOCUMENT in \
+            dist/blog/docker-compose-bcrypt-hash-ci-failure/index.html \
+            dist/blog/cookie-sessions-without-jwt-localstorage/index.html \
+            dist/blog/static-seo-and-real-404s-in-a-react-spa/index.html \
+            dist/blog/fail-fast-environment-validation/index.html \
+            dist/blog/category/devops/index.html \
+            dist/blog/category/security/index.html \
+            dist/404.html
+          do
+            if [ ! -f "$DOCUMENT" ]; then
+              echo "::error::Missing generated route document: ${DOCUMENT}"
+              exit 1
+            fi
+          done
+
+          grep -qF "WCAG contrast checker" dist/tools/index.html \
+            || { echo "::error::/tools document is missing the updated tool description."; exit 1; }
 
           echo "Client build output is valid."
 
@@ -767,7 +793,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          for URL in http://localhost/ http://localhost/projects http://localhost/admin; do
+          for URL in \
+            http://localhost/ \
+            http://localhost/projects \
+            http://localhost/blog \
+            http://localhost/tools \
+            http://localhost/blog/docker-compose-bcrypt-hash-ci-failure \
+            http://localhost/blog/static-seo-and-real-404s-in-a-react-spa \
+            http://localhost/blog/category/devops \
+            http://localhost/admin
+          do
             STATUS=$(curl \
               --write-out "%{http_code}" \
               --silent \
@@ -1167,7 +1202,25 @@ jobs:
             exit 1
           fi
 
-          for ROUTE in / /projects /skills /certificates /system /contact /admin /blog /tools /privacy /blog/how-i-built-my-full-stack-developer-portfolio; do
+          for ROUTE in \
+            / \
+            /projects \
+            /skills \
+            /certificates \
+            /system \
+            /contact \
+            /admin \
+            /blog \
+            /tools \
+            /privacy \
+            /blog/how-i-built-my-full-stack-developer-portfolio \
+            /blog/docker-compose-bcrypt-hash-ci-failure \
+            /blog/cookie-sessions-without-jwt-localstorage \
+            /blog/static-seo-and-real-404s-in-a-react-spa \
+            /blog/fail-fast-environment-validation \
+            /blog/category/devops \
+            /blog/category/security
+          do
             STATUS=$(curl \
               --silent \
               --output /dev/null \

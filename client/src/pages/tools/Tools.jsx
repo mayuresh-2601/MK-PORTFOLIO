@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import SEO from "../../components/common/SEO";
 import {
   buildGradient,
+  checkContrast,
   decodeBase64,
   decodeHtml,
   decodeJwt,
@@ -10,42 +11,87 @@ import {
   encodeBase64,
   encodeHtml,
   encodeUrl,
+  formatDuration,
   formatJson,
+  generateUuidV4,
+  HASH_ALGORITHMS,
+  hashText,
   HTTP_STATUS_CODES,
+  inspectTimestamp,
   testRegex,
   TOOL_DEFINITIONS,
   validateJson,
 } from "../../lib/devtools";
 
 const useClipboard = () => {
-  const [copied, setCopied] = useState(false);
-  const copy = useCallback((text) => {
+  const [status, setStatus] = useState("idle");
+  const timer = useRef(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    []
+  );
+
+  const copy = useCallback(async (text) => {
     if (!text) return;
-    navigator.clipboard?.writeText(text).catch(() => {});
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+    if (timer.current) window.clearTimeout(timer.current);
+
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard API unavailable");
+      }
+
+      await navigator.clipboard.writeText(text);
+      setStatus("copied");
+    } catch {
+      setStatus("error");
+    }
+
+    timer.current = window.setTimeout(() => setStatus("idle"), 2400);
   }, []);
-  return { copied, copy };
+
+  return { status, copy };
 };
 
 const CopyButton = ({ text, label = "Copy" }) => {
-  const { copied, copy } = useClipboard();
+  const { status, copy } = useClipboard();
+  const message =
+    status === "copied"
+      ? "Copied to clipboard."
+      : status === "error"
+        ? "Copy failed. Select the text and copy it manually."
+        : "";
+
   return (
-    <button type="button" className="tool__copy" onClick={() => copy(text)}>
-      {copied ? "Copied" : label}
-    </button>
+    <span className="tool-copy">
+      <button
+        type="button"
+        className={`tool__copy${status === "error" ? " is-error" : ""}`}
+        onClick={() => copy(text)}
+        disabled={!text}
+      >
+        {status === "copied" ? "Copied" : status === "error" ? "Copy failed" : label}
+      </button>
+      <span className="sr-only" role="status" aria-live="polite">
+        {message}
+      </span>
+    </span>
   );
 };
 
 export default function Tools() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTool = searchParams.get("tool") || TOOL_DEFINITIONS[0].id;
-  const tool = TOOL_DEFINITIONS.find((t) => t.id === activeTool);
+  const requestedTool = searchParams.get("tool");
+  const tool =
+    TOOL_DEFINITIONS.find((t) => t.id === requestedTool) || TOOL_DEFINITIONS[0];
+  const activeTool = tool.id;
   return (
     <section className="page page-section tool-section grid-acid">
       <SEO
         title="Developer Tools | Mayuresh Kasar — Full Stack Developer"
-        description="Free browser-based developer tools: JSON formatter, validator, Base64 and URL encoders, HTML entity encoder, regex tester, JWT decoder, CSS gradient generator and HTTP status reference. All tools run locally."
+        description="Free browser-based developer tools: JSON formatter, Base64, URL and HTML codecs, regex tester, JWT decoder with expiry, UUID v4 generator, SHA hashes, Unix timestamp converter, WCAG contrast checker, CSS gradient builder and HTTP status reference. All tools run locally."
         path="/tools"
       />
 
@@ -88,6 +134,10 @@ export default function Tools() {
               {activeTool === "html" && <HtmlTool />}
               {activeTool === "regex" && <RegexTool />}
               {activeTool === "jwt" && <JwtTool />}
+              {activeTool === "uuid" && <UuidTool />}
+              {activeTool === "hash" && <HashTool />}
+              {activeTool === "timestamp" && <TimestampTool />}
+              {activeTool === "contrast" && <ContrastTool />}
               {activeTool === "gradient" && <GradientTool />}
               {activeTool === "http" && <HttpStatusTool />}
             </div>
@@ -287,11 +337,321 @@ function JwtTool() {
             text={JSON.stringify(result.header, null, 2) + "\n" + JSON.stringify(result.payload, null, 2)}
             label="Copy decoded"
           />
+          {result.times?.issuedAt && (
+            <ResultBlock
+              label="Issued at (UTC)"
+              value={result.times.issuedAt.iso}
+            />
+          )}
+          {result.times?.notBefore && (
+            <ResultBlock
+              label="Not valid before (UTC)"
+              value={result.times.notBefore.iso}
+            />
+          )}
+          {result.times?.expiresAt ? (
+            <>
+              <ResultBlock
+                label="Expires at (UTC)"
+                value={result.times.expiresAt.iso}
+              />
+              <ResultBlock
+                label="Expiry state"
+                value={
+                  result.times.expired
+                    ? `Expired ${formatDuration(result.times.expiresInSeconds)} ago`
+                    : `Valid for ${formatDuration(result.times.expiresInSeconds)}`
+                }
+              />
+            </>
+          ) : (
+            <p className="tool-status__warn">
+              This token has no <code>exp</code> claim, so its expiry cannot be
+              determined.
+            </p>
+          )}
           {result.warning && <p className="tool-status__warn">{result.warning}</p>}
         </>
       ) : (
         <p className="tool-status__err">{result.error}</p>
       )}
+    </>
+  );
+}
+
+function UuidTool() {
+  const [result, setResult] = useState(() => generateUuidV4());
+
+  return (
+    <>
+      <p className="tool-hint">
+        RFC 4122 version 4 UUIDs carry 122 random bits, a fixed version nibble
+        and an RFC variant. They are identifiers, not secrets.
+      </p>
+      <div className="tool-actions">
+        <button
+          type="button"
+          className="tool-action"
+          onClick={() => setResult(generateUuidV4())}
+        >
+          Generate another
+        </button>
+        <CopyButton text={result.ok ? result.value : ""} label="Copy UUID" />
+      </div>
+      {result.ok ? (
+        <>
+          <ResultBlock label="UUID v4" value={result.value} />
+          <dl className="tool-facts">
+            <div>
+              <dt>Version</dt>
+              <dd>4 (random)</dd>
+            </div>
+            <div>
+              <dt>Variant</dt>
+              <dd>RFC 4122 / 10xx</dd>
+            </div>
+            <div>
+              <dt>Secure source</dt>
+              <dd>Web Crypto getRandomValues</dd>
+            </div>
+          </dl>
+        </>
+      ) : (
+        <p className="tool-status__err">{result.error}</p>
+      )}
+    </>
+  );
+}
+
+function HashTool() {
+  const [input, setInput] = useState("Mayuresh — portfolio");
+  const [algorithm, setAlgorithm] = useState("SHA-256");
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setResult(null);
+
+    hashText(input, algorithm).then((next) => {
+      if (!cancelled) setResult(next);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [input, algorithm]);
+
+  return (
+    <>
+      <label htmlFor="hash-algorithm" className="tool-label">
+        Algorithm
+      </label>
+      <select
+        id="hash-algorithm"
+        className="tool-input"
+        value={algorithm}
+        onChange={(e) => setAlgorithm(e.target.value)}
+      >
+        {HASH_ALGORITHMS.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <label htmlFor="hash-input" className="tool-label">
+        Text to hash
+      </label>
+      <textarea
+        id="hash-input"
+        className="tool-textarea"
+        rows={4}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+      />
+      {result?.ok ? (
+        <>
+          <ResultBlock
+            label={`${result.algorithm} hex digest · ${result.bits} bits`}
+            value={result.value}
+          />
+          <CopyButton text={result.value} label="Copy digest" />
+        </>
+      ) : result?.error ? (
+        <p className="tool-status__err">{result.error}</p>
+      ) : (
+        <p className="tool-status__warn">Hashing locally…</p>
+      )}
+      <p className="tool-hint">
+        Hashing is one-way and does not encrypt. A bare SHA digest is not a
+        password storage format; passwords need a salted, slow KDF such as
+        bcrypt, scrypt or Argon2.
+      </p>
+    </>
+  );
+}
+
+function TimestampTool() {
+  const [input, setInput] = useState(() =>
+    String(Math.floor(Date.now() / 1000))
+  );
+  const result = useMemo(() => inspectTimestamp(input), [input]);
+  const localTime = result.ok
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "full",
+        timeStyle: "long",
+      }).format(new Date(result.milliseconds))
+    : null;
+
+  return (
+    <>
+      <label htmlFor="timestamp-input" className="tool-label">
+        Unix seconds, Unix milliseconds or ISO 8601
+      </label>
+      <input
+        id="timestamp-input"
+        type="text"
+        className="tool-input"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        spellCheck={false}
+        autoComplete="off"
+      />
+      <div className="tool-actions">
+        <button
+          type="button"
+          className="tool-action"
+          onClick={() => setInput(String(Math.floor(Date.now() / 1000)))}
+        >
+          Use current time
+        </button>
+        <CopyButton
+          text={result.ok ? result.iso : ""}
+          label="Copy ISO 8601"
+        />
+      </div>
+      {result.ok ? (
+        <>
+          <ResultBlock label="Detected input" value={result.unit} />
+          <ResultBlock label="Unix seconds" value={String(result.seconds)} />
+          <ResultBlock label="Unix milliseconds" value={String(result.milliseconds)} />
+          <ResultBlock label="ISO 8601 (UTC)" value={result.iso} />
+          <ResultBlock label="UTC" value={result.utc} />
+          <ResultBlock label="Local time" value={localTime} />
+        </>
+      ) : (
+        <p className="tool-status__err">{result.error}</p>
+      )}
+      <p className="tool-hint">
+        Numeric input with up to 10 digits is treated as seconds; longer input
+        is treated as milliseconds. Unix time counts seconds since 1970-01-01
+        UTC and ignores leap seconds.
+      </p>
+    </>
+  );
+}
+
+const CONTRAST_CHECKS = [
+  { key: "normalTextAA", label: "Normal text", standard: "AA", threshold: "4.5:1" },
+  { key: "normalTextAAA", label: "Normal text", standard: "AAA", threshold: "7:1" },
+  { key: "largeTextAA", label: "Large text", standard: "AA", threshold: "3:1" },
+  { key: "largeTextAAA", label: "Large text", standard: "AAA", threshold: "4.5:1" },
+  { key: "uiComponents", label: "UI and graphics", standard: "AA", threshold: "3:1" },
+];
+
+const pickerValue = (value) =>
+  /^#[0-9a-f]{6}$/i.test(value) ? value : "#000000";
+
+function ColorField({ id, label, value, onChange }) {
+  return (
+    <div className="tool-color-field">
+      <label htmlFor={`${id}-text`} className="tool-label">
+        {label}
+      </label>
+      <div className="tool-color-control">
+        <input
+          type="color"
+          className="tool-color-picker"
+          value={pickerValue(value)}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} colour picker`}
+        />
+        <input
+          id={`${id}-text`}
+          type="text"
+          className="tool-input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ContrastTool() {
+  const [foreground, setForeground] = useState("#111111");
+  const [background, setBackground] = useState("#CCFF00");
+  const result = useMemo(
+    () => checkContrast(foreground, background),
+    [foreground, background]
+  );
+
+  return (
+    <>
+      <div className="tool-color-grid">
+        <ColorField
+          id="contrast-foreground"
+          label="Text colour"
+          value={foreground}
+          onChange={setForeground}
+        />
+        <ColorField
+          id="contrast-background"
+          label="Background colour"
+          value={background}
+          onChange={setBackground}
+        />
+      </div>
+      <div
+        className="tool-contrast__preview"
+        style={{
+          background: result.ok ? result.background : "#FFFFFF",
+          color: result.ok ? result.foreground : "#000000",
+        }}
+      >
+        <p className="tool-contrast__large">Large text sample</p>
+        <p>Normal body text sample.</p>
+      </div>
+      {result.ok ? (
+        <div className="tool-contrast__report" role="status">
+          <p className="tool-contrast__ratio">
+            <strong>{result.ratioText}:1</strong> contrast ratio
+          </p>
+          <ul className="tool-contrast__checks">
+            {CONTRAST_CHECKS.map((check) => (
+              <li key={check.key}>
+                <span>
+                  {check.label} · {check.standard} ({check.threshold})
+                </span>
+                <strong className="tool-contrast__verdict">
+                  {result[check.key] ? "Pass" : "Fail"}
+                </strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="tool-status__err" role="status">
+          {result.error}
+        </p>
+      )}
+      <p className="tool-hint">
+        WCAG 2.2 thresholds: 4.5:1 for normal text (AA), 3:1 for large text and
+        UI components, 7:1 for normal text at AAA and 4.5:1 for large text at
+        AAA. Large text is at least 24 px, or 18.66 px when bold. The ratio is
+        symmetric for a colour pair.
+      </p>
     </>
   );
 }

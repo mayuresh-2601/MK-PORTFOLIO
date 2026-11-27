@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildGradient,
+  checkContrast,
   decodeBase64,
   decodeHtml,
   decodeJwt,
@@ -10,7 +11,11 @@ import {
   encodeBase64,
   encodeHtml,
   encodeUrl,
+  formatDuration,
   formatJson,
+  generateUuidV4,
+  hashText,
+  inspectTimestamp,
   testRegex,
   validateJson,
 } from "../src/lib/devtools.js";
@@ -139,4 +144,106 @@ test("gradient builder rejects bad colours and too few stops", () => {
     false
   );
   assert.equal(buildGradient({ stops: [{ color: "#000", position: 0 }] }).ok, false);
+});
+
+test("uuid generator returns unique RFC 4122 version 4 values", () => {
+  const values = new Set();
+  const pattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  for (let i = 0; i < 25; i += 1) {
+    const result = generateUuidV4();
+    assert.equal(result.ok, true);
+    assert.match(result.value, pattern);
+    values.add(result.value);
+  }
+
+  assert.equal(values.size, 25);
+});
+
+test("hash generator matches the SHA-256 abc test vector", async () => {
+  const result = await hashText("abc", "SHA-256");
+
+  assert.equal(result.ok, true);
+  assert.equal(result.bits, 256);
+  assert.equal(
+    result.value,
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  );
+});
+
+test("hash generator rejects unsupported algorithms", async () => {
+  const result = await hashText("abc", "MD5");
+
+  assert.equal(result.ok, false);
+  assert.match(result.error, /SHA-256/);
+});
+
+test("timestamp converter reads seconds, milliseconds and ISO dates", () => {
+  const seconds = inspectTimestamp("1700000000");
+  const milliseconds = inspectTimestamp("1700000000000");
+  const iso = inspectTimestamp("2023-11-14T22:13:20Z");
+
+  assert.equal(seconds.ok, true);
+  assert.equal(seconds.unit, "Unix seconds");
+  assert.equal(seconds.iso, "2023-11-14T22:13:20.000Z");
+  assert.equal(milliseconds.unit, "Unix milliseconds");
+  assert.equal(milliseconds.iso, seconds.iso);
+  assert.equal(iso.iso, seconds.iso);
+});
+
+test("timestamp converter rejects empty and malformed input", () => {
+  assert.equal(inspectTimestamp("").ok, false);
+  assert.equal(inspectTimestamp("not-a-date").ok, false);
+  assert.equal(inspectTimestamp("99999999999999999999").ok, false);
+});
+
+test("contrast checker applies WCAG AA and AAA thresholds", () => {
+  const blackOnWhite = checkContrast("#000", "#ffffff");
+  const threshold = checkContrast("#767676", "#ffffff");
+  const whiteOnWhite = checkContrast("#ffffff", "#fff");
+
+  assert.equal(blackOnWhite.ok, true);
+  assert.equal(blackOnWhite.ratio, 21);
+  assert.equal(blackOnWhite.normalTextAAA, true);
+  assert.equal(threshold.normalTextAA, true);
+  assert.equal(threshold.normalTextAAA, false);
+  assert.equal(threshold.largeTextAAA, true);
+  assert.equal(whiteOnWhite.ratio, 1);
+  assert.equal(whiteOnWhite.uiComponents, false);
+});
+
+test("contrast checker rejects named and malformed colours", () => {
+  assert.equal(checkContrast("black", "#ffffff").ok, false);
+  assert.equal(checkContrast("#12", "#ffffff").ok, false);
+});
+
+test("duration formatting keeps the largest two units", () => {
+  assert.equal(formatDuration(45), "45s");
+  assert.equal(formatDuration(3725), "1h 2m");
+  assert.equal(formatDuration(90061), "1d 1h");
+  assert.equal(formatDuration(Number.NaN), "");
+});
+
+test("jwt decoder reports expiry at a supplied clock time", () => {
+  const encodePart = (value) =>
+    encodeBase64(JSON.stringify(value)).value
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  const token = [
+    encodePart({ alg: "HS256", typ: "JWT" }),
+    encodePart({ sub: "1234", iat: 1_699_999_400, exp: 1_700_000_000 }),
+    "signature",
+  ].join(".");
+
+  const active = decodeJwt(token, { now: 1_699_999_940_000 });
+  const expired = decodeJwt(token, { now: 1_700_000_000_000 });
+
+  assert.equal(active.times.expired, false);
+  assert.equal(active.times.expiresInSeconds, 60);
+  assert.equal(active.times.expiresAt.iso, "2023-11-14T22:13:20.000Z");
+  assert.equal(active.times.issuedAt.seconds, 1_699_999_400);
+  assert.equal(expired.times.expired, true);
+  assert.equal(expired.times.expiresInSeconds, 0);
 });

@@ -18,7 +18,6 @@ const secondaryLinks = [
   { label: "Certificates", to: "/certificates" },
   { label: "System", to: "/system" },
   { label: "Contact", to: "/contact" },
-  { label: "Admin", to: "/admin" },
 ];
 
 const legalLinks = [
