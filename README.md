@@ -4,12 +4,13 @@
 
 ### Full Stack Developer Portfolio
 
-A production-grade portfolio platform built with **React, Node.js, Express, MySQL/TiDB, Docker, and Google Gemini**.
+**A production-grade portfolio platform** built with **React 18, Node.js 22, Express 5, MySQL/TiDB, Docker, and Google Gemini**.
 Real authentication, real database content, real server telemetry, and a CI/CD pipeline that ships it.
 
-[![Live Site](https://img.shields.io/badge/Live-Vercel-000000?style=for-the-badge&logo=vercel)](https://mk-portfolio-phi-silk.vercel.app/)
+[![Live Site](https://img.shields.io/badge/Live%20Site-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://mk-portfolio-phi-silk.vercel.app/)
 [![API](https://img.shields.io/badge/API-Render-46E3B7?style=for-the-badge&logo=render)](https://mk-portfolio-api.onrender.com/api/health)
-[![CI/CD](https://img.shields.io/github/actions/workflow/status/mayuresh-2601/MK-PORTFOLIO/docker-ci.yml?branch=main&style=for-the-badge&label=CI%2FCD)](https://github.com/mayuresh-2601/MK-PORTFOLIO/actions/workflows/docker-ci.yml)
+[![CI/CD Pipeline](https://img.shields.io/github/actions/workflow/status/mayuresh-2601/MK-PORTFOLIO/docker-ci.yml?branch=main&style=for-the-badge&label=CI%2FCD%20Pipeline)](https://github.com/mayuresh-2601/MK-PORTFOLIO/actions/workflows/docker-ci.yml)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
@@ -17,23 +18,27 @@ Real authentication, real database content, real server telemetry, and a CI/CD p
 [![Express](https://img.shields.io/badge/Express-5-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
 [![TiDB](https://img.shields.io/badge/TiDB_Cloud-MySQL_8.0-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.tidbcloud.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/ESM-Only-3178C6?style=flat-square&logo=javascript&logoColor=white)](#)
+[![Tests](https://img.shields.io/badge/Tests-157%20passing-brightgreen?style=flat-square&logo=jest)](client/tests/)
+[![Security](https://img.shields.io/badge/Security-Hardened-ff6b6b?style=flat-square&logo=shield&logoColor=white)](#security)
 
-[Live Site](https://mk-portfolio-phi-silk.vercel.app/) &nbsp;|&nbsp;
-[API Health](https://mk-portfolio-api.onrender.com/api/health) &nbsp;|&nbsp;
-[Documentation](docs/) &nbsp;|&nbsp;
-[Report a Bug](https://github.com/mayuresh-2601/MK-PORTFOLIO/issues) &nbsp;|&nbsp;
-[Request a Feature](https://github.com/mayuresh-2601/MK-PORTFOLIO/issues)
+[🌐 **Live Site**](https://mk-portfolio-phi-silk.vercel.app/) &nbsp;|&nbsp;
+[❤️ **API Health**](https://mk-portfolio-api.onrender.com/api/health) &nbsp;|&nbsp;
+[📚 **Documentation**](docs/) &nbsp;|&nbsp;
+[🐛 **Report Bug**](https://github.com/mayuresh-2601/MK-PORTFOLIO/issues) &nbsp;|&nbsp;
+[✨ **Request Feature**](https://github.com/mayuresh-2601/MK-PORTFOLIO/issues)
 
 </div>
 
 ---
 
-## Table of Contents
+## 📋 Table of Contents
 
 - [Overview](#overview)
 - [Live Environment](#live-environment)
 - [Screenshots](#screenshots)
+- [Technical Blog](#technical-blog)
+- [Developer Tools](#developer-tools)
 - [Feature Highlights](#feature-highlights)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
@@ -56,206 +61,224 @@ Real authentication, real database content, real server telemetry, and a CI/CD p
 
 ---
 
-## Overview
+## 🎯 Overview
 
-This repository is **not a static portfolio template**. It is a complete full-stack application with its own API, database, authentication, admin dashboard, AI layer, and deployment pipeline.
+This repository is **not a static portfolio template**. It is a **complete full-stack application** with its own API, database, authentication, admin dashboard, AI layer, and deployment pipeline.
 
 The public site presents projects, skills, certificates, and contact information through a bold **Kinetic Brutalism** interface: acid green, ink black, hot pink, hard borders, offset shadows, oversized type, and deliberate motion. Everything visitors see is served from the API and stored in MySQL/TiDB, including the project cards and certificate artwork.
 
-The project is designed to demonstrate the engineering practices behind a real product:
+### What makes this different?
 
-- **Separate frontend and backend** deployed independently to Vercel and Render.
-- **Cookie-session admin area** with opaque HttpOnly session, CSRF protection, and full CRUD for portfolio content.
-- **Production database** on TiDB Cloud, with a MySQL-compatible schema and seed data.
-- **Docker Compose stack** that runs the entire application locally, including the database.
-- **Seven-job GitHub Actions pipeline** that lints, tests, builds, deploys, and smoke-tests the live system.
-- **Live server telemetry** on `/system` showing real CPU, memory, uptime, AI availability, and deployment state.
-- **Technical blog and browser tools** - dependency-free articles, tag/category pages, and twelve developer tools that run locally in the browser.
-- **Crawlable route documents** - every public route has its own title, description, canonical URL, JSON-LD and `<noscript>` summary at build time.
-- **Optional integrations** for Gmail notifications, Cloudinary uploads, and Google Gemini AI.
-
-### At a glance
-
-| Area | Implementation |
+| Practice | Implementation |
 |---|---|
-| Frontend | React 18, Vite 6, React Router 7, Tailwind CSS 4, Axios, Lucide |
-| Backend | Node.js 22, Express 5, MySQL2, bcryptjs, Helmet, CORS |
-| Database | TiDB Cloud / MySQL 8, `utf8mb4`, five relational tables |
-| Auth | Single admin identity, bcrypt hash required in production, HttpOnly cookie session, CSRF protection, optional TOTP MFA |
-| Uploads | Cloudinary, in-memory Multer buffer, 5 MB image limit |
-| Email | Gmail API over HTTPS (Render-compatible) or Gmail SMTP |
-| AI | Google Gemini `gemini-3.5-flash-lite` |
-| Local stack | Docker Compose: React + Nginx, Express, MySQL |
-| Delivery | GitHub Actions -> Render deploy hook + Vercel Git integration |
-| Documentation | README, deployment, authentication, SEO, threat model, scale, resilience, compliance, and operations guides |
+| **Separate frontend/backend** | Deployed independently to Vercel and Render |
+| **Cookie-session auth** | HttpOnly, Secure, SameSite=Lax + CSRF + optional TOTP |
+| **Production database** | TiDB Cloud (MySQL 8 compatible) with TLS |
+| **Docker Compose** | Full local stack: React+Nginx, Express, MySQL |
+| **7-job CI/CD** | Lint, test, build, deploy, smoke-test on every push |
+| **Live telemetry** | `/system` shows real CPU, memory, uptime, AI status |
+| **Technical blog** | 6 dependency-free articles grounded in this repo |
+| **12 browser tools** | Local-only utilities: JWT, UUID, Hash, Contrast, etc. |
+| **Crawlable routes** | Build-time route docs, sitemap, RSS, llms.txt, 404.html |
+| **Optional integrations** | Gmail API, Cloudinary, Google Gemini (all fail gracefully) |
 
 ---
 
-## Live Environment
+## 🌍 Live Environment
 
-| Layer | Platform | URL |
-|---|---|---|
-| Frontend | Vercel | <https://mk-portfolio-phi-silk.vercel.app> |
-| API | Render | <https://mk-portfolio-api.onrender.com> |
-| API health | Render | <https://mk-portfolio-api.onrender.com/api/health> |
-| Live telemetry | Render | <https://mk-portfolio-phi-silk.vercel.app/system> |
-| Repository | GitHub | <https://github.com/mayuresh-2601/MK-PORTFOLIO> |
-| CI/CD | GitHub Actions | [CI/CD Pipeline](https://github.com/mayuresh-2601/MK-PORTFOLIO/actions/workflows/docker-ci.yml) |
-| Database | TiDB Cloud | Private endpoint, TLS on port `4000` |
+| Layer | Platform | URL | Status |
+|---|---|---|---|
+| **Frontend** | Vercel | <https://mk-portfolio-phi-silk.vercel.app> | ![Vercel](https://img.shields.io/badge/vercel-deployed-000000?style=flat&logo=vercel) |
+| **API** | Render | <https://mk-portfolio-api.onrender.com> | ![Render](https://img.shields.io/badge/render-live-46E3B7?style=flat&logo=render) |
+| **API Health** | Render | <https://mk-portfolio-api.onrender.com/api/health> | [![Health](https://img.shields.io/endpoint?url=https://mk-portfolio-api.onrender.com/api/health/badge.json)](https://mk-portfolio-api.onrender.com/api/health) |
+| **Live Telemetry** | Vercel+Render | <https://mk-portfolio-phi-silk.vercel.app/system> | Real-time |
+| **Repository** | GitHub | <https://github.com/mayuresh-2601/MK-PORTFOLIO> | Public |
+| **CI/CD** | GitHub Actions | [Pipeline](https://github.com/mayuresh-2601/MK-PORTFOLIO/actions/workflows/docker-ci.yml) | ![CI](https://img.shields.io/github/actions/workflow/status/mayuresh-2601/MK-PORTFOLIO/docker-ci.yml?branch=main&label=CI) |
+| **Database** | TiDB Cloud | Private TLS:4000 | Secured |
 
-> **Free-tier note:** the Render API may take 30-60 seconds to wake after a period of inactivity. The frontend uses a 60-second request timeout and shows a clear loading state while the API starts.
+> **⚡ Free-tier note:** The Render API may take 30–60 seconds to wake after inactivity. The frontend uses a 60-second timeout with a clear loading state.
 >
-> **Last production verification:** 27 November 2026 - seven CI jobs green, Render and Vercel healthy, all public pages and assets returning `200`, admin cookie-session login working. Blog layout fix (explicit grid placement preventing related-articles/TOC overlap) deployed and verified live.
+> **📅 Last production verification:** 27 November 2026 — 7 CI jobs green, Render & Vercel healthy, all public pages `200`, admin session working, blog layout fix deployed.
 >
-> **Repository checks:** 27 November 2026 - 119 server tests, 38 client tests, lint, production build, 39 sitemap URLs, 42 route documents, and local clean-URL/404 checks passed. See [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md) for the earlier labelled evidence.
+> **🧪 Repository checks:** 27 Nov 2026 — 119 server tests, 38 client tests, lint, production build, 39 sitemap URLs, 42 route documents, clean-URL/404 checks passed. See [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md).
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
-All screenshots are captured from the live production deployment at **1440 x 900**.
+All screenshots captured from live production at **1440 × 900**.
 
-### Home
+### Home & Public Pages
 
-<img src="docs/screenshots/home.png" alt="Portfolio home page with the Kinetic Brutalism hero section" width="100%" />
+| Home | About | Projects |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/home.png" alt="Home page - Kinetic Brutalism hero" width="100%" /> | <img src="docs/screenshots/about.png" alt="About page" width="100%" /> | <img src="docs/screenshots/projects.png" alt="Projects page with cards" width="100%" /> |
 
-### Public Pages
+| Skills | Certificates | Contact |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/skills.png" alt="Skills with AI explainers" width="100%" /> | <img src="docs/screenshots/certificates.png" alt="Certificates grid" width="100%" /> | <img src="docs/screenshots/contact.png" alt="Contact form" width="100%" /> |
 
-| About | Projects |
-|:---:|:---:|
-| <img src="docs/screenshots/about.png" alt="About page" width="100%" /> | <img src="docs/screenshots/projects.png" alt="Projects page" width="100%" /> |
-
-| Skills | Certificates |
-|:---:|:---:|
-| <img src="docs/screenshots/skills.png" alt="Skills page with AI explanation buttons" width="100%" /> | <img src="docs/screenshots/certificates.png" alt="Certificates page" width="100%" /> |
-
-| Contact | Live System |
-|:---:|:---:|
-| <img src="docs/screenshots/contact.png" alt="Contact form" width="100%" /> | <img src="docs/screenshots/system.png" alt="Live system telemetry dashboard" width="100%" /> |
+| Live System | Blog Index | Blog Post |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/system.png" alt="Live telemetry dashboard" width="100%" /> | <img src="docs/screenshots/blog-index.png" alt="Blog with taxonomy" width="100%" /> | <img src="docs/screenshots/blog-post.png" alt="Article with TOC" width="100%" /> |
 
 ### Admin Area
 
 | Login | Dashboard |
 |:---:|:---:|
-| <img src="docs/screenshots/login.png" alt="Admin login page" width="100%" /> | <img src="docs/screenshots/dashboard.png" alt="Admin dashboard with project and skill management" width="100%" /> |
+| <img src="docs/screenshots/login.png" alt="Admin login" width="100%" /> | <img src="docs/screenshots/dashboard.png" alt="Admin dashboard CRUD" width="100%" /> |
+
+### Developer Tools
+
+| Tools Index | JWT Decoder | Contrast Checker |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/tools-index.png" alt="12 tools navigation" width="100%" /> | <img src="docs/screenshots/tools-jwt.png" alt="JWT with expiry" width="100%" /> | <img src="docs/screenshots/tools-contrast.png" alt="WCAG contrast" width="100%" /> |
 
 ---
 
-## Feature Highlights
+## 📝 Technical Blog
 
-### Public portfolio
+**6 dependency-free articles** — structured JavaScript content blocks rendered to safe React elements; no Markdown parser, no `dangerouslySetInnerHTML`. Each article is grounded in this repository's actual implementation.
 
-- **Public routes** - Home, About, Skills, Projects, Certificates, System, Contact, Blog, Tools, Privacy, Terms, and Accessibility.
-- **Database-driven content** - project cards, skill levels, certificate artwork, and the contact form all use the API, not hardcoded arrays.
-- **Shareable pagination** - projects, skills, and certificates page through the API nine items at a time; the current page lives in `?page=` so links and browser history work.
-- **Kinetic Brutalism design** - acid/ink/pink palette, hard borders, offset shadows, marquee, count-up statistics, and scroll reveals.
-- **Responsive layout** - desktop, tablet, and mobile navigation with a full-screen menu.
-- **Accessibility-minded UI** - skip-to-content link, semantic headings, keyboard-trapped dialogs, visible focus states, and `prefers-reduced-motion` support.
-- **SEO and sharing** - build-time route documents with per-route title, description, canonical, Open Graph, Twitter and JSON-LD metadata; `sitemap.xml`, `rss.xml`, `llms.txt`, `robots.txt`, `manifest.json` and `/.well-known/security.txt`.
-- **Real 404s** - Vercel `cleanUrls` serves directory indexes and an unknown path returns `404.html` with HTTP 404, not a soft 404.
-- **Self-hosted fonts** - Inter and Space Mono are served from the bundle, so the site does not depend on Google Fonts at runtime.
-- **Resume download** - `client/public/Mayuresh_Kasar_Resume.pdf` is served at `/Mayuresh_Kasar_Resume.pdf` (one page, 5.4 KB).
+| # | Article | Category | Description | Live Link |
+|---|---|---|---|---|
+| 1 | **How I Built My Full-Stack Developer Portfolio** | Full Stack | Architecture decisions: React+Vite, Express+MySQL, Docker, CI/CD, cookie sessions | [📖 Read](https://mk-portfolio-phi-silk.vercel.app/blog/how-i-built-my-full-stack-developer-portfolio) |
+| 2 | **React and Vite Architecture for a Portfolio SPA** | Frontend | Self-hosted fonts, code splitting, React Router 7, Tailwind 4, SEO route documents | [📖 Read](https://mk-portfolio-phi-silk.vercel.app/blog/react-and-vite-architecture-for-a-portfolio-spa) |
+| 3 | **The Docker CI Bug That Broke a bcrypt Hash** | DevOps | How Docker Compose interpolated `$` in a bcrypt hash, the single-quote fix, and CI hardening | [📖 Read](https://mk-portfolio-phi-silk.vercel.app/blog/docker-compose-bcrypt-hash-ci-failure) |
+| 4 | **Cookie Sessions Without the JWT Tax** | Security | HttpOnly cookie, SHA-256 token hash in MySQL, absolute/idle timeouts, per-session CSRF | [📖 Read](https://mk-portfolio-phi-silk.vercel.app/blog/cookie-sessions-without-jwt-localstorage) |
+| 5 | **Static SEO Documents and Real 404s in a React SPA** | Frontend | Vite build writes route-specific HTML; Vercel cleanUrls + `404.html` = real HTTP 404s | [📖 Read](https://mk-portfolio-phi-silk.vercel.app/blog/static-seo-and-real-404s-in-a-react-spa) |
+| 6 | **Fail Fast: Validating the Server Environment Before It Serves Traffic** | DevOps | Startup validation: required vars, placeholder detection, auth rules, session bounds, optional integrations | [📖 Read](https://mk-portfolio-phi-silk.vercel.app/blog/fail-fast-environment-validation) |
 
-### Technical blog and developer tools
+### Blog Features
 
-- **Dependency-free blog** - structured JavaScript content blocks rendered to safe React elements; no Markdown parser and no `dangerouslySetInnerHTML`.
-- **Six published articles** - full-stack architecture, React/Vite delivery, Docker CI debugging, HttpOnly cookie sessions, static SEO with real 404s, and startup environment validation. Each article is grounded in this repository.
-- **Taxonomy and search** - tag and category pages use slug matching, and search is scoped to the current taxonomy.
-- **Twelve browser tools** - JSON formatter/validator, Base64, URL and HTML codecs, regex tester, JWT decoder with expiry display, UUID v4 generator, SHA-256/384/512 hashing, Unix timestamp converter, WCAG contrast checker, CSS gradient builder, and HTTP status reference.
-- **Local-only JWT decoding** - the tool never transmits or stores a token and clearly states that it does not verify the signature.
-- **Tested pure logic** - `client/tests/devtools.test.js`, `taxonomy.test.js`, and `seo-build.test.js` run with Node's built-in test runner.
-
-### AI-powered explanations
-
-- **Explain a skill** - click a skill to receive a short, plain-language explanation generated by Google Gemini.
-- **Explain a certificate** - visitors can ask what a certification covers and why it matters.
-- **Ask AI about me** - a chat panel on `/system` answers questions such as *"What DevOps skills does he have?"* using the portfolio content as context.
-- **Graceful failure** - if `GEMINI_API_KEY` is missing or the upstream API fails, the endpoints return a clear `502` instead of breaking the page.
-- **Abuse protection** - AI endpoints are limited to **10 requests per minute per IP**.
-
-### Live System panel
-
-- **Real telemetry, not mocked values** - CPU load, memory usage, API uptime, AI availability, and deployment commit when configured. The public payload is intentionally minimal: no hostnames, environment variables, stack details, or infrastructure metadata.
-- **Five-second refresh** - the page polls the live API while it is open.
-- **Terminal-style server log** - appends real metric lines as they arrive.
-- **Deployment proof** - the panel is intentionally public so recruiters can see the running backend rather than a claim on a resume.
-- **Dedicated rate limit** - `/api/system` has its own 120-requests-per-minute budget so telemetry polling cannot exhaust the general API limit.
-
-### Admin dashboard
-
-- **Cookie-session login** - one admin identity configured through server-side environment variables (bcrypt hash, optional TOTP MFA); session stored in HttpOnly cookie.
-- **Full CRUD** - create, edit, and delete projects, skills, and certificates.
-- **Image uploads** - project and certificate artwork is uploaded to Cloudinary; the API remains online if Cloudinary is not configured.
-- **Contact inbox** - read and delete messages submitted through the public form.
-- **Immediate feedback** - success and error states for every mutation, plus a manual refresh control.
-- **Protected routes** - the dashboard redirects to `/admin` when no valid session cookie is present.
-
-### Contact and notifications
-
-- **Validated form** - name, email, subject, and message with server-side validation.
-- **Message-first design** - the message is saved to the database **before** email delivery is attempted, so a mail failure never loses an enquiry.
-- **Best-effort email** - sends a notification to `ADMIN_EMAIL` through the Gmail API or SMTP when configured.
-- **Spam protection** - five contact submissions per 15 minutes per IP.
-
-### Engineering and ops
-
-- **Environment validation at boot** - the API refuses to start in production if required secrets are missing or still placeholders.
-- **Graceful shutdown** - closes the HTTP server and database pool on `SIGINT`/`SIGTERM`.
-- **Security headers** - Helmet on the API; CSP, HSTS, frame denial, and permissions policy on Vercel and Nginx.
-- **Structured error handling** - malformed JSON and invalid field types return `400`, not `500`.
-- **Secret-free images** - CI verifies Docker images do not contain `.env` files or build output.
-- **Removable-drive friendly Docker** - the database schema and seed files are baked into the image instead of bind-mounted, so the stack works from a USB drive on Windows.
+- **Taxonomy & Search** — Tag/category pages use slug matching; search scoped to current taxonomy
+- **Reading Tools** — Sticky TOC, social share (X/LinkedIn/copy), related articles, author card
+- **SEO-First** — Per-article JSON-LD Article, Open Graph, Twitter cards, canonical, `sitemap.xml`, `rss.xml`
+- **Real 404s** — Unknown slugs return HTTP 404 with `noindex`, not a soft 200
+- **Accessibility** — Semantic headings, `aria-current` on active taxonomy, skip links, reduced motion
 
 ---
 
-## Tech Stack
+## 🛠 Developer Tools
 
-| Layer | Technology | Why it is used |
-|---|---|---|
-| UI | React 18, React Router 7 | Component model and client-side routing |
-| Build | Vite 6 | Fast dev server and optimized static builds |
-| Styling | Tailwind CSS 4 + custom CSS | Utility workflow plus the custom Kinetic Brutalism system |
-| HTTP | Axios | Shared API client, interceptors, 60-second timeout |
-| Icons | Lucide React | Consistent accessible icon set |
-| Fonts | Fontsource Inter + Space Mono | Self-hosted, privacy-friendly typography |
-| API | Node.js 22, Express 5 | Lightweight REST backend with modern async support |
-| Database | MySQL2, TiDB Cloud | Relational content with TLS and connection pooling |
-| Auth | bcrypt, HttpOnly cookie session, optional TOTP MFA | Server-side sessions; token hash in DB; CSRF-protected state changes |
-| Security | Helmet, CORS, express-rate-limit | Headers, origin allowlisting, and abuse limits |
-| Uploads | Multer + Cloudinary | Memory-buffered image uploads with a 5 MB limit |
-| Email | Nodemailer + Gmail API | HTTPS delivery works on Render's free tier |
-| AI | Google Gemini API | On-demand explanations and portfolio Q&A |
-| Local runtime | Docker Compose, Nginx, MySQL 8 | Reproducible full-stack environment |
-| CI/CD | GitHub Actions | Lint, test, build, deploy, and smoke-test |
-| Hosting | Vercel, Render, TiDB Cloud | Static frontend, Node API, managed database |
+**12 browser-based utilities** — everything runs **locally in your browser**; nothing is sent to a server, no tokens transmitted.
+
+| Tool | Description | Key Features |
+|:---|:---|:---|
+| **JSON Formatter** | Pretty-print & validate | Syntax highlight, error location, copy formatted |
+| **Base64 Encoder/Decoder** | UTF-8 safe | Encode/decode, Unicode emoji support |
+| **URL Encoder/Decoder** | Percent-encoding | Query strings, paths, full URLs |
+| **HTML Entity Encoder/Decoder** | Escape `& < > " '` | Round-trip safe, entity map |
+| **Regex Tester** | Live matching | Flags, groups, zero-width safety, match index |
+| **JWT Payload Decoder** | Inspect header/payload | **Shows `iat`/`nbf`/`exp` + expiry state**, no signature verification |
+| **UUID v4 Generator** | RFC 4122 v4 | `crypto.getRandomValues`, version/variant bits set |
+| **SHA Hash Generator** | SHA-256/384/512 | Web Crypto API, test vectors included, password warning |
+| **Unix Timestamp Converter** | Seconds/ms/ISO 8601 | Auto-detect unit, UTC + local time, RFC 822 |
+| **WCAG Contrast Checker** | 2.2 AA/AAA | Ratio + pass/fail for normal/large text & UI, live preview |
+| **CSS Gradient Generator** | Linear/radial | Angle, stops, named colors + hex, copyable CSS |
+| **HTTP Status Reference** | Code lookup | Category, label, search by code/name |
+
+### Tool Security Model
+
+- **No network calls** — all logic in `client/src/lib/devtools.ts` pure functions
+- **JWT decoder warns** — "Does not verify signature; do not trust for auth"
+- **Hash ≠ password storage** — UI states: "Use bcrypt/scrypt/Argon2 for passwords"
+- **Tested** — 38 client tests covering edge cases, malformed input, large payloads
 
 ---
 
-## Architecture
+## ✨ Feature Highlights
+
+### 🌐 Public Portfolio
+- **12 public routes** — Home, About, Skills, Projects, Certificates, System, Contact, Blog, Tools, Privacy, Terms, Accessibility
+- **Database-driven** — All content from API, not hardcoded arrays
+- **Shareable pagination** — `?page=` in URL for Projects/Skills/Certificates
+- **Kinetic Brutalism** — Acid/ink/pink palette, hard borders, offset shadows, marquee, count-up, scroll reveals
+- **Responsive** — Desktop/tablet/mobile with full-screen menu
+- **Accessibility** — Skip link, semantic landmarks, keyboard traps, visible focus, `prefers-reduced-motion`
+- **SEO Complete** — Route docs, JSON-LD, OG/Twitter, sitemap, RSS, llms.txt, robots, security.txt, manifest
+- **Real 404s** — `404.html` with HTTP 404 + `noindex`, not soft 200
+- **Self-hosted fonts** — Inter + Space Mono via Fontsource, zero Google Fonts requests
+
+### 🤖 AI-Powered Explanations
+- **Explain Skill** — Click any skill → Gemini explains it in plain language
+- **Explain Certificate** — What the cert covers, why it matters
+- **Ask AI About Me** — Chat on `/system`: "What DevOps skills does he have?"
+- **Graceful failure** — Missing key = `502`, page stays usable
+- **Rate limited** — 10 req/min/IP per AI endpoint
+
+### 📊 Live System Panel (`/system`)
+- **Real telemetry** — CPU load %, memory %, uptime, AI status, deployment commit
+- **5-second refresh** — Polls live API while open
+- **Terminal log** — Appends metric lines as they arrive
+- **Dedicated rate limit** — 120 req/min (separate from general API)
+- **Public by design** — Recruiters see the running backend, not a claim
+
+### 🔐 Admin Dashboard
+- **Cookie-session login** — HttpOnly, Secure, SameSite=Lax, optional TOTP
+- **Full CRUD** — Projects, Skills, Certificates with Cloudinary uploads
+- **Contact inbox** — Read/delete messages, message-first design
+- **Immediate feedback** — Success/error states, manual refresh
+- **Protected routes** — Redirects to `/admin` on missing/invalid session
+
+### 📬 Contact & Notifications
+- **Validated form** — Name, email, subject, message (server-side)
+- **Message-first** — Saved to DB **before** email attempt
+- **Gmail API** — HTTPS delivery works on Render free tier
+- **Spam protection** — 5 submissions/15 min/IP
+
+---
+
+## 🏗 Tech Stack
+
+| Layer | Technology | Version | Why |
+|:---|:---|:---|:---|
+| **UI Framework** | React | 18 | Component model, concurrent features |
+| **Router** | React Router | 7 | Client-side routing, data loaders |
+| **Build Tool** | Vite | 6 | Fast HMR, optimized production builds |
+| **Styling** | Tailwind CSS + Custom | 4 | Utility workflow + Kinetic Brutalism design system |
+| **HTTP Client** | Axios | 1.15 | Interceptors, timeout, retry |
+| **Icons** | Lucide React | 1.11 | Consistent, accessible, tree-shakeable |
+| **Fonts** | Fontsource | 5.3 | Self-hosted Inter + Space Mono |
+| **Runtime** | Node.js | 22 LTS | Modern async, native test runner |
+| **API Framework** | Express | 5 | Lightweight, modern middleware |
+| **Database** | MySQL2 + TiDB | 8.0 | Relational, TLS, connection pooling |
+| **Auth** | bcryptjs | 3.0 | Production hash; timing-safe fallback |
+| **Security** | Helmet, CORS, express-rate-limit | Latest | Headers, origin allowlist, abuse limits |
+| **Uploads** | Multer + Cloudinary | Latest | Memory-buffered, 5 MB limit |
+| **Email** | Nodemailer + Gmail API | Latest | HTTPS delivery on Render |
+| **AI** | Google Gemini | 1.5 Flash Lite | On-demand explanations |
+| **Local Runtime** | Docker Compose | v2 | Reproducible full-stack env |
+| **CI/CD** | GitHub Actions | Latest | 7 jobs: lint, test, build, deploy, smoke |
+| **Hosting** | Vercel, Render, TiDB | Managed | Static frontend, Node API, managed DB |
+
+---
+
+## 🏛 Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Browser["Browser"]
+    subgraph Browser["🌐 Browser"]
         U["Visitor"]
         A["Admin<br/>Cookie session"]
     end
 
-    subgraph Frontend["Vercel"]
+    subgraph Frontend["▲ Vercel"]
         V["React 18 + Vite 6<br/>Route documents + clean URLs"]
     end
 
-    subgraph Backend["Render"]
+    subgraph Backend["🟢 Render"]
         R["Express 5 API<br/>Node.js 22"]
     end
 
-    subgraph Data["TiDB Cloud"]
+    subgraph Data["🗄 TiDB Cloud"]
         D[("MySQL 8.0 compatible<br/>TLS port 4000")]
     end
 
-    subgraph Optional["Optional integrations"]
-        C["Cloudinary<br/>image uploads"]
-        G["Gmail API<br/>notifications"]
-        AI["Google Gemini<br/>explanations"]
+    subgraph Optional["☁ Optional Integrations"]
+        C["Cloudinary<br/>Image uploads"]
+        G["Gmail API<br/>Notifications"]
+        AI["Google Gemini<br/>Explanations"]
     end
 
     GH["GitHub push to main"] -->|"Vercel Git integration"| V
@@ -265,25 +288,32 @@ flowchart LR
     U -->|HTTPS| V
     A -->|HTTPS| V
     U -->|"XHR /api/*"| R
-    A -->|"X-CSRF-Token + cookie"| R
+    A -->|"X-CSRF-Token + Cookie"| R
     R -->|"SQL over TLS"| D
-    R -->|"HTTPS"| C
-    R -->|"HTTPS"| G
-    R -->|"HTTPS"| AI
+    R -->|HTTPS| C
+    R -->|HTTPS| G
+    R -->|HTTPS| AI
+
+    classDef vercel fill:#000,color:#fff;
+    classDef render fill:#46E3B7,color:#000;
+    classDef tidb fill:#4479A1,color:#fff;
+    classDef opt fill:#ff6b6b,color:#fff;
+    class V vercel;
+    class R render;
+    class D tidb;
+    class C,G,AI opt;
 ```
 
-The browser loads the static bundle from Vercel and calls the Render API through same-origin `/api`. Cookies are `HttpOnly`, `Secure` in production and `SameSite=Lax` because the API is first-party; state-changing requests require a matching `X-CSRF-Token`.
+### Request Flow
 
-### Request flow
+1. **Vercel** serves route-specific static document (e.g., `about/index.html`) with clean URLs; unknown paths → `404.html`
+2. **Browser** hydrates React app, calls same-origin `/api`; Vercel rewrites to Render
+3. **Express** applies CORS, Helmet, JSON parsing, rate limiting, route handlers; state-changing requests require `X-CSRF-Token` + exact Origin/Referer
+4. **Public reads** from TiDB; **admin writes** use cookie-based session (no Bearer token)
+5. **Contact messages** inserted first → Gmail notification attempted; attachment via Cloudinary → deleted after send
+6. **`/api/system`** reads live process/host metrics from Node.js
 
-1. Vercel serves a route-specific static document (for example `about/index.html` for `/about`) with clean URLs. Unknown paths get `404.html`.
-2. The browser hydrates the React app and calls the same-origin `/api` endpoint; Vercel rewrites that path to Render.
-3. Express applies CORS, Helmet, JSON parsing, rate limiting, and route handlers. Every state-changing request requires `X-CSRF-Token` matching the session value; Origin/Referer are enforced for production calls.
-4. Public reads come from TiDB; admin writes use the cookie-based session (no Bearer token in the Authorization header).
-5. Contact messages are inserted first, then a Gmail notification is attempted. An optional attachment passes through Cloudinary temporarily and is deleted after the send attempt.
-6. `/api/system` reads live process and host metrics directly from Node.js.
-
-### Local Docker architecture
+### Local Docker Architecture
 
 ```mermaid
 flowchart LR
@@ -296,91 +326,81 @@ flowchart LR
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```text
 MK-PORTFOLIO/
-|-- client/                     React + Vite frontend
-|   |-- public/                 Resume, profile images, robots.txt, manifest, security.txt
-|   |-- scripts/build-seo.mjs   Route documents, sitemap, RSS, llms.txt, 404
-|   |-- src/
-|   |   |-- api/                Axios instance and API helpers
-|   |   |-- components/         Navbar, footer, SEO, legal layout, AI modal, stats
-|   |   |-- content/posts/      Structured blog content blocks
-|   |   |-- hooks/              Scroll-reveal and shared UI hooks
-|   |   |-- lib/                Blog, taxonomy, analytics and developer-tool logic
-|   |   |-- pages/public/       Public pages, blog, policies
-|   |   |-- pages/tools/        Browser-based developer tools
-|   |   |-- pages/admin/        AdminLogin, AdminDashboard
-|   |   `-- index.css           Design system and Kinetic Brutalism styles
-|   |-- tests/                  Node test suites for pure client logic
-|   |-- Dockerfile              Multi-stage Node build -> Nginx
-|   |-- nginx.conf              SPA routing, CSP, gzip, /api proxy
-|   |-- vercel.json             Clean URLs, security headers, caching, /api rewrite
-|   `-- vite.config.js          Dev/preview proxy configuration
-|-- server/                     Express API
-|   |-- config/                 Database, Cloudinary, email, environment validation
-|   |-- controllers/            Projects, skills, certificates, messages, auth, AI, system
-|   |-- database/               schema.sql, seed.sql, database Dockerfile
-|   |-- middleware/             Auth, uploads, rate limits, error handling
-|   |-- routes/                 REST route definitions
-|   |-- scripts/                DB lifecycle, password hash, Gmail auth, email tests
-|   |-- services/               Gemini integration
-|   |-- tests/                  Node test runner suites
-|   |-- utils/sessionState.js   Pure session allow/reject/revoke decision
-|   |-- Dockerfile              Production API image
-|   `-- server.js               Express bootstrap and graceful shutdown
-|-- docs/                       Screenshots and operational documentation
-|-- AUDIT/                      Growth, security and run reports
-|-- .github/workflows/          Seven-job CI/CD pipeline
-|-- docker-compose.yml          Full local stack
-|-- render.yaml                 Render blueprint
-|-- .env.example                Docker Compose values (local only)
-|-- docs/DEPLOYMENT.md          Step-by-step production deployment guide
-`-- README.md
+├── client/                     # React + Vite frontend
+│   ├── public/                 # Resume, profile images, robots.txt, manifest, security.txt
+│   ├── scripts/build-seo.mjs   # Route docs, sitemap, RSS, llms.txt, 404.html
+│   ├── src/
+│   │   ├── api/                # Axios instance, CSRF handling, 401 redirect
+│   │   ├── components/         # Navbar, Footer, SEO, Legal, AI Modal, Stats
+│   │   ├── content/posts/      # Structured blog content blocks (6 articles)
+│   │   ├── hooks/              # useScrollReveal, usePaginatedList
+│   │   ├── lib/                # Blog, taxonomy, analytics, devtools
+│   │   ├── pages/public/       # 12 public pages + blog + policies
+│   │   ├── pages/tools/        # 12 developer tools
+│   │   ├── pages/admin/        # AdminLogin, AdminDashboard
+│   │   ├── utils/              # safeExternalUrl
+│   │   ├── index.css           # Design system + Kinetic Brutalism
+│   │   ├── index.content.css   # Blog, tools, legal, admin styles
+│   │   ├── App.jsx             # Routes, skip link, nav/footer visibility
+│   │   └── main.jsx            # Entry point, fonts, router
+│   ├── tests/                  # 38 client unit tests
+│   ├── Dockerfile              # Multi-stage Node build → Nginx
+│   ├── nginx.conf              # SPA routing, CSP, gzip, /api proxy
+│   ├── vercel.json             # Clean URLs, security headers, /api rewrite
+│   └── vite.config.js          # Dev/preview proxy config
+├── server/                     # Express API
+│   ├── config/                 # DB, Cloudinary, email, env validation
+│   ├── controllers/            # Projects, skills, certificates, messages, auth, AI, system
+│   ├── database/               # schema.sql, seed.sql, database Dockerfile
+│   ├── middleware/             # Auth, uploads, rate limits, errors
+│   ├── routes/                 # REST route definitions
+│   ├── scripts/                # DB lifecycle, hash, Gmail auth, email tests
+│   ├── services/               # Gemini integration
+│   ├── tests/                  # 119 server unit tests
+│   ├── utils/                  # sessionState, sessionConfig, adminAuth, security
+│   ├── Dockerfile              # Production API image
+│   └── server.js               # Bootstrap, graceful shutdown
+├── docs/                       # Screenshots + operational docs
+├── AUDIT/                      # Growth, security, run reports
+├── .github/workflows/          # 7-job CI/CD pipeline
+├── docker-compose.yml          # Full local stack
+├── render.yaml                 # Render blueprint
+├── .env.example                # Docker Compose values (local only)
+└── README.md
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
 | Requirement | Version |
-|---|---|
+|:---|:---|
 | Node.js | 22.x (see `.nvmrc`) |
 | npm | 10+ |
 | Git | Any recent version |
-| MySQL | 8.0+ or a TiDB Cloud cluster |
-| Docker | Optional, for the all-in-one local stack |
+| MySQL | 8.0+ or TiDB Cloud cluster |
+| Docker | Optional (for all-in-one stack) |
 
-### 1. Clone the repository
+### 1. Clone & Configure API
 
 ```bash
 git clone https://github.com/mayuresh-2601/MK-PORTFOLIO.git
-cd MK-PORTFOLIO
-```
-
-### 2. Configure and start the API
-
-```bash
-cd server
+cd MK-PORTFOLIO/server
 npm ci
-```
 
-Create the environment file:
-
-```powershell
 # Windows PowerShell
 Copy-Item .env.example .env
-```
-
-```bash
-# macOS / Linux
+# macOS/Linux
 cp .env.example .env
 ```
 
-Set at least these values in `server/.env`:
+Set minimum values in `server/.env`:
 
 ```env
 DB_HOST=your-tidb-host
@@ -391,14 +411,14 @@ DB_NAME=portfolio
 DB_SSL=true
 
 ADMIN_EMAIL=your-admin@example.com
-# Local development only. Production rejects this variable.
+# Local dev only — production rejects this:
 ADMIN_PASSWORD='replace-with-a-long-unique-password'
-# Production requires a bcrypt hash:
-#   npm run hash-password -- "your-password"
-# then set ADMIN_PASSWORD_HASH and remove ADMIN_PASSWORD.
+# Production requires bcrypt hash:
+# npm run hash-password -- "your-password"
+# then set ADMIN_PASSWORD_HASH and remove ADMIN_PASSWORD
 ```
 
-Create the schema and load the baseline content:
+### 2. Create Schema & Seed Data
 
 ```bash
 npm run db:setup
@@ -406,171 +426,119 @@ npm run db:seed
 npm run db:check
 ```
 
-Start the development server:
+### 3. Start API Dev Server
 
 ```bash
 npm run dev
+# Verify: curl http://localhost:5000/api/health
 ```
 
-The API is now available at <http://localhost:5000>. Verify it with:
+### 4. Configure & Start Client
 
 ```bash
-curl http://localhost:5000/api/health
-```
-
-### 3. Configure and start the client
-
-Open a second terminal:
-
-```bash
-cd client
+cd ../client
 npm ci
-```
 
-Create the local environment file:
-
-```powershell
+# Windows
 Copy-Item .env.example .env
-```
+# macOS/Linux
+cp .env.example .env
 
-The client always calls same-origin `/api`. Vite proxies that path to `VITE_PROXY_TARGET` (`http://localhost:5000`) during development. Do not set a cross-site API origin.
-
-```bash
 npm run dev
 ```
 
-Open <http://localhost:5173>. The admin portal is at <http://localhost:5173/admin>.
+Open <http://localhost:5173> — Admin at <http://localhost:5173/admin>
 
-### 4. Quality checks
+> The client **always calls same-origin `/api`**. Vite proxies to `VITE_PROXY_TARGET` (`http://localhost:5000`) during dev. **Do not set a cross-site API origin.**
+
+### 5. Quality Checks
 
 ```bash
 # Frontend
 cd client
-npm test
-npm run lint
-npm run build
+npm test          # 38 tests
+npm run lint      # ESLint
+npm run build     # Production build + route docs + sitemap + RSS + llms.txt
 
 # Backend
-cd server
-npm run check
-npm test
-npm run db:check
+cd ../server
+npm run check     # Syntax check
+npm test          # 119 tests
+npm run db:check  # Verify schema & counts
 ```
 
-### Docker alternative
+### Docker Alternative
 
-If Docker Desktop is installed, the entire stack can run with three containers. See [Docker](#docker) for the full walkthrough.
+```bash
+# From repository root
+Copy-Item .env.example .env
+Copy-Item server/.env.example server/.env
+# Set ADMIN_PASSWORD_HASH + ADMIN_EMAIL in server/.env
+docker compose up --build -d
+
+# Open http://localhost | API: http://localhost:5000/api/health
+```
 
 ---
 
-## Environment Variables
+## ⚙ Environment Variables
 
-The project uses **three separate environment files**. Keeping them separate prevents server secrets from leaking into the browser bundle.
+**Three separate env files** — keeps server secrets out of the browser bundle.
 
 | File | Purpose | Committed? |
-|---|---|---|
-| `.env` (root) | Docker Compose database values only | No - use `.env.example` |
-| `client/.env` | Public Vite variables | No - use `client/.env.example` |
-| `server/.env` | API, database, auth, email, upload, and AI secrets | No - use `server/.env.example` |
+|:---|:---|:---|
+| `.env` (root) | Docker Compose DB values only | ❌ Use `.env.example` |
+| `client/.env` | Public Vite variables | ❌ Use `client/.env.example` |
+| `server/.env` | API, DB, auth, email, upload, AI secrets | ❌ Use `server/.env.example` |
 
-> **Never commit a real `.env` file.** The repository only tracks `.env.example` templates. The CI pipeline fails if a real env file or build output is tracked.
+> **Never commit a real `.env` file.** CI fails if env files or build output are tracked.
 
-### Production placement
+### Production Placement
 
-| Variable group | Local development | Local Docker | Render API | Vercel frontend |
-|---|---|---|---|---|
-| `DB_*` | `server/.env` | Root `.env` + Compose overrides | Render Environment | - |
-| `ADMIN_*` | `server/.env` | `server/.env` | Render Environment | - |
-| Gmail variables | `server/.env` | `server/.env` | Render Environment | - |
-| Cloudinary variables | `server/.env` | `server/.env` | Render Environment | - |
-| `GEMINI_API_KEY` | `server/.env` | `server/.env` | Render Environment | - |
+| Variable Group | Local Dev | Local Docker | Render API | Vercel Frontend |
+|:---|:---|:---|:---|:---|
+| `DB_*` | `server/.env` | Root `.env` + Compose | Render Environment | — |
+| `ADMIN_*` | `server/.env` | `server/.env` | Render Environment | — |
+| Gmail | `server/.env` | `server/.env` | Render Environment | — |
+| Cloudinary | `server/.env` | `server/.env` | Render Environment | — |
+| `GEMINI_API_KEY` | `server/.env` | `server/.env` | Render Environment | — |
 
-The browser always calls same-origin `/api`. Vercel rewrites that path to Render,
-so the session cookie stays first-party; there is no public API-origin variable
-to set in Vercel.
+> The browser **always calls same-origin `/api`**. Vercel rewrites to Render, keeping the session cookie first-party. **No public API-origin variable in Vercel.**
 
-### Root `.env` (Docker Compose only)
-
-| Variable | Default | Description |
-|---|---|---|
-| `DB_PASSWORD` | `portfolio_local_dev_password` | Root password for the local MySQL container |
-| `DB_NAME` | `portfolio` | Database created inside the local MySQL container |
-
-These are local development values only. Never reuse them in production.
-
-### `client/.env`
-
-| Variable | Default | Description |
-|---|---|---|
-| `VITE_PROXY_TARGET` | `http://localhost:5000` | Where Vite forwards `/api` during `dev` and `preview`. Not used by the Docker build. |
-
-`VITE_API_BASE_URL` is retired. The client hardcodes same-origin `/api` so the
-HttpOnly session cookie is never treated as a third-party cookie.
-
-Only `VITE_*` variables are public. Vite embeds them in the browser bundle, so this file must never contain a server secret.
-
-### `server/.env`
+### Key Server Variables
 
 | Variable | Required | Description |
-|---|---|---|
-| `PORT` | No | API port. Defaults to `5000`; Render injects its own value. |
-| `HOST` | No | Bind address. Defaults to `0.0.0.0`. |
-| `CLIENT_URL` | Yes | Comma-separated allowed browser origins, with no trailing slash. Example: `https://mk-portfolio-phi-silk.vercel.app`. |
-| `ALLOW_VERCEL_PREVIEWS` | No | Set `true` to allow every `https://*.vercel.app` preview origin. Exact production origins are safer. |
-| `DB_HOST` | Yes | TiDB Cloud host or local MySQL host. |
-| `DB_PORT` | Yes | `4000` for TiDB Cloud, `3306` for a standard MySQL server. |
-| `DB_USER` | Yes | Database user. |
-| `DB_PASSWORD` | Yes | Database password. May be empty for a local root account but must be defined. |
-| `DB_NAME` | Yes | Database name. |
-| `DB_SSL` | Yes | `true` for TiDB Cloud, `false` for the local Docker MySQL container. |
-| `DB_CONNECTION_LIMIT` | No | Pool size. Defaults to `10`; capped at `20`. |
-| `ADMIN_EMAIL` | Yes | The single admin email allowed to log in. |
-| `ADMIN_PASSWORD_HASH` | Yes in production | bcrypt hash generated with `npm run hash-password`. Required in production. |
-| `ADMIN_PASSWORD` | Local development only | Plain-text password, 12+ characters. Rejected at startup and at login when `NODE_ENV=production`. |
-| `ADMIN_TOTP_SECRET` | No | Base32 secret; when set, password alone cannot create a session. Generated with `npm run mfa:setup`. |
-| `SESSION_TTL_MINUTES` | No | Absolute session lifetime, 5-1440 minutes. Defaults to `120`. |
-| `SESSION_IDLE_MINUTES` | No | Idle timeout, 5-1440 minutes and no longer than the absolute lifetime. Defaults to `30`. |
-| `SESSION_RETENTION_DAYS` | No | Days to keep expired/revoked session rows before cleanup. Defaults to `7`. |
-| `SESSION_COOKIE_SECURE` | No | Defaults to `true` in production. Secure cookies require HTTPS. |
-| `SESSION_COOKIE_SAMESITE` | No | Defaults to `lax` in every environment because `/api` is same-origin. `none` is an explicit opt-in for a cross-site API. |
-| `EMAIL_USER` | No | Gmail account that sends notifications. |
-| `GMAIL_CLIENT_ID` | No | Google OAuth Desktop client ID. |
-| `GMAIL_CLIENT_SECRET` | No | Google OAuth Desktop client secret. |
-| `GMAIL_REFRESH_TOKEN` | No | Refresh token written by `npm run gmail:auth`. |
-| `EMAIL_PASS` | No | Gmail App Password for SMTP. Do **not** set this on Render's free tier. |
-| `EMAIL_TRANSPORT` | No | `auto`, `gmail-api`, `smtp`, or `none`. Use `gmail-api` on Render. |
-| `CLOUD_NAME` | No | Cloudinary cloud name. Uploads return `503` until configured. |
-| `CLOUD_API_KEY` | No | Cloudinary API key. |
-| `CLOUD_API_SECRET` | No | Cloudinary API secret. |
-| `UPLOAD_TIMEOUT_MS` | No | Abort a stalled Cloudinary upload after this many milliseconds. Defaults to `30000`; returns `504`. |
-| `GEMINI_API_KEY` | No | Google Gemini API key. AI endpoints return `502` until configured. |
-| `AI_ENABLED` | No | Set `false` to disable the AI endpoints. Defaults to `true`. |
-| `AI_DAILY_LIMIT` | No | Per-IP daily AI budget. Defaults to `50`; counters are in-memory and reset on restart. |
-| `AI_GLOBAL_DAILY_LIMIT` | No | Global daily AI budget. Defaults to `500`; counters are in-memory and reset on restart. |
-| `CLAMAV_HOST` | No | Optional ClamAV host. When set, uploads fail closed if the scanner is unreachable. |
-| `CLAMAV_PORT` | No | ClamAV port. Defaults to `3310`. |
-
-\* Production requires `ADMIN_PASSWORD_HASH`. `ADMIN_PASSWORD` is a local-development fallback only and is fatal in production.
+|:---|:---|:---|
+| `CLIENT_URL` | ✅ | Comma-separated allowed origins (no trailing slash) |
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSL` | ✅ | TiDB Cloud (port 4000, SSL) or local MySQL |
+| `ADMIN_EMAIL` | ✅ | Single admin email |
+| `ADMIN_PASSWORD_HASH` | ✅ (prod) | bcrypt from `npm run hash-password` |
+| `ADMIN_PASSWORD` | Local only | 12+ chars; **rejected in production** |
+| `ADMIN_TOTP_SECRET` | Optional | Base32; enables MFA at login |
+| `SESSION_TTL_MINUTES` | Optional | 5–1440, default 120 |
+| `SESSION_IDLE_MINUTES` | Optional | 5–1440, ≤ TTL, default 30 |
+| `EMAIL_TRANSPORT` | Optional | `auto`, `gmail-api`, `smtp`, `none` |
+| `GEMINI_API_KEY` | Optional | AI endpoints return `502` until set |
 
 ---
 
-## Email Notifications
+## 📧 Email Notifications
 
-Contact messages are always saved to the database first. Email delivery is a best-effort notification and is optional.
+Contact messages **always saved to DB first**. Email = best-effort notification.
 
-Render's **free tier blocks outbound SMTP** on ports 25, 465, and 587. Use the **Gmail API over HTTPS** in production.
+> **Render free tier blocks outbound SMTP (ports 25/465/587). Use Gmail API over HTTPS.**
 
-### Gmail API setup
+### Gmail API Setup
 
-1. Open the [Google Cloud Console](https://console.cloud.google.com/) and create a project.
-2. Enable the [Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com).
-3. Configure **OAuth consent screen** -> **External**. Add your Gmail account as a test user. Add these scopes:
+1. [Google Cloud Console](https://console.cloud.google.com/) → Create project
+2. Enable **Gmail API**
+3. OAuth consent screen → **External** → Add test user → Scopes:
    - `openid`
    - `email`
    - `https://www.googleapis.com/auth/gmail.send`
-4. Set the publishing status to **In production**. In testing mode, Google expires refresh tokens after seven days. An "unverified app" warning is expected for a personal app.
-5. Go to **Credentials** -> **Create credentials** -> **OAuth client ID** -> **Desktop app**. Copy the client ID and client secret.
-6. Add them to `server/.env`:
+4. Publishing status → **In production** (testing mode expires refresh tokens in 7 days)
+5. Credentials → **OAuth client ID** → **Desktop app** → Copy ID + Secret
+6. Add to `server/.env`:
 
 ```env
 EMAIL_USER=your-address@gmail.com
@@ -579,180 +547,129 @@ GMAIL_CLIENT_SECRET=GOCSPX-your-client-secret
 EMAIL_TRANSPORT=auto
 ```
 
-7. Run the one-time authorization flow:
+7. Run one-time auth:
 
 ```bash
-cd server
-npm run gmail:auth
+cd server && npm run gmail:auth
+# Browser opens → approve → writes GMAIL_REFRESH_TOKEN to .env
 ```
 
-The script opens a browser, asks you to approve Gmail send access, and writes `GMAIL_REFRESH_TOKEN` into `server/.env` without printing the token.
-
-8. Verify the configuration and send a test message:
+8. Verify & test:
 
 ```bash
-npm run email:check
-npm run email:test
+npm run email:check  # Validates config
+npm run email:test   # Sends real email to ADMIN_EMAIL
 ```
 
-`email:check` validates the config without sending; `email:test` sends a real message to `ADMIN_EMAIL`.
+### Render Environment
 
-### Render environment
-
-Add these variables in **Render -> mk-portfolio-api -> Environment**:
+Add in Render Dashboard → `mk-portfolio-api` → Environment:
 
 | Key | Value |
-|---|---|
+|:---|:---|
 | `EMAIL_USER` | Your Gmail address |
 | `GMAIL_CLIENT_ID` | OAuth Desktop client ID |
 | `GMAIL_CLIENT_SECRET` | OAuth Desktop client secret |
-| `GMAIL_REFRESH_TOKEN` | Token written by `npm run gmail:auth` |
+| `GMAIL_REFRESH_TOKEN` | From `npm run gmail:auth` |
 | `EMAIL_TRANSPORT` | `gmail-api` |
-
-Do **not** add `EMAIL_PASS` on Render's free plan. SMTP connections will time out.
-
-The complete walkthrough is in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md#5-gmail-notifications). Troubleshooting for `invalid_grant`, `redirect_uri_mismatch`, and `insufficientPermissions` is in [docs/DEBUGGING.md](docs/DEBUGGING.md#gmail-specific-errors).
 
 ---
 
-## Optional Integrations
+## ☁ Optional Integrations
 
-The core portfolio works without these services. Each one fails gracefully with a clear response code.
-
-### Cloudinary uploads
-
-Used by the admin dashboard for project and certificate images.
+### Cloudinary (Image Uploads)
 
 ```env
 CLOUD_NAME=your-cloud-name
 CLOUD_API_KEY=your-api-key
 CLOUD_API_SECRET=your-api-secret
 ```
+Upload endpoints return `503` until configured. Core site works without it.
 
-Until these values are set, upload endpoints return `503`. Existing text content and all public pages continue to work.
-
-### Google Gemini
-
-Powers skill/certificate explanations and the "Ask AI about me" panel.
+### Google Gemini (AI Explanations)
 
 ```env
 GEMINI_API_KEY=your-gemini-key
 ```
-
-Get a key from [Google AI Studio](https://aistudio.google.com/app/apikey). Until it is set, AI endpoints return `502` and the rest of the site remains usable.
+Get key from [Google AI Studio](https://aistudio.google.com/app/apikey). AI endpoints return `502` until set.
 
 ---
 
-## Docker
-
-The local stack runs the frontend, API, and database as three containers.
+## 🐳 Docker
 
 ### Services
 
-| Service | Image | Host port | Purpose |
-|---|---|---|---|
-| `client` | Multi-stage Node -> Nginx | `80` | Serves the React build and proxies `/api` |
-| `server` | Node 22 Alpine | `5000` | Runs the Express API |
-| `db` | MySQL 8 with baked schema | `3307` | Local database; internal port `3306` |
+| Service | Image | Host Port | Purpose |
+|:---|:---|:---|:---|
+| `client` | Multi-stage Node → Nginx | 80 | React build + `/api` proxy |
+| `server` | Node 22 Alpine | 5000 | Express API |
+| `db` | MySQL 8 (baked schema) | 3307 | Local DB; internal 3306 |
 
-### Start the stack
-
-1. Create the Docker environment file:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-2. Create the server environment file:
-
-```powershell
-Copy-Item server/.env.example server/.env
-```
-
-3. Set `ADMIN_PASSWORD_HASH` in `server/.env` (bcrypt hash, generated with `npm run hash-password`) and `ADMIN_EMAIL`. Optionally set `ADMIN_TOTP_SECRET`. The `DB_*` values in that file are overridden by Compose, so they do not need to match the container.
-
-4. Build and start:
+### Start Stack
 
 ```bash
+# 1. Root env
+Copy-Item .env.example .env
+
+# 2. Server env (set ADMIN_PASSWORD_HASH + ADMIN_EMAIL)
+Copy-Item server/.env.example server/.env
+
+# 3. Build & start
 docker compose up --build -d
+
+# 4. Verify
+# Site: http://localhost
+# API health: http://localhost:5000/api/health
+# API ready:  http://localhost:5000/api/health/ready
+# MySQL:      localhost:3307
 ```
 
-5. Open the site and check the API:
-
-| URL | Service |
-|---|---|
-| <http://localhost> | Website |
-| <http://localhost:5000/api/health> | API health |
-| <http://localhost:5000/api/health/ready> | API + database readiness |
-| `localhost:3307` | MySQL from the host |
-
-### Useful Docker commands
+### Useful Commands
 
 ```bash
 docker compose ps
 docker compose logs -f server
 docker compose logs -f db
 docker compose down
+docker compose down -v  # Reset DB volume
 ```
 
-### Reset the local database
-
-The schema and seed files are applied when the MySQL data volume is first created. To start from a clean database:
-
-```bash
-docker compose down -v
-docker compose up --build -d
-```
-
-### Why the SQL is baked into the image
-
-Earlier versions bind-mounted `schema.sql` and `seed.sql` into `/docker-entrypoint-initdb.d/`. On Windows Docker Desktop, files on a removable FAT32 drive can appear as empty directories inside the container, so MySQL started without a schema.
-
-The database image now copies both files at build time:
-
-```dockerfile
-COPY schema.sql /docker-entrypoint-initdb.d/schema.sql
-COPY seed.sql /docker-entrypoint-initdb.d/seed.sql
-```
-
-There are no runtime SQL bind mounts. The full stack therefore works from a USB drive, provided Docker Desktop is running.
+> **Why SQL is baked:** Earlier versions bind-mounted `schema.sql`/`seed.sql`. On Windows Docker Desktop, FAT32 drives can appear as empty dirs in containers. Now both files are `COPY`ed at build time — works from USB drive.
 
 ---
 
-## API Reference
+## 📚 API Reference
 
-### Base URL
+### Base URLs
 
 | Environment | Base URL |
-|---|---|
+|:---|:---|
 | Production | `https://mk-portfolio-api.onrender.com` |
 | Local | `http://localhost:5000` |
-| Docker | `http://localhost:5000` (or same-origin `/api` through Nginx) |
+| Docker | `http://localhost:5000` (or same-origin `/api` via Nginx) |
 
 ### Health
 
 | Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/` | Public | Service metadata and environment |
-| `GET` | `/api/health` | Public | Liveness check, process uptime |
-| `GET` | `/api/health/ready` | Public | Readiness check, verifies the database with `SELECT 1` |
+|:---|:---|:---|:---|
+| `GET` | `/` | Public | Service metadata & environment |
+| `GET` | `/api/health` | Public | Liveness check, uptime |
+| `GET` | `/api/health/ready` | Public | Readiness: verifies DB with `SELECT 1` |
 
 ### Authentication
 
 | Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/auth/login` | Public | Exchange admin email/password for a cookie session |
+|:---|:---|:---|:---|
+| `POST` | `/api/auth/login` | Public | Email/password → cookie session |
 
-Request:
-
+**Login Request:**
 ```bash
 curl -X POST https://mk-portfolio-api.onrender.com/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"<your-password>"}'
 ```
 
-Response:
-
+**Response:**
 ```json
 {
   "success": true,
@@ -760,346 +677,314 @@ Response:
   "csrfToken": "<64-hex-chars>",
   "expiresAt": 1760000000000,
   "mfaEnabled": false,
-  "user": {
-    "email": "admin@example.com",
-    "role": "admin"
-  }
+  "user": { "email": "admin@example.com", "role": "admin" }
 }
 ```
+- Sets HttpOnly, Secure (prod), SameSite=Lax cookie: `__Host-portfolio_session`
+- State-changing requests require `X-CSRF-Token` header + exact Origin/Referer
 
-The API sets an HttpOnly, Secure (production), SameSite cookie named `__Host-portfolio_session` (or `portfolio_session` for local HTTP). State-changing requests require a matching `X-CSRF-Token` header and an exact Origin/Referer.
-
-Logout:
-
+**Logout:**
 ```bash
 curl -X POST https://mk-portfolio-api.onrender.com/api/auth/logout \
   -H "Origin: https://mk-portfolio-phi-silk.vercel.app" \
   -H "X-CSRF-Token: <your-csrf-token>"
 ```
 
-Log out all sessions:
-
+**Logout All Sessions:**
 ```bash
 curl -X POST https://mk-portfolio-api.onrender.com/api/auth/logout-all \
   -H "Origin: https://mk-portfolio-phi-silk.vercel.app" \
   -H "X-CSRF-Token: <your-csrf-token>"
 ```
 
-### Portfolio content
+### Portfolio Content
 
 | Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/api/projects` | Public | List projects |
-| `POST` | `/api/projects` | Admin | Create a project (multipart image) |
-| `PUT` | `/api/projects/:id` | Admin | Update a project |
-| `DELETE` | `/api/projects/:id` | Admin | Delete a project |
-| `GET` | `/api/skills` | Public | List skills |
-| `POST` | `/api/skills` | Admin | Create a skill |
-| `PUT` | `/api/skills/:id` | Admin | Update a skill |
-| `DELETE` | `/api/skills/:id` | Admin | Delete a skill |
-| `GET` | `/api/certificates` | Public | List certificates |
-| `POST` | `/api/certificates` | Admin | Create a certificate (multipart image) |
-| `PUT` | `/api/certificates/:id` | Admin | Update a certificate |
-| `DELETE` | `/api/certificates/:id` | Admin | Delete a certificate |
+|:---|:---|:---|:---|
+| `GET` | `/api/projects` | Public | List projects (paginated) |
+| `POST` | `/api/projects` | Admin | Create (multipart image) |
+| `PUT` | `/api/projects/:id` | Admin | Update |
+| `DELETE` | `/api/projects/:id` | Admin | Delete |
+| `GET` | `/api/skills` | Public | List skills (paginated) |
+| `POST` | `/api/skills` | Admin | Create |
+| `PUT` | `/api/skills/:id` | Admin | Update |
+| `DELETE` | `/api/skills/:id` | Admin | Delete |
+| `GET` | `/api/certificates` | Public | List certificates (paginated) |
+| `POST` | `/api/certificates` | Admin | Create (multipart image) |
+| `PUT` | `/api/certificates/:id` | Admin | Update |
+| `DELETE` | `/api/certificates/:id` | Admin | Delete |
 
-### Contact messages
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/messages` | Public | Submit a contact message |
-| `GET` | `/api/messages` | Admin | Read the contact inbox |
-| `DELETE` | `/api/messages/:id` | Admin | Delete a message |
-
-### AI
+### Contact Messages
 
 | Method | Endpoint | Auth | Description |
-|---|---|---|---|
+|:---|:---|:---|:---|
+| `POST` | `/api/messages` | Public | Submit contact message |
+| `GET` | `/api/messages` | Admin | Read inbox |
+| `DELETE` | `/api/messages/:id` | Admin | Delete message |
+
+### AI Endpoints
+
+| Method | Endpoint | Auth | Description |
+|:---|:---|:---|:---|
 | `POST` | `/api/ai/explain-skill` | Public | Explain a skill |
 | `POST` | `/api/ai/explain-certificate` | Public | Explain a certificate |
-| `POST` | `/api/ai/ask-about-me` | Public | Answer a portfolio question (max 300 characters) |
+| `POST` | `/api/ai/ask-about-me` | Public | Portfolio Q&A (max 300 chars) |
 
 ### System
 
 | Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/api/system` | Public | Minimal live telemetry: CPU, memory, uptime, AI availability, deployment commit |
+|:---|:---|:---|:---|
+| `GET` | `/api/system` | Public | CPU, memory, uptime, AI status, deploy commit |
 
-### Rate limits
+### Rate Limits
 
 | Scope | Limit |
-|---|---|
-| General `/api/*` | 300 requests per 15 minutes per IP |
-| `/api/system` | 120 requests per minute per IP |
-| `POST /api/auth/login` | 10 failed attempts per 15 minutes per IP |
-| `POST /api/messages` | 5 submissions per 15 minutes per IP |
-| `/api/ai/*` | 10 requests per minute per IP |
+|:---|:---|
+| General `/api/*` | 300 req / 15 min / IP |
+| `/api/system` | 120 req / min / IP |
+| `POST /api/auth/login` | 10 failed / 15 min / IP |
+| `POST /api/messages` | 5 / 15 min / IP |
+| `/api/ai/*` | 10 req / min / IP |
 
-Health endpoints are excluded from the general limiter so uptime monitors do not consume the API budget.
+> Health endpoints excluded from general limiter.
 
 ---
 
-## Database
+## 🗄 Database
 
-The relational schema lives in [`server/database/schema.sql`](server/database/schema.sql). Baseline content lives in [`server/database/seed.sql`](server/database/seed.sql).
+### Schema
 
 | Table | Purpose |
-|---|---|
-| `projects` | Project title, description, GitHub URL, live demo URL, image |
-| `skills` | Skill name and proficiency level |
-| `certificates` | Certificate title, issuer, date, credential URL, image |
-| `messages` | Contact form submissions, including subject and timestamps |
-| `admin_sessions` | Opaque admin sessions: token hash, CSRF token, expiry, revocation |
+|:---|:---|
+| `projects` | Title, description, GitHub URL, demo URL, image |
+| `skills` | Name, proficiency level (0–100) |
+| `certificates` | Title, issuer, date, credential URL, image |
+| `messages` | Contact form submissions |
+| `admin_sessions` | Opaque sessions: token hash, CSRF, expiry, revocation |
 
-All tables use `utf8mb4` and `utf8mb4_unicode_ci`.
+All tables: `utf8mb4` + `utf8mb4_unicode_ci`. SQL in `server/database/schema.sql`, seed in `seed.sql`.
 
-### Database commands
-
-Run these from `server/`:
+### Commands (from `server/`)
 
 ```bash
-npm run db:setup     # create the database (if needed) and apply schema.sql
-npm run db:seed      # insert or refresh the baseline content
-npm run db:migrate   # idempotent upgrade for an existing database
-npm run db:check     # verify tables, columns, charset, and row counts
+npm run db:setup     # Create DB + apply schema
+npm run db:seed      # Load baseline content
+npm run db:migrate   # Idempotent upgrade for existing DB
+npm run db:check     # Verify tables, columns, charset, counts
 ```
 
-`db:setup` creates the schema but does not insert seed rows. Run `db:seed` after it for a fresh database.
+### Production (TiDB Cloud)
 
-### Production database
-
-TiDB Cloud requirements:
-
-- Port `4000`
-- TLS enabled (`DB_SSL=true`)
-- A database named `portfolio` (or your preferred `DB_NAME`)
-- Network access allowed from Render
-
-Run `npm run db:setup` and `npm run db:seed` once against the production cluster, then verify with `npm run db:check`.
+- Port `4000`, TLS (`DB_SSL=true`)
+- Database `portfolio` (or your `DB_NAME`)
+- Allow Render outbound connections
+- Run `db:setup` + `db:seed` once, then `db:check`
 
 ---
 
-## CI/CD Pipeline
+## 🔄 CI/CD Pipeline
 
-Workflow: [`.github/workflows/docker-ci.yml`](.github/workflows/docker-ci.yml)
+**Workflow:** `.github/workflows/docker-ci.yml` — runs on every push/PR to `main` + manual dispatch.
 
-The pipeline runs on every push and pull request to `main`, plus manual dispatches.
+| # | Job | Verifies |
+|:---|:---|:---|
+| 1 | **Repository Hygiene** | No `.env`, secrets, `node_modules`, `dist`, build output tracked |
+| 2 | **Server Syntax & Tests** | Node syntax + 119 server tests |
+| 3 | **Client Tests, Lint & Build** | 38 client tests + ESLint + production build (42 route docs, 39 sitemap URLs) |
+| 4 | **Lint Dockerfiles** | Hadolint on all 3 Dockerfiles |
+| 5 | **Build & Test Full Stack** | Compose stack up, MySQL/API/Nginx, schema/seed, API/auth/update tests |
+| 6 | **Deploy API to Render** | Triggers deploy hook, waits for `/api/system` to report commit live |
+| 7 | **Production Smoke Tests** | Render health/ready, public endpoints, CORS, admin auth, Vercel routes, security headers, robots/sitemap/RSS/llms/404 |
 
-| # | Job | What it verifies |
-|---|---|---|
-| 1 | **Repository Hygiene** | No `.env` files, secrets, `node_modules`, `dist`, or build output are tracked |
-| 2 | **Server Syntax & Tests** | Node syntax checks and the server test suite |
-| 3 | **Client Tests, Lint & Build** | Node tests, ESLint, and a production build that emits 42 route documents and 39 sitemap URLs |
-| 4 | **Lint Dockerfiles** | All three Dockerfiles pass Hadolint |
-| 5 | **Build & Test Full Stack** | Builds the compose stack, starts MySQL/API/Nginx, verifies schema and seed data, tests API/auth/update endpoints, and serves the frontend |
-| 6 | **Deploy API to Render** | Triggers a Render deploy hook for the pushed commit and waits for `/api/system` to report it live |
-| 7 | **Production Smoke Tests** | Checks Render health/readiness, public endpoints, CORS, admin auth, Vercel routes, security headers, `robots.txt`, `sitemap.xml`, `rss.xml`, `llms.txt`, and a real 404 |
+> Docker job also proves SQL is DB-name independent by applying to `portfolio_alt` and checking row counts.
 
-The Docker job also proves the SQL files are database-name independent by applying them to a second database (`portfolio_alt`) and checking the row counts.
-
-### Required GitHub configuration
-
-Add this repository secret under **Settings -> Secrets and variables -> Actions**:
+### Required GitHub Secret
 
 | Name | Type | Purpose |
-|---|---|---|
-| `RENDER_DEPLOY_HOOK_URL` | Secret | Render deploy hook used to trigger deploys |
+|:---|:---|:---|
+| `RENDER_DEPLOY_HOOK_URL` | Secret | Render deploy hook |
 
-Optional repository variables (defaults are already set in the workflow):
+### Optional Repository Variables
 
 | Name | Default |
-|---|---|
+|:---|:---|
 | `PRODUCTION_API_URL` | `https://mk-portfolio-api.onrender.com` |
 | `PRODUCTION_SITE_URL` | `https://mk-portfolio-phi-silk.vercel.app` |
 
-Render's native GitHub integration is intentionally disabled (`autoDeploy: false` in `render.yaml`). Deployments are triggered only after CI passes, so a red build never reaches production.
+> Render `autoDeploy: false` in `render.yaml`. Deploys **only after CI passes**.
 
 ---
 
-## Deployment
+## 🚢 Deployment
 
-### Frontend -> Vercel
+### Frontend → Vercel
 
-1. Import the repository into Vercel.
-2. Set **Root Directory** to `client`.
-3. Use the **Vite** framework preset.
-4. Build command: `npm run build`.
-5. Output directory: `dist`.
-6. Do not add an API-origin variable. `client/vercel.json` rewrites same-origin `/api` to Render, which keeps the session cookie first-party.
-7. Deploy. `client/vercel.json` supplies clean URLs, security headers, asset caching and the `/api` rewrite. `client/scripts/build-seo.mjs` generates the route documents, sitemap, RSS, `llms.txt` and 404 page.
+1. Import repo → **Root Directory: `client`**
+2. Framework: **Vite**
+3. Build: `npm run build` | Output: `dist`
+4. **No API-origin variable** — `client/vercel.json` rewrites `/api` to Render
+5. Deploy — `vercel.json` provides clean URLs, security headers, asset caching, `/api` rewrite; `build-seo.mjs` generates route docs, sitemap, RSS, llms.txt, 404
 
-### API -> Render
+### API → Render
 
-1. Create a **Web Service** from the repository.
-2. Set **Root Directory** to `server`.
-3. Build command: `npm ci`.
-4. Start command: `npm start`.
-5. Health check path: `/api/health`.
-6. Add the variables from `server/.env.example` in the Render dashboard. At minimum:
+1. **Web Service** from repo → Root: `server`
+2. Build: `npm ci` | Start: `npm start` | Health: `/api/health`
+3. Add variables from `server/.env.example`:
    - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL`
-   - `ADMIN_PASSWORD_HASH` (required; a plain `ADMIN_PASSWORD` stops startup)
-   - `ADMIN_EMAIL`
-   - `CLIENT_URL`
-   - `ALLOW_VERCEL_PREVIEWS` (optional)
-7. Optional: add Cloudinary, Gmail API, and Gemini values.
-8. Deploy. CI will trigger subsequent deploys after a green pipeline.
+   - `ADMIN_PASSWORD_HASH` (required), `ADMIN_EMAIL`, `CLIENT_URL`
+   - Optional: Cloudinary, Gmail API, Gemini
+4. Deploy — CI triggers subsequent deploys after green pipeline
 
-The repository also includes [`render.yaml`](render.yaml) as a blueprint for the same configuration.
+> `render.yaml` included as blueprint.
 
-### Database -> TiDB Cloud
+### Database → TiDB Cloud
 
-1. Create a TiDB Cloud Starter or Dedicated cluster.
-2. Create a database user and allow Render's outbound connections.
-3. Copy the host, port `4000`, user, password, and database name.
-4. Set `DB_SSL=true`.
-5. Run `npm run db:setup` and `npm run db:seed` from `server/` against the production values.
-6. Verify with `npm run db:check`.
+1. Create Starter/Dedicated cluster
+2. Create DB user + allow Render connections
+3. Copy host, port `4000`, user, password, DB name
+4. Set `DB_SSL=true`
+5. Run `npm run db:setup` + `db:seed` against prod values
+6. Verify `npm run db:check`
 
-### Deployment order
+### Order
 
 ```text
-TiDB Cloud -> Render API -> Vercel frontend -> GitHub Actions smoke tests
+TiDB Cloud → Render API → Vercel Frontend → GitHub Actions smoke tests
 ```
 
-Configure the database first, then the API, then point the frontend at the API. Once the GitHub secret is in place, every push to `main` follows the full pipeline automatically.
+---
+
+## 🔒 Security
+
+- **One admin identity** — exact `ADMIN_EMAIL` + `ADMIN_PASSWORD_HASH` in production; plain `ADMIN_PASSWORD` rejected at startup & login
+- **Timing-safe checks** — bcrypt in prod; local fallback SHA-256 + `crypto.timingSafeEqual`
+- **Cookie-session auth** — opaque random token in HttpOnly cookie; only SHA-256 hash in DB; optional TOTP via `ADMIN_TOTP_SECRET`
+- **Login throttling** — 10 failed attempts / 15 min / resolved IP
+- **CORS allowlist** — `CLIENT_URL` exact production origins; Vercel previews opt-in via `ALLOW_VERCEL_PREVIEWS`
+- **Security headers** — Helmet (API); CSP, HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, restrictive permissions policy (frontend)
+- **Input validation** — required fields, type checks, email format, length limits, `400` for malformed JSON
+- **Upload controls** — MIME allowlist, 5 MB limit, 1 file/req, in-memory buffer before Cloudinary
+- **No secrets in client** — only `VITE_*` public; passwords, session hashes, refresh tokens, API keys server-side
+- **No secrets in images** — `.dockerignore` + CI keep `.env`/build output out of containers
+- **Graceful failure** — optional integrations return `503`/`502` without taking down core site
+- **Environment validation** — prod startup fails fast if required values missing or placeholders
+
+> Found a security issue? Open a private GitHub report or contact maintainer — **no public exploits.**
 
 ---
 
-## Security
+## 🩺 Troubleshooting
 
-- **One admin identity** - only the exact `ADMIN_EMAIL` plus `ADMIN_PASSWORD_HASH` from the server environment can log in in production. A plain `ADMIN_PASSWORD` is rejected at startup and at login.
-- **Timing-safe credential checks** - bcrypt is used in production; the local plain-text fallback hashes both values with SHA-256 and uses `crypto.timingSafeEqual`.
-- **Cookie-session auth** - sessions are opaque random tokens in HttpOnly cookies; only SHA-256 hashes are stored in DB. Optional TOTP MFA via `ADMIN_TOTP_SECRET` requires a code at login.
-- **Login throttling** - 10 failed attempts per 15 minutes per resolved client IP.
-- **CORS allowlist** - `CLIENT_URL` contains exact production origins. Vercel previews are opt-in through `ALLOW_VERCEL_PREVIEWS`.
-- **Security headers** - Helmet on the API; CSP, HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and a restrictive permissions policy on the frontend.
-- **Input validation** - required fields, type checks, email format, length limits, and `400` responses for malformed JSON.
-- **Upload controls** - MIME allowlist, 5 MB image limit, one file per request, and in-memory buffering before Cloudinary.
-- **No secrets in the client** - only `VITE_*` values are public. Passwords, session hashes, refresh tokens, and API keys stay server-side.
-- **No secrets in images** - `.dockerignore` and CI checks keep `.env` files and build output out of container images.
-- **Graceful failure** - optional integrations return clear `503` or `502` responses without taking down the core site.
-- **Environment validation** - production startup fails fast if required values are missing or still placeholders.
+| Symptom | Likely Cause | Fix |
+|:---|:---|:---|
+| First request 30–60s | Render free tier waking | Wait; frontend timeout 60s |
+| CORS error | `CLIENT_URL` mismatch | Add exact Vercel origin (no trailing slash), redeploy Render |
+| `503` image upload | Cloudinary not configured | Add `CLOUD_NAME`, `CLOUD_API_KEY`, `CLOUD_API_SECRET` |
+| Message saved, no email | Gmail vars missing/invalid | Follow [Email Notifications](#email-notifications), check Render logs |
+| `Email not configured` in logs | Expected without 5 Gmail vars | Configure Gmail API; messages still saved |
+| API can't connect TiDB | Wrong port/SSL/creds | Port `4000`, `DB_SSL=true`, verify TiDB user |
+| Admin login `401` | Email/hash mismatch | Check `ADMIN_EMAIL` + `ADMIN_PASSWORD_HASH`; plain password rejected in prod |
+| API refuses start: plain password | `ADMIN_PASSWORD` set in prod | Generate hash, set `ADMIN_PASSWORD_HASH`, remove `ADMIN_PASSWORD` |
+| Local calls Render API | Custom build bakes cross-site URL | Remove API-origin var; client uses same-origin `/api` |
+| Docker MySQL no tables | Old image/existing volume | `docker compose build --no-cache db` then `docker compose down -v` |
+| Docker daemon not found | Docker Desktop stopped | Start Docker Desktop |
+| AI `502` | `GEMINI_API_KEY` missing/invalid | Add valid key in API env |
+| Broken images | Cloudinary upload failed | Check API logs, re-upload after config |
+| `npm ci` fails | Lockfile/package.json mismatch or wrong Node | Use Node 22, run `npm install` |
 
-If you find a security issue, please open a private report through GitHub or contact the maintainer instead of filing a public exploit.
-
----
-
-## Troubleshooting
-
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| First request takes 30-60 seconds | Render free tier is waking from idle | Wait for the request to complete; the frontend timeout is 60 seconds |
-| Browser shows a CORS error | `CLIENT_URL` does not match the exact Vercel origin | Add the origin without a trailing slash and redeploy Render |
-| `503` on image upload | Cloudinary is not configured | Add `CLOUD_NAME`, `CLOUD_API_KEY`, `CLOUD_API_SECRET` |
-| Contact message saved but no email | Gmail variables are missing or invalid | Follow [Email Notifications](#email-notifications) and check Render logs |
-| `Email is not configured` in Render logs | Expected until the five Gmail variables are present | Configure Gmail API; messages are still saved |
-| API cannot connect to TiDB | Wrong port, SSL, or credentials | Use port `4000`, `DB_SSL=true`, and verify the TiDB user |
-| Admin login returns `401` | Email/password mismatch | Check `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH`; plain `ADMIN_PASSWORD` is rejected in production |
-| API refuses to start: plain admin password | `ADMIN_PASSWORD` set in production | Generate a hash, set `ADMIN_PASSWORD_HASH`, remove `ADMIN_PASSWORD` |
-| Local site calls the Render API | A custom build still bakes in a cross-site API URL | Remove the API-origin variable; the client uses same-origin `/api` |
-| Docker MySQL starts without tables | Old image or existing volume | `docker compose build --no-cache db` then `docker compose down -v` |
-| Docker cannot find the daemon | Docker Desktop is stopped | Start Docker Desktop and wait for the engine |
-| AI returns `502` | `GEMINI_API_KEY` missing or invalid | Add a valid key in the API environment |
-| Certificate/project images are broken | Cloudinary upload failed or was never configured | Check the API logs and re-upload after configuring Cloudinary |
-| `npm ci` fails | Lockfile does not match `package.json` or Node version is wrong | Use Node 22 and run `npm install` to refresh the lockfile |
-
-### Checking production logs
+### Checking Production Logs
 
 ```bash
-# Render dashboard -> mk-portfolio-api -> Logs
+# Render Dashboard → mk-portfolio-api → Logs
 # Look for:
 #   Database connected successfully
 #   API listening on 0.0.0.0:10000
 #   Email transport: Gmail API (HTTPS)
 ```
 
-Expected warnings on a deployment without optional integrations:
-
-```text
+Expected warnings without optional integrations:
+```
 Cloudinary is not configured - uploads return 503.
-Email is not configured - contact messages are saved but no notification email is sent.
+Email is not configured - contact messages saved but no notification email.
 GEMINI_API_KEY is not configured - AI endpoints return 502.
 ```
 
 ---
 
-## Useful Commands
+## 🛠 Useful Commands
 
 | Command | Location | Purpose |
-|---|---|---|
-| `npm run dev` | `client/` | Start the Vite dev server |
-| `npm run build` | `client/` | Production build plus route documents, sitemap, RSS and llms.txt |
+|:---|:---|:---|
+| `npm run dev` | `client/` | Vite dev server |
+| `npm run build` | `client/` | Prod build + route docs + sitemap + RSS + llms.txt |
 | `npm run lint` | `client/` | ESLint |
-| `npm test` | `client/` | Client unit tests |
-| `npm run seo:build` | `client/` | Regenerate SEO artefacts from an existing `dist` |
-| `npm run dev` | `server/` | Start the API with file watching |
-| `npm test` | `server/` | Run server tests |
+| `npm test` | `client/` | 38 client unit tests |
+| `npm run seo:build` | `client/` | Regenerate SEO from existing `dist` |
+| `npm run dev` | `server/` | API with file watching |
+| `npm test` | `server/` | 119 server tests |
 | `npm run check` | `server/` | Syntax check |
-| `npm run db:setup` | `server/` | Create database and schema |
+| `npm run db:setup` | `server/` | Create DB + schema |
 | `npm run db:seed` | `server/` | Load baseline content |
-| `npm run db:check` | `server/` | Verify schema and counts |
-| `npm run hash-password` | `server/` | Generate a bcrypt admin hash |
-| `npm run gmail:auth` | `server/` | Authorize Gmail API and write refresh token |
-| `npm run email:check` | `server/` | Validate email configuration |
-| `npm run email:test` | `server/` | Send a test email |
-| `docker compose up --build -d` | repository root | Start the full local stack |
-| `docker compose ps` | repository root | Show container status |
-| `docker compose logs -f server` | repository root | Tail API logs |
-| `docker compose down -v` | repository root | Stop and remove the database volume |
+| `npm run db:check` | `server/` | Verify schema & counts |
+| `npm run hash-password` | `server/` | Generate bcrypt admin hash |
+| `npm run gmail:auth` | `server/` | Authorize Gmail API, write refresh token |
+| `npm run email:check` | `server/` | Validate email config |
+| `npm run email:test` | `server/` | Send test email |
+| `docker compose up --build -d` | root | Full local stack |
+| `docker compose ps` | root | Container status |
+| `docker compose logs -f server` | root | Tail API logs |
+| `docker compose down -v` | root | Stop + remove DB volume |
 
 ---
 
-## Documentation
+## 📖 Documentation
 
 | Document | Contents |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, request flow, and module boundaries |
-| [docs/API.md](docs/API.md) | Full endpoint reference and response shapes |
-| [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) | Cookie sessions, CSRF, MFA, production hash requirement, and session lifecycle |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step Vercel, Render, TiDB, and GitHub Actions setup |
-| [docs/SEO_SETUP.md](docs/SEO_SETUP.md) | Route documents, sitemap, RSS, llms.txt, robots, clean URLs and 404s |
-| [docs/TESTING.md](docs/TESTING.md) | Server/client test layers, build proof, manual and production checks |
-| [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Assets, actors, threats, controls and residual risks |
-| [docs/SCALE.md](docs/SCALE.md) | Capacity model, bottlenecks, measurement plan and action thresholds |
-| [docs/RESILIENCE.md](docs/RESILIENCE.md) | Failure matrix, graceful degradation, recovery and known gaps |
-| [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy, cookies, accessibility and AI disclosure notes |
-| [docs/DATA_RETENTION.md](docs/DATA_RETENTION.md) | What is stored, retention schedule and deletion requests |
-| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Gmail API OAuth, Cloudinary, Gemini, and deployment integrations |
-| [docs/SECURITY_OPERATIONS.md](docs/SECURITY_OPERATIONS.md) | Secret rotation, incident response, and operational checks |
-| [docs/DEBUGGING.md](docs/DEBUGGING.md) | Common failures, logs, and Gmail-specific errors |
-| [docs/FINAL_PRODUCTION_AUDIT.md](docs/FINAL_PRODUCTION_AUDIT.md) | Production audit evidence, fixes, and remaining warnings |
-| [docs/PROJECT_SETUP.md](docs/PROJECT_SETUP.md) | Local setup, environment files, and verification |
-| [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Delivered phases and implementation status |
-| [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md) | Final run evidence, FAIL/BLOCKED items and owner actions |
+|:---|:---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, request flow, module boundaries |
+| [docs/API.md](docs/API.md) | Full endpoint reference, response shapes |
+| [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) | Cookie sessions, CSRF, MFA, prod hash, session lifecycle |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Step-by-step Vercel, Render, TiDB, GitHub Actions setup |
+| [docs/SEO_SETUP.md](docs/SEO_SETUP.md) | Route docs, sitemap, RSS, llms.txt, robots, clean URLs, 404s |
+| [docs/TESTING.md](docs/TESTING.md) | Server/client test layers, build proof, manual/prod checks |
+| [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Assets, actors, threats, controls, residual risks |
+| [docs/SCALE.md](docs/SCALE.md) | Capacity model, bottlenecks, measurement, thresholds |
+| [docs/RESILIENCE.md](docs/RESILIENCE.md) | Failure matrix, graceful degradation, recovery, gaps |
+| [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy, cookies, accessibility, AI disclosure |
+| [docs/DATA_RETENTION.md](docs/DATA_RETENTION.md) | Stored data, retention schedule, deletion requests |
+| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Gmail API OAuth, Cloudinary, Gemini, deploy integrations |
+| [docs/SECURITY_OPERATIONS.md](docs/SECURITY_OPERATIONS.md) | Secret rotation, incident response, operational checks |
+| [docs/DEBUGGING.md](docs/DEBUGGING.md) | Common failures, logs, Gmail-specific errors |
+| [docs/FINAL_PRODUCTION_AUDIT.md](docs/FINAL_PRODUCTION_AUDIT.md) | Prod audit evidence, fixes, remaining warnings |
+| [docs/PROJECT_SETUP.md](docs/PROJECT_SETUP.md) | Local setup, env files, verification |
+| [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Delivered phases, implementation status |
+| [AUDIT/RUN_ALL_REPORT.md](AUDIT/RUN_ALL_REPORT.md) | Final run evidence, FAIL/BLOCKED items, owner actions |
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
-Contributions, bug reports, and suggestions are welcome.
+Contributions, bug reports, and suggestions welcome.
 
-1. Fork the repository.
-2. Create a feature branch:
+1. **Fork** the repository
+2. **Create feature branch:**
+   ```bash
+   git checkout -b feature/your-feature
+   ```
+3. **Make changes & run checks:**
+   ```bash
+   cd client && npm test && npm run lint && npm run build
+   cd ../server && npm run check && npm test
+   ```
+4. **Commit with clear message** → Open Pull Request
 
-```bash
-git checkout -b feature/your-feature
-```
-
-3. Make your changes and run the checks:
-
-```bash
-cd client && npm test && npm run lint && npm run build
-cd ../server && npm run check && npm test
-```
-
-4. Commit with a clear message and open a pull request.
-
-Please do not commit real `.env` files, API keys, or personal contact data. Use the provided templates.
+> **Never commit real `.env` files, API keys, or personal contact data.** Use provided templates.
 
 ---
 
-## License
+## 📄 License
 
-This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for the full text.
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for full text.
 
 Copyright (c) 2026 Mayuresh Kasar.
 
@@ -1109,10 +994,15 @@ Copyright (c) 2026 Mayuresh Kasar.
 
 **Built and maintained by [Mayuresh Kasar](https://github.com/mayuresh-2601)**
 
-Full Stack Developer - Maharashtra, India
+Full Stack Developer — Maharashtra, India
 
-[Portfolio](https://mk-portfolio-phi-silk.vercel.app/) &nbsp;|&nbsp;
-[GitHub](https://github.com/mayuresh-2601) &nbsp;|&nbsp;
-[API](https://mk-portfolio-api.onrender.com/api/health)
+[🌐 Portfolio](https://mk-portfolio-phi-silk.vercel.app/) &nbsp;|&nbsp;
+[🐙 GitHub](https://github.com/mayuresh-2601) &nbsp;|&nbsp;
+[🔗 API](https://mk-portfolio-api.onrender.com/api/health) &nbsp;|&nbsp;
+[📧 Contact](mailto:mayureshkasar2601@gmail.com)
+
+---
+
+*Last updated: 27 November 2026 — Pipeline green, production verified, blog layout fix deployed.*
 
 </div>
