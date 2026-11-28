@@ -1,0 +1,103 @@
+{
+  "title": "MAYURESH.DEV in 10 Minutes",
+  "voice": "Microsoft David Desktop",
+  "rate": -1,
+  "sections": [
+    {
+      "id": "01-intro",
+      "chapter": "Intro",
+      "slide": "home.png",
+      "heading": "MAYURESH.DEV",
+      "subheading": "A full stack developer portfolio — in 10 minutes",
+      "narration": "This is MAYURESH DOT DEV. In the next ten minutes I will walk you through a production full stack portfolio — not a template, but a running application with a real API, a real database, secure authentication, live server telemetry, a technical blog, twelve browser tools, and a deployment pipeline that ships every change to production. I am Mayuresh Kasar, a full stack developer based in Maharashtra, India. Everything you see here is live on the internet right now. Let us start from the top."
+    },
+    {
+      "id": "02-live",
+      "chapter": "The live stack",
+      "slide": "system.png",
+      "heading": "Live in production",
+      "subheading": "Vercel · Render · TiDB Cloud",
+      "narration": "The frontend runs on Vercel. The API runs on Render. The data lives in TiDB Cloud, a MySQL compatible database with TLS on port four thousand. These are three separate services, deployed independently, connected by a same origin API path. The browser never talks to the database directly. It calls slash A P I on its own domain, and Vercel rewrites that path to the backend. That design keeps the admin session cookie first party, so modern browser cookie restrictions do not break login. Every push to the main branch triggers seven automated checks, and only a green pipeline reaches production."
+    },
+    {
+      "id": "03-design",
+      "chapter": "Design system",
+      "slide": "home.png",
+      "heading": "Kinetic Brutalism",
+      "subheading": "Acid green · ink black · hot pink",
+      "narration": "The visual language is what I call Kinetic Brutalism. Acid green, ink black and hot pink. Hard two and three pixel borders. Offset shadows. Oversized display type that fills the screen. A marquee, count up statistics, and scroll reveals that respond as you move. It is deliberately loud, but it is not decorative chaos. Every colour pair is chosen for contrast, every interactive element has a visible focus state, and motion is disabled automatically when the operating system requests reduced motion. The layout works from three hundred twenty pixels upward with no horizontal scroll."
+    },
+    {
+      "id": "04-about-skills",
+      "chapter": "About and skills",
+      "slide": "about.png",
+      "heading": "About & Skills",
+      "subheading": "Who I am and what I work with",
+      "narration": "The About page introduces the person behind the work: a developer focused on secure, scalable web applications using React, Node, Express, JavaScript and MySQL or TiDB. The Skills page is database driven. Each skill has a name and a proficiency level, rendered as an accessible progress bar, and the current page lives in the URL so a link or browser back button behaves correctly. Clicking a skill name opens an AI explainer. The page has explicit loading, error, empty and data states, so a slow Render cold start never looks like a broken site."
+    },
+    {
+      "id": "05-projects-certs",
+      "chapter": "Work and credentials",
+      "slide": "projects.png",
+      "heading": "Projects & Certificates",
+      "subheading": "Database-driven content, nine items per page",
+      "narration": "Projects and Certificates follow the same pattern. Content is stored in MySQL, edited from the admin dashboard, and served through the API. Each project card shows artwork, a description, and validated links to source code or a live demo. User supplied URLs are rechecked on the server and on the client, so only absolute HTTP and HTTPS links are rendered. Nine items per page keep the grid fast, and the question mark page parameter makes pagination shareable. Certificate artwork is uploaded through Cloudinary, but the API stays online if Cloudinary is not configured."
+    },
+    {
+      "id": "06-contact-ai",
+      "chapter": "Contact and AI",
+      "slide": "contact.png",
+      "heading": "Contact & AI",
+      "subheading": "Message first, notify second",
+      "narration": "The contact form validates name, email, subject and message on both sides. A hidden honeypot and a timing check discourage automated spam, and submissions are limited to five per fifteen minutes per address. The message is written to the database before any email is attempted, so a mail failure never loses an enquiry. When Gmail API credentials are configured, a notification is sent over HTTPS. Google Gemini powers the skill explainers, certificate explanations and the Ask AI about me panel on the system page. Those endpoints are rate limited, and they return a clear five oh two when the key is missing instead of breaking the page."
+    },
+    {
+      "id": "07-system",
+      "chapter": "Live telemetry",
+      "slide": "system.png",
+      "heading": "Live System",
+      "subheading": "Real metrics, refreshed every five seconds",
+      "narration": "The System page is my favourite part of the portfolio. It reads live process metrics from the running API: CPU load, memory usage, uptime, AI availability and the deployed git commit. A terminal style log appends a line on every poll. I made this page public on purpose. A recruiter can see the backend is actually running, measured and rate limited, rather than reading a claim on a resume. The public payload is intentionally minimal. No hostnames, no environment variables, no stack traces and no infrastructure details are exposed. Polling uses its own rate limit so it cannot exhaust the general API budget."
+    },
+    {
+      "id": "08-blog",
+      "chapter": "Technical blog",
+      "slide": "blog-post.png",
+      "heading": "Technical Blog",
+      "subheading": "Six articles, grounded in this repository",
+      "narration": "The blog contains six technical articles, each grounded in the actual implementation of this project. They cover full stack architecture, React and Vite delivery, a real Docker Compose and bcrypt hash failure in C I, cookie sessions instead of a J W T in local storage, static S E O documents with real four oh fours, and fail fast environment validation. Articles are structured JavaScript content blocks rendered to safe React elements, with no Markdown parser and no dangerously set inner HTML. The index has search, categories and tags. Each article has a sticky table of contents, share actions, related posts, and article structured data for search engines. Unknown slugs return a real four oh four."
+    },
+    {
+      "id": "09-tools",
+      "chapter": "Developer tools",
+      "slide": "tools-index.png",
+      "heading": "Developer Toolkit",
+      "subheading": "Twelve tools, all local, nothing uploaded",
+      "narration": "The developer toolkit has twelve browser based utilities. A JSON formatter, Base64, URL and HTML codecs, a regex tester, a J W T payload decoder, a U U I D version four generator, S H A hashes, a Unix timestamp converter, a W C A G contrast checker, a CSS gradient builder and an HTTP status reference. Everything runs locally in pure functions. Nothing is sent to a server, no input is stored, and no token is transmitted. The J W T tool explicitly states that it does not verify signatures. The hash tool warns that a bare S H A digest is not password storage. The contrast checker reports W C A G two point two A A and A A A results. All twelve are covered by unit tests."
+    },
+    {
+      "id": "10-security",
+      "chapter": "Security",
+      "slide": "dashboard.png",
+      "heading": "Security by design",
+      "subheading": "Cookie sessions, CSRF, validation, no secrets in the browser",
+      "narration": "Security is not an afterthought here. Production requires a bcrypt admin password hash; a plain password stops startup. Login uses timing safe comparison and is throttled after ten failed attempts. The admin session is an opaque random token in an Http Only cookie. Only its S H A two fifty six hash is stored in the database, and optional T O T P adds a second factor. State changing requests require a matching C S R F token and an exact origin. Input is validated, SQL is parameterised, uploads are type checked and size limited, and production errors never reveal internals. No secret is ever placed in a Vite variable or a browser bundle."
+    },
+    {
+      "id": "11-cicd",
+      "chapter": "CI/CD",
+      "slide": "system.png",
+      "heading": "Seven-job CI/CD",
+      "subheading": "Lint · test · build · deploy · smoke test",
+      "narration": "The pipeline runs seven jobs on every push. Repository hygiene checks for committed secrets. Server syntax and tests run the Node suite. Client tests, lint and build generate forty two route documents and a thirty nine URL sitemap. Dockerfiles are linted. The full stack job builds the compose stack, starts MySQL, the API and Nginx, applies the schema to two different database names to prove portability, and exercises authentication and updates. Then the Render deploy hook fires and the pipeline waits until the live API reports the new commit. Finally, production smoke tests check health, routes, security headers, sitemap, feeds and a real four oh four."
+    },
+    {
+      "id": "12-outro",
+      "chapter": "Outro",
+      "slide": "home.png",
+      "heading": "Let's build something",
+      "subheading": "mk-portfolio-phi-silk.vercel.app",
+      "narration": "So that is MAYURESH DOT DEV: a portfolio that is also a working product. Real authentication, real data, real telemetry, real articles, real tools, and a deployment pipeline that proves it. If you are hiring a full stack developer who cares about security, accessibility and shipping, I would love to hear from you. Visit the site, read the blog, try the tools, or reach out through the contact page. Thank you for watching."
+    }
+  ]
+}

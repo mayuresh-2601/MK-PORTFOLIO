@@ -1,0 +1,13 @@
+# Generated video/audio binaries — build locally with the .ps1 scripts.
+*.mp4
+*.wav
+*.log
+test.mp4
+check-frame.png
+
+# Build intermediates
+slides.txt
+audio.txt
+narration-full.wav
+
+# Keep: .ps1 scripts, .json, .md, .png slides/thumbnail, narration WAVs are ignored

@@ -1,0 +1,110 @@
+﻿[
+    {
+        "id":  "01-intro",
+        "chapter":  "Intro",
+        "slide":  "home.png",
+        "heading":  "MAYURESH.DEV",
+        "subheading":  "A full stack developer portfolio â€” in 10 minutes",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\01-intro.wav",
+        "seconds":  38.2
+    },
+    {
+        "id":  "02-live",
+        "chapter":  "The live stack",
+        "slide":  "system.png",
+        "heading":  "Live in production",
+        "subheading":  "Vercel Â· Render Â· TiDB Cloud",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\02-live.wav",
+        "seconds":  47.81
+    },
+    {
+        "id":  "03-design",
+        "chapter":  "Design system",
+        "slide":  "home.png",
+        "heading":  "Kinetic Brutalism",
+        "subheading":  "Acid green Â· ink black Â· hot pink",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\03-design.wav",
+        "seconds":  46.48
+    },
+    {
+        "id":  "04-about-skills",
+        "chapter":  "About and skills",
+        "slide":  "about.png",
+        "heading":  "About \u0026 Skills",
+        "subheading":  "Who I am and what I work with",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\04-about-skills.wav",
+        "seconds":  43.38
+    },
+    {
+        "id":  "05-projects-certs",
+        "chapter":  "Work and credentials",
+        "slide":  "projects.png",
+        "heading":  "Projects \u0026 Certificates",
+        "subheading":  "Database-driven content, nine items per page",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\05-projects-certs.wav",
+        "seconds":  44.32
+    },
+    {
+        "id":  "06-contact-ai",
+        "chapter":  "Contact and AI",
+        "slide":  "contact.png",
+        "heading":  "Contact \u0026 AI",
+        "subheading":  "Message first, notify second",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\06-contact-ai.wav",
+        "seconds":  46.98
+    },
+    {
+        "id":  "07-system",
+        "chapter":  "Live telemetry",
+        "slide":  "system.png",
+        "heading":  "Live System",
+        "subheading":  "Real metrics, refreshed every five seconds",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\07-system.wav",
+        "seconds":  47.28
+    },
+    {
+        "id":  "08-blog",
+        "chapter":  "Technical blog",
+        "slide":  "blog-post.png",
+        "heading":  "Technical Blog",
+        "subheading":  "Six articles, grounded in this repository",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\08-blog.wav",
+        "seconds":  54.96
+    },
+    {
+        "id":  "09-tools",
+        "chapter":  "Developer tools",
+        "slide":  "tools-index.png",
+        "heading":  "Developer Toolkit",
+        "subheading":  "Twelve tools, all local, nothing uploaded",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\09-tools.wav",
+        "seconds":  61.69
+    },
+    {
+        "id":  "10-security",
+        "chapter":  "Security",
+        "slide":  "dashboard.png",
+        "heading":  "Security by design",
+        "subheading":  "Cookie sessions, CSRF, validation, no secrets in the browser",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\10-security.wav",
+        "seconds":  52.41
+    },
+    {
+        "id":  "11-cicd",
+        "chapter":  "CI/CD",
+        "slide":  "system.png",
+        "heading":  "Seven-job CI/CD",
+        "subheading":  "Lint Â· test Â· build Â· deploy Â· smoke test",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\11-cicd.wav",
+        "seconds":  33.64
+    },
+    {
+        "id":  "12-outro",
+        "chapter":  "Outro",
+        "slide":  "home.png",
+        "heading":  "Let\u0027s build something",
+        "subheading":  "mk-portfolio-phi-silk.vercel.app",
+        "wav":  "E:\\PORT\\PORTFOLIO-APP\\docs\\video\\narration\\12-outro.wav",
+        "seconds":  32.71
+    }
+]
